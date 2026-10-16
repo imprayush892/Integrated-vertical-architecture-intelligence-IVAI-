@@ -1,1 +1,9 @@
 .DS_Store
+
+# Secrets: never commit. Supply via environment variables / GitHub secrets.
+.env
+.env.*
+!.env.example
+*API*.txt
+*.key
+secrets/
