@@ -1,0 +1,111 @@
+/* Map chrome and overlay colours (components/MapView.tsx). Class prefix: mv-
+   Overlay colours are the same in light and dark: they sit on satellite imagery, so each one is a bright hue
+   drawn over a dark casing. MapView reads these tokens with getComputedStyle and re-reads them on theme change. */
+:root {
+  --map-plot: #FFFFFF;          /* plot outline */
+  --map-casing: #0A0F16;        /* dark halo under every line, keeps lines readable on bright imagery */
+  --map-setback: #FF6A5C;       /* no-build band between plot line and buildable area */
+  --map-buildable: #2BE0C4;     /* buildable area after setback (rule engine: verdigris family) */
+  --map-trace: #6CB8FF;         /* the line the user is drawing (user input: cobalt family) */
+  --map-tower-a: #5AB0FF;       /* option A footprints */
+  --map-tower-b: #FF7AC0;       /* option B footprints */
+  --map-tower-c: #FFD84A;       /* option C footprints */
+  --map-plate: #2BE0C4;
+}
+
+.mv-root { position: absolute; inset: 0; overflow: hidden; background: #0b1d2a; }
+.mv-root .map { position: absolute; inset: 0; }
+.mv-root.is-tracing .maplibregl-canvas { cursor: crosshair; }
+
+/* ---- chrome placement ------------------------------------------------------ */
+.mv-tl, .mv-tr, .mv-bl, .mv-bc, .mv-tc { position: absolute; z-index: 5; display: flex; gap: 8px; pointer-events: none; }
+.mv-tl > *, .mv-tr > *, .mv-bl > *, .mv-bc > *, .mv-tc > * { pointer-events: auto; }
+.mv-tl { top: 12px; left: 12px; flex-direction: column; align-items: flex-start; }
+.mv-tr { top: 12px; right: 12px; flex-direction: column; align-items: flex-end; }
+.mv-tc { top: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 200px); }
+.mv-bl { bottom: 12px; left: 12px; flex-wrap: wrap; max-width: calc(100% - 230px); align-items: flex-end; }
+.mv-bc { bottom: 54px; left: 50%; transform: translateX(-50%); }
+
+.mv-slab {
+  background: var(--neo-bg); border: 1px solid var(--chamfer); box-shadow: var(--neo-raised-sm), 0 4px 14px rgba(0, 0, 0, 0.28);
+  border-radius: var(--r-xl);
+}
+.mv-rail { display: flex; flex-direction: column; gap: 8px; padding: 7px; }
+.mv-rail .ui-icon-btn svg { display: block; }
+.mv-tabs { padding: 4px; border-radius: var(--r-pill); }
+.mv-tabs .ui-tabs { box-shadow: var(--neo-latched); }
+
+/* LCD-style readouts over the map: solid background so text keeps >= 4.5:1 on any imagery */
+.mv-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: var(--r-pill); white-space: nowrap;
+  background: var(--neo-lcd-bg); color: var(--cobalt-ink); border: 1px solid var(--chamfer);
+  font: 700 11.5px var(--f-mono); font-variant-numeric: tabular-nums; box-shadow: var(--neo-raised-xs), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.mv-chip b { font-weight: 600; color: var(--ink-3); letter-spacing: 0.08em; }
+.mv-chip.det { color: var(--det-ink); }
+.mv-chip.fail { color: var(--fail-ink); }
+.mv-chip .lcd-unit { font-size: 0.85em; color: var(--ink-3); font-weight: 600; }
+
+.mv-trace-hint { display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-radius: var(--r-pill); font-size: 12.5px; color: var(--ink-1); font-weight: 600; }
+.mv-trace-hint span { white-space: nowrap; }
+
+/* ---- states ---------------------------------------------------------------- */
+.mv-overlay { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; pointer-events: none; }
+.mv-loading { display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: var(--r-pill); font: 600 12.5px var(--f-mono); color: var(--ink-2); }
+.mv-fail { background: var(--neo-bg); pointer-events: auto; }
+.mv-banner {
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: var(--r-lg);
+  font-size: 12.5px; color: var(--ink-1); border-left: 3px solid var(--fail); max-width: 420px;
+}
+.mv-banner > svg { flex: none; color: var(--fail-ink); }
+
+/* ---- crosshair at the map centre while tracing ------------------------------ */
+.mv-cross { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; z-index: 4; pointer-events: none; }
+.mv-cross::before, .mv-cross::after { content: ""; position: absolute; background: var(--map-plot); box-shadow: 0 0 0 1px var(--map-casing); }
+.mv-cross::before { left: 10px; top: 0; width: 2px; height: 22px; }
+.mv-cross::after { top: 10px; left: 0; height: 2px; width: 22px; }
+
+/* ---- DOM markers (specificity beats the legacy rules in styles.css) ---------- */
+.mv-root .vertex {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--neo-bg); border: 2.5px solid var(--map-trace); color: var(--ink-1);
+  font: 800 10px/17px var(--f-mono); text-align: center; cursor: grab; user-select: none;
+  box-shadow: 0 0 0 2px rgba(10, 15, 22, 0.75), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.mv-root .vertex:active { cursor: grabbing; }
+.mv-root .vertex.is-first { background: var(--map-trace); border-color: var(--map-plot); color: #06121f; }
+.mv-root .vertex:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 3px; }
+.mv-root .edge-label {
+  background: var(--neo-lcd-bg); color: var(--cobalt-ink); font: 700 11px var(--f-mono); font-variant-numeric: tabular-nums;
+  padding: 3px 8px; border-radius: 8px; border: 1px solid var(--chamfer); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  pointer-events: none; white-space: nowrap;
+}
+.mv-root .edge-label .u { margin-left: 2px; color: var(--ink-3); font-weight: 600; }
+.mv-tower {
+  display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; pointer-events: none;
+  font: 800 12px var(--f-display); color: #06101a; border: 2px solid var(--map-casing);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55); transition: opacity var(--dur-2) var(--ease);
+}
+.mv-tower.is-a { background: var(--map-tower-a); }
+.mv-tower.is-b { background: var(--map-tower-b); }
+.mv-tower.is-c { background: var(--map-tower-c); }
+.mv-tower.is-dim { opacity: 0.4; }
+
+/* ---- MapLibre's own controls, re-skinned ------------------------------------- */
+.mv-root .maplibregl-ctrl-bottom-right { z-index: 5; }
+.mv-root .maplibregl-ctrl-attrib {
+  background: var(--neo-bg); color: var(--ink-2); border: 1px solid var(--chamfer); border-radius: 14px; box-shadow: var(--neo-raised-xs);
+  margin: 0 12px 12px 0; padding: 3px 10px; max-width: min(46ch, 62vw); font: 500 11px/1.4 var(--f-sans);
+}
+.mv-root .maplibregl-ctrl-attrib a { color: var(--ink-1); text-decoration: underline; text-underline-offset: 2px; }
+.mv-root .maplibregl-ctrl-attrib a:hover { color: var(--cobalt-ink); }
+.mv-root .maplibregl-ctrl-scale {
+  background: var(--neo-lcd-bg); color: var(--ink-1); border: 2px solid var(--ink-2); border-top: 0; margin: 0 12px 4px 0;
+  font: 700 10.5px var(--f-mono); padding: 1px 6px; box-shadow: none;
+}
+.mv-root .maplibregl-ctrl-bottom-right .maplibregl-ctrl { margin-right: 12px; }
+
+@media (max-width: 760px) {
+  .mv-tc { top: auto; bottom: 54px; }
+  .mv-bl { max-width: 100%; bottom: 64px; }
+  .mv-root .maplibregl-ctrl-attrib { max-width: 80vw; margin-bottom: 8px; }
+}

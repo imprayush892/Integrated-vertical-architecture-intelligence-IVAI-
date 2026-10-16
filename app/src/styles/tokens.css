@@ -1,0 +1,379 @@
+/* ==========================================================================
+   IVAI NEUMORPHIC TOKENS v2.0 - Apartment Planner
+   Source of truth: the IVAI design kit (Monolithic bas-relief x CNC hardware).
+   Light ("Anodized Silver") on :root, dark ("Machined Graphite") on
+   [data-theme="dark"] and on prefers-color-scheme: dark unless data-theme="light".
+
+   Colour semantics (never mix them):
+     --det  verdigris  = deterministic rule engine (engraved, ~92% of the work)
+     --ai   amber      = Claude co-pilot (backlit, ~8%, always re-checked by rules)
+     --pass/--warn/--fail = statutory DCPR 2034 / NBC 2016 results
+     --cobalt          = neutral UI accent (selection, focus, primary action)
+   Every LED colour has an "-ink" twin that is >= 4.5:1 on the chassis for TEXT.
+   ========================================================================== */
+
+:root {
+  /* Monolithic chassis */
+  --neo-bg: #E6E9EF;
+  --neo-grad-light: #F0F3F9;
+  --neo-grad-dark: #DCE0E8;
+  --neo-convex-bg: linear-gradient(145deg, var(--neo-grad-light), var(--neo-grad-dark));
+  --neo-concave-bg: linear-gradient(145deg, var(--neo-grad-dark), var(--neo-grad-light));
+  --neo-lcd-bg: #E1E5EC;              /* LCD wells read a hair darker than the chassis */
+
+  /* Opposing light / shadow vectors (sun top-left @ 135deg) */
+  --sh-dark: #C2C7D2;
+  --sh-light: #FFFFFF;
+  --chamfer: rgba(255, 255, 255, 0.65);
+  --chamfer-inner: rgba(163, 170, 184, 0.25);
+  --hairline: #CDD2DC;                /* 1px separators inside a surface */
+
+  /* Ink (contrast vs --neo-bg: ink-1 13:1, ink-2 6.7:1, ink-3 5.0:1) */
+  --ink-1: #1E2229;
+  --ink-2: #4A505C;
+  --ink-3: #5C6370;
+  --ink-disabled: #8A909C;            /* only for disabled controls (exempt) */
+  --engrave-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+
+  /* LEDs (fills / glows) + text-safe inks */
+  --cobalt: #0066CC;   --cobalt-ink: #0058B0;   --cobalt-glow: rgba(0, 102, 204, 0.28);
+  --det: #0D8A7B;      --det-ink: #08675C;      --det-glow: rgba(13, 138, 123, 0.26);
+  --ai: #E05A2B;       --ai-ink: #A8401A;       --ai-glow: rgba(224, 90, 43, 0.28);
+  --pass: #1B9E4B;     --pass-ink: #12703A;     --pass-glow: rgba(27, 158, 75, 0.28);
+  --warn: #D98200;     --warn-ink: #8A5200;     --warn-glow: rgba(217, 130, 0, 0.28);
+  --fail: #D33A3A;     --fail-ink: #A82424;     --fail-glow: rgba(211, 58, 58, 0.28);
+  --led-off: #9AA0AC;
+  --on-accent: #FFFFFF;               /* text on a solid LED fill (toast, filled chips) */
+  --det-solid: #0A7366;               /* solid fills carrying white text (>= 4.5:1) */
+  --ai-solid: #B4461D;
+  --fail-solid: #B02A2A;
+  --scrim: rgba(30, 34, 41, 0.42);
+
+  /* Relief depth multiplier */
+  --s: 1;
+  --neo-raised:
+    calc(8px * var(--s)) calc(8px * var(--s)) calc(16px * var(--s)) var(--sh-dark),
+    calc(-8px * var(--s)) calc(-8px * var(--s)) calc(16px * var(--s)) var(--sh-light);
+  --neo-raised-sm:
+    calc(4px * var(--s)) calc(4px * var(--s)) calc(9px * var(--s)) var(--sh-dark),
+    calc(-4px * var(--s)) calc(-4px * var(--s)) calc(9px * var(--s)) var(--sh-light);
+  --neo-raised-xs:
+    calc(2px * var(--s)) calc(2px * var(--s)) calc(5px * var(--s)) var(--sh-dark),
+    calc(-2px * var(--s)) calc(-2px * var(--s)) calc(5px * var(--s)) var(--sh-light);
+  --neo-inset:
+    inset calc(5px * var(--s)) calc(5px * var(--s)) calc(10px * var(--s)) var(--sh-dark),
+    inset calc(-5px * var(--s)) calc(-5px * var(--s)) calc(10px * var(--s)) var(--sh-light);
+  --neo-inset-deep:
+    inset calc(8px * var(--s)) calc(8px * var(--s)) calc(16px * var(--s)) var(--sh-dark),
+    inset calc(-8px * var(--s)) calc(-8px * var(--s)) calc(16px * var(--s)) var(--sh-light);
+  --neo-latched:
+    inset calc(3px * var(--s)) calc(3px * var(--s)) calc(6px * var(--s)) var(--sh-dark),
+    inset calc(-3px * var(--s)) calc(-3px * var(--s)) calc(6px * var(--s)) var(--sh-light);
+  --neo-float: 0 18px 48px rgba(30, 34, 41, 0.22), 0 2px 6px rgba(30, 34, 41, 0.12);
+
+  /* Type */
+  --f-display: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --f-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+
+  /* Radii & spacing */
+  --r-xl: 26px;
+  --r-lg: 18px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --r-pill: 999px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+
+  /* Focus ring: a cobalt halo that survives both chassis colours */
+  --focus-ring: 0 0 0 2px var(--neo-bg), 0 0 0 4px var(--cobalt);
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --pulse: 1.6s;
+
+  /* Plan canvas colours (Konva resolves these via cssColor) */
+  --room-living: #f6c4d8;
+  --room-dining: #fbd9b4;
+  --room-kitchen: #fde68a;
+  --room-master: #b8e0b0;
+  --room-bedroom: #cde8b5;
+  --room-toilet: #b3dcf5;
+  --room-foyer: #e2e2e2;
+  --room-passage: #efefef;
+  --room-balcony: #d5f5d0;
+  --room-utility: #cbeef3;
+  --room-other: #e9e4f5;
+  --wall: #1e232b;
+  --plate-fill: #F4F6FA;
+
+  color-scheme: light;
+}
+
+/* ---- Machined Graphite (dark) ------------------------------------------------ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --neo-bg: #1E2127;
+    --neo-grad-light: #23272E;
+    --neo-grad-dark: #191C21;
+    --neo-lcd-bg: #1A1D22;
+    --sh-dark: #121418;
+    --sh-light: #2A2E36;
+    --chamfer: rgba(255, 255, 255, 0.05);
+    --chamfer-inner: rgba(0, 0, 0, 0.45);
+    --hairline: #2E333C;
+    --ink-1: #ECEFF4;
+    --ink-2: #A9B0BC;
+    --ink-3: #8C93A1;
+    --ink-disabled: #5A616E;
+    --engrave-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+    --cobalt: #3B9EFF;   --cobalt-ink: #5AAEFF;   --cobalt-glow: rgba(59, 158, 255, 0.35);
+    --det: #24C9B3;      --det-ink: #3AD3BE;      --det-glow: rgba(36, 201, 179, 0.32);
+    --ai: #FF7A4D;       --ai-ink: #FF8F66;       --ai-glow: rgba(255, 122, 77, 0.35);
+    --pass: #32D768;     --pass-ink: #4BDC7B;     --pass-glow: rgba(50, 215, 104, 0.32);
+    --warn: #FFB340;     --warn-ink: #FFB95A;     --warn-glow: rgba(255, 179, 64, 0.32);
+    --fail: #FF6B6B;     --fail-ink: #FF8080;     --fail-glow: rgba(255, 107, 107, 0.32);
+    --led-off: #4A505C;
+    --on-accent: #0E1013;
+    --det-solid: #24C9B3;
+    --ai-solid: #FF8F66;
+    --fail-solid: #FF8080;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --neo-float: 0 18px 48px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --room-living: #7a3d56; --room-dining: #7a5532; --room-kitchen: #7a6a28; --room-master: #3d6a37;
+    --room-bedroom: #4c6a33; --room-toilet: #2f5a76; --room-foyer: #4a4a4a; --room-passage: #3a3a3a;
+    --room-balcony: #345c33; --room-utility: #2d5f66; --room-other: #4a4262; --wall: #e9edf2;
+    --plate-fill: #252930;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --neo-bg: #1E2127;
+  --neo-grad-light: #23272E;
+  --neo-grad-dark: #191C21;
+  --neo-lcd-bg: #1A1D22;
+  --sh-dark: #121418;
+  --sh-light: #2A2E36;
+  --chamfer: rgba(255, 255, 255, 0.05);
+  --chamfer-inner: rgba(0, 0, 0, 0.45);
+  --hairline: #2E333C;
+  --ink-1: #ECEFF4;
+  --ink-2: #A9B0BC;
+  --ink-3: #8C93A1;
+  --ink-disabled: #5A616E;
+  --engrave-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+  --cobalt: #3B9EFF;   --cobalt-ink: #5AAEFF;   --cobalt-glow: rgba(59, 158, 255, 0.35);
+  --det: #24C9B3;      --det-ink: #3AD3BE;      --det-glow: rgba(36, 201, 179, 0.32);
+  --ai: #FF7A4D;       --ai-ink: #FF8F66;       --ai-glow: rgba(255, 122, 77, 0.35);
+  --pass: #32D768;     --pass-ink: #4BDC7B;     --pass-glow: rgba(50, 215, 104, 0.32);
+  --warn: #FFB340;     --warn-ink: #FFB95A;     --warn-glow: rgba(255, 179, 64, 0.32);
+  --fail: #FF6B6B;     --fail-ink: #FF8080;     --fail-glow: rgba(255, 107, 107, 0.32);
+  --led-off: #4A505C;
+  --on-accent: #0E1013;
+  --det-solid: #24C9B3;
+  --ai-solid: #FF8F66;
+  --fail-solid: #FF8080;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --neo-float: 0 18px 48px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --room-living: #7a3d56; --room-dining: #7a5532; --room-kitchen: #7a6a28; --room-master: #3d6a37;
+  --room-bedroom: #4c6a33; --room-toilet: #2f5a76; --room-foyer: #4a4a4a; --room-passage: #3a3a3a;
+  --room-balcony: #345c33; --room-utility: #2d5f66; --room-other: #4a4262; --wall: #e9edf2;
+  --plate-fill: #252930;
+  color-scheme: dark;
+}
+
+/* ---- Legacy aliases ------------------------------------------------------------
+   Older components (and Konva via cssColor) still read these names. They now
+   resolve to neumorphic tokens so everything re-skins without logic changes.
+   New code should use the tokens above, not these. */
+:root {
+  --bg: var(--neo-bg);
+  --panel: var(--neo-bg);
+  --panel-2: var(--neo-grad-dark);
+  --fg: var(--ink-1);
+  --muted: var(--ink-3);
+  --line: var(--hairline);
+  --teal: var(--det-ink);
+  --teal-soft: color-mix(in srgb, var(--det) 14%, var(--neo-bg));
+  --amber: var(--ai-ink);
+  --amber-soft: color-mix(in srgb, var(--ai) 14%, var(--neo-bg));
+  --red: var(--fail-ink);
+  --red-soft: color-mix(in srgb, var(--fail) 14%, var(--neo-bg));
+  --green: var(--pass-ink);
+  --green-soft: color-mix(in srgb, var(--pass) 14%, var(--neo-bg));
+  --shadow: var(--neo-raised-sm);
+  --radius: var(--r-md);
+  --mono: var(--f-mono);
+}
+
+/* ==========================================================================
+   SURFACE PROFILES (the four physical curvatures)
+   ========================================================================== */
+/* 01 Flat extruded plinth: cards, docks, modal slabs */
+.neo-flat {
+  background: var(--neo-bg);
+  border-radius: var(--r-lg);
+  box-shadow: var(--neo-raised);
+  border: 1px solid var(--chamfer);
+}
+/* 02 Carved well: viewports, LCD readouts, inputs, slider channels */
+.neo-well {
+  background: var(--neo-bg);
+  border-radius: var(--r-lg);
+  box-shadow: var(--neo-inset);
+  border: 1px solid var(--chamfer-inner);
+}
+.neo-well-deep {
+  background: var(--neo-bg);
+  border-radius: var(--r-lg);
+  box-shadow: var(--neo-inset-deep);
+  border: 1px solid var(--chamfer-inner);
+}
+/* 03 Convex dome: un-pressed push-buttons, draggable pucks */
+.neo-dome {
+  background: var(--neo-convex-bg);
+  border-radius: var(--r-lg);
+  box-shadow: var(--neo-raised);
+  border: 1px solid var(--chamfer);
+}
+/* 04 Concave dish: dial wells, wind-rose bowls, thumb rests */
+.neo-dish {
+  background: var(--neo-concave-bg);
+  border-radius: var(--r-lg);
+  box-shadow: var(--neo-raised);
+  border: 1px solid var(--chamfer);
+}
+.neo-sm { box-shadow: var(--neo-raised-sm); }
+.neo-well.neo-sm, .neo-well-deep.neo-sm { box-shadow: var(--neo-latched); }
+.neo-r-md { border-radius: var(--r-md); }
+.neo-r-xl { border-radius: var(--r-xl); }
+.neo-r-pill { border-radius: var(--r-pill); }
+
+/* ==========================================================================
+   LED PIPS
+   ========================================================================== */
+.led {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--led-off);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: background-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.led.lg { width: 10px; height: 10px; }
+.led.det { background: var(--det); box-shadow: 0 0 8px var(--det-glow), inset 0 1px 1px rgba(255, 255, 255, 0.6); }
+.led.ai { background: var(--ai); box-shadow: 0 0 8px var(--ai-glow), inset 0 1px 1px rgba(255, 255, 255, 0.6); }
+.led.pass { background: var(--pass); box-shadow: 0 0 8px var(--pass-glow), inset 0 1px 1px rgba(255, 255, 255, 0.6); }
+.led.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn-glow), inset 0 1px 1px rgba(255, 255, 255, 0.6); }
+.led.fail { background: var(--fail); box-shadow: 0 0 8px var(--fail-glow), inset 0 1px 1px rgba(255, 255, 255, 0.6); }
+.led.cobalt { background: var(--cobalt); box-shadow: 0 0 8px var(--cobalt-glow), inset 0 1px 1px rgba(255, 255, 255, 0.6); }
+.led.idle { background: var(--led-off); }
+.led.pulse { animation: led-pulse var(--pulse) ease-in-out infinite; }
+@keyframes led-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ==========================================================================
+   LCD READOUT (sunken numeric telemetry)
+   ========================================================================== */
+.lcd {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  background: var(--neo-lcd-bg);
+  box-shadow: var(--neo-inset);
+  color: var(--cobalt-ink);
+  min-width: 72px;
+  text-align: right;
+  white-space: nowrap;
+}
+.lcd .lcd-unit { font-size: 0.72em; font-weight: 600; color: var(--ink-3); }
+.lcd.det { color: var(--det-ink); }
+.lcd.ai { color: var(--ai-ink); }
+.lcd.pass { color: var(--pass-ink); }
+.lcd.warn { color: var(--warn-ink); }
+.lcd.fail { color: var(--fail-ink); }
+.lcd.ink { color: var(--ink-1); }
+.lcd.unknown { color: var(--ink-3); font-weight: 600; }
+.lcd-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  box-shadow: var(--neo-inset);
+  font-family: var(--f-mono);
+  font-size: 0.76rem;
+  color: var(--ink-2);
+}
+
+/* ==========================================================================
+   EPISTEMIC HONESTY: engraved (rules) vs backlit (co-pilot)
+   ========================================================================== */
+/* Engraved: carved into the slab - deterministic, exact */
+.engraved {
+  color: var(--ink-1);
+  text-shadow: var(--engrave-shadow);
+}
+.engraved.det { color: var(--det-ink); }
+/* Backlit: light shining through the slab - Claude's suggestion, re-checked */
+.backlit {
+  color: var(--ai-ink);
+  text-shadow: 0 0 10px var(--ai-glow);
+}
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+}
+
+/* ==========================================================================
+   FOCUS + MOTION
+   ========================================================================== */
+:where(a, button, input, select, textarea, summary, [tabindex], [role="button"], [role="tab"], [role="switch"]):focus { outline: none; }
+:where(a, button, input, select, textarea, summary, [tabindex], [role="button"], [role="tab"], [role="switch"]):focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+.focus-ring:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .led.pulse { animation: none; }
+}

@@ -1,0 +1,53 @@
+/* Sun-path dial, wind rose and setback sketch (components/SunWind.tsx). Class prefix: sw- */
+
+/* Season colours for the sun arcs. Chart-only hues: not the rule-engine, co-pilot or statutory colours.
+   Each also has its own dash pattern, so colour is never the only cue. */
+:root {
+  --sw-jun: #C42E6A;
+  --sw-eq: #5B3FC4;
+  --sw-dec: #2F6F9F;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --sw-jun: #FF86B4; --sw-eq: #B3A0FF; --sw-dec: #78C0F5; }
+}
+:root[data-theme="dark"] { --sw-jun: #FF86B4; --sw-eq: #B3A0FF; --sw-dec: #78C0F5; }
+
+.sw-dial.neo-dish {
+  position: relative; width: 100%; max-width: 300px; margin: 8px auto; aspect-ratio: 1; padding: 8px;
+  border-radius: 50%; display: grid;
+}
+.sw-dial.neo-dish.is-rose { max-width: 260px; }
+.sw-svg { width: 100%; height: 100%; display: block; overflow: visible; color: var(--ink-2); }
+.sw-svg text { font-family: var(--f-mono); fill: var(--ink-2); }
+.sw-face { fill: var(--neo-bg); stroke: var(--hairline); stroke-width: 1; }
+.sw-tick { stroke: var(--ink-3); stroke-linecap: round; }
+.sw-tick.major { stroke: var(--ink-2); }
+.sw-ring { fill: none; stroke: var(--ink-3); stroke-opacity: 0.55; stroke-width: 0.8; stroke-dasharray: 2 3; }
+.sw-ring.solid { stroke-dasharray: none; stroke-opacity: 0.8; }
+.sw-spoke { stroke: var(--ink-3); stroke-opacity: 0.35; stroke-width: 0.7; }
+.sw-card { font-weight: 800; font-size: 11px; fill: var(--ink-1); }
+.sw-num { font-size: 7px; fill: var(--ink-3); }
+.sw-alt { font-size: 7px; fill: var(--ink-3); }
+.sw-hot { stroke: var(--fail); stroke-width: 2.4; fill: none; stroke-linecap: round; }
+.sw-hot-mark { stroke: var(--fail); stroke-width: 3.4; stroke-linecap: round; }
+.sw-arc { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.2; }
+.sw-arc.is-dim { opacity: 0.45; }
+.sw-arc.is-on { stroke-width: 3; }
+.sw-needle { stroke: var(--ink-1); stroke-width: 1.4; stroke-linecap: round; }
+.sw-hub { fill: var(--cobalt); stroke: var(--neo-bg); stroke-width: 1.5; }
+.sw-sun-ring { fill: none; stroke: var(--neo-bg); stroke-width: 2; }
+.sw-end { stroke: var(--neo-bg); stroke-width: 1.2; }
+
+/* wind rose */
+.sw-petal { fill: var(--det); fill-opacity: 0.38; stroke: var(--det); stroke-width: 1; stroke-linejoin: round; }
+.sw-petal.is-main { fill-opacity: 0.85; stroke: var(--det-ink); stroke-width: 1.4; }
+.sw-from { fill: var(--ink-1); stroke: var(--neo-bg); stroke-width: 1; }
+
+/* setback sketch */
+.sw-sketch { width: 100%; height: auto; display: block; color: var(--ink-2); }
+.sw-site { fill: none; stroke: var(--ink-1); stroke-width: 1.6; stroke-linejoin: round; }
+.sw-band { stroke: none; }
+.sw-build { fill: var(--det); fill-opacity: 0.28; stroke: var(--det-ink); stroke-width: 1.3; stroke-linejoin: round; }
+.sw-sketch text { font-family: var(--f-mono); fill: var(--ink-2); font-size: 8px; }
+
+.sw-legend-swatch { display: inline-block; flex: none; }
