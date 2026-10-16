@@ -149,7 +149,7 @@ def main() -> None:
     jobs = [j for j in jobs if (Path(j[0]).parent.name, j[1]) not in done]
     print(len(jobs), "pages to do,", len(done), "done", file=sys.stderr)
     with ProcessPoolExecutor(workers) as ex, open(outp, "a") as fh:
-        for k, (job, rows) in enumerate(zip(jobs, ex.map(page_rooms, jobs, chunksize=2))):
+        for k, (job, rows) in enumerate(zip(jobs, ex.map(page_rooms, jobs, chunksize=2), strict=True)):
             for r in rows:
                 fh.write(json.dumps(r) + "\n")
             fh.write(json.dumps({"pdf": Path(job[0]).parent.name, "page": job[1], "type": "_page_done"}) + "\n")

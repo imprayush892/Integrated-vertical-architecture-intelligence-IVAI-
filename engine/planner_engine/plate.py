@@ -111,7 +111,8 @@ def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float =
         p["shafts"] = 2
     elif shape == ShapeKind.triangle:
         p["corner_cut"] = round(min(7.0, max(3.0, min(W, D) * 0.14)), 1)
-        p["unit_depth"] = 9.0
+        p["unit_depth"] = 9.5
+        p["shafts"] = 1  # air shafts on the party walls between flats (0 = none)
         # compact core: two stairs either side of two lifts, lobby in front
         p["core_w"] = 11.8
         p["core_d"] = 8.0
@@ -121,9 +122,8 @@ def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float =
     n = max(2, int(round(flats_guess / 150.0)))
     p["units"] = float(n + (n % 2 if shape in (ShapeKind.central_core, ShapeKind.side_core) else 0))
     if shape == ShapeKind.triangle:
-        # flats along every façade with ~11 m of frontage each
-        sides = [W, math.hypot(W / 2, D), math.hypot(W / 2, D)]
-        p["units"] = float(sum(max(1, round((L - 2 * p["corner_cut"]) / 11.0)) for L in sides))
+        # flats along every façade with ~11-12 m of frontage each (a 2BHK's window rooms)
+        p["units"] = float(tri_default_units(p))
     return p
 
 
@@ -197,41 +197,274 @@ def tri_incenter(p: dict[str, float]) -> tuple[float, float]:
     return ((a * A[0] + b * B[0] + c * C[0]) / s, (a * A[1] + b * B[1] + c * C[1]) / s)
 
 
-def _triangle_zones(outline: Polygon, p: dict[str, float]):
-    """Triangle plate: a band of flats along every façade, core + lobby in the middle.
+def _offset_tri(verts: list[tuple[float, float]], offs: list[float]) -> list[tuple[float, float]] | None:
+    """Triangle bounded by each side of ``verts`` (CCW) moved inwards by ``offs[i]`` (side i runs from vertex
+    i to vertex i+1). Inner vertex i belongs to outer vertex i. None if the offsets swallow the triangle."""
+    lines = []
+    for i in range(3):
+        (ax, ay), (bx, by) = verts[i], verts[(i + 1) % 3]
+        L = math.hypot(bx - ax, by - ay)
+        nx, ny = -(by - ay) / L, (bx - ax) / L  # left normal = inward for a CCW ring
+        lines.append(((ax + nx * offs[i], ay + ny * offs[i]), (bx - ax, by - ay)))
+    out = []
+    for i in range(3):
+        (p1, d1), (p2, d2) = lines[i - 1], lines[i]
+        den = d1[0] * d2[1] - d1[1] * d2[0]
+        if abs(den) < 1e-9:
+            return None
+        t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / den
+        out.append((p1[0] + d1[0] * t, p1[1] + d1[1] * t))
+    area2 = sum(out[i][0] * out[(i + 1) % 3][1] - out[(i + 1) % 3][0] * out[i][1] for i in range(3))
+    return out if area2 > 2.0 else None
 
-    The core keeps its full size (two stairs, lifts): it sits on the inner triangle's base, where the
-    triangle is widest, with a passage strip in front. The band depth shrinks (to 6.5 m) until it fits.
-    The lobby is the inner triangle minus the core, so every flat meets it along a straight edge."""
-    ic = tri_incenter(p)
+
+TRI_MIN_DEPTH = 6.5  # shallowest façade band (small plates only: 1BHKs)
+TRI_DOOR_RUN = 2.4  # lobby frontage a flat beside a façade core keeps for its entry
+
+
+def tri_layout(p: dict[str, float]) -> dict:
+    """Where the core, lobby and façade bands of a triangle plate go (pure function of the parameters).
+
+    * ``central``: big plates. Every façade keeps a band of ``unit_depth``; the lobby is the inner triangle
+      and the core sits in it, on its base where it is widest.
+    * ``base``: plates too small for a central core at that depth (a ~45 m triangle). The bands keep their
+      depth and the core moves onto the middle of the base façade instead (stairs get daylight); the lobby is
+      the inner triangle in front of it. Flats on the base either side of the core reach the lobby along its
+      base; a short stub widens that frontage when the inner triangle is narrow.
+    Band depth only drops (towards TRI_MIN_DEPTH) when even the base layout does not leave a lobby."""
+    verts = _tri_vertices(p)
     cw, cd, pw = p["core_w"], p["core_d"], p["passage"]
-    depth = p.get("unit_depth", 9.0)
-    core = inner = None
-    while depth >= 6.5 and core is None:
-        inner = outline.buffer(-depth, join_style="mitre", mitre_limit=5.0)
-        if not inner.is_empty:
-            y0 = inner.bounds[1] + pw
-            while y0 + cd <= inner.bounds[3]:
+    ic = tri_incenter(p)
+    depth = float(p.get("unit_depth", 9.5))
+    floor_d = min(depth, TRI_MIN_DEPTH)
+    while depth >= floor_d - 1e-9:
+        inner = _offset_tri(verts, [depth] * 3)
+        if inner is not None:
+            ip = Polygon(inner)
+            y0 = ip.bounds[1] + pw
+            while y0 + cd <= ip.bounds[3]:
                 c = box(ic[0] - cw / 2, y0, ic[0] + cw / 2, y0 + cd)
-                if inner.contains(c):
-                    core = c
-                    break
+                if ip.contains(c):
+                    return {"mode": "central", "depth": depth, "base_depth": depth, "inner": inner, "core": c,
+                            "stub": None, "own": ["prev", "prev", "prev"]}
                 y0 += 0.25
-        if core is None:
-            depth -= 0.25
-    if core is None:  # plate too small for a full core: keep the depth, shrink the core (flagged by NBC checks)
-        depth = 6.5
-        inner = outline.buffer(-depth, join_style="mitre", mitre_limit=5.0)
+        # façade core: on the middle of the base, the base band as deep as the others (the strip in front of
+        # the core is its lift lobby, part of the floor lobby)
+        if inner is not None:
+            ybase = verts[0][1]
+            bd = max(depth, cd)
+            core = box(-cw / 2, ybase, cw / 2, ybase + cd)
+            if bd > depth:
+                inner = _offset_tri(verts, [bd, depth, depth])
+            if inner is not None and inner[1][0] - inner[0][0] >= cw - 1.0:
+                A1, B1 = inner[0], inner[1]
+                run = min(-cw / 2 - A1[0], B1[0] - cw / 2)
+                top = ybase + max(bd, cd + 1.5)
+                # flats beside the core enter from the lift lobby strip (bd - cd deep) or the lobby base (run);
+                # when both are too short the strip runs on past the core
+                half = cw / 2 + (TRI_DOOR_RUN if max(run, bd - cd) < 1.5 else 0.0)
+                stub = box(-half, ybase + cd, half, top) if top > ybase + cd + 1e-6 else None
+                return {"mode": "base", "depth": depth, "base_depth": bd, "inner": inner, "core": core, "stub": stub,
+                        "own": ["next", "prev", "split"]}
+        depth -= 0.25
+    return {"mode": "small", "depth": floor_d, "base_depth": floor_d, "inner": None,
+            "core": None, "stub": None, "own": ["split", "split", "split"]}
+
+
+TRI_FLAT_FRONTAGE = 11.4  # deep façade a 2BHK needs (living, two bedrooms, kitchen side by side, on the grid)
+
+
+def tri_default_units(p: dict[str, float]) -> int:
+    """Flats per floor: each façade run (a band, or a base band on either side of a façade core) gets one
+    flat per TRI_FLAT_FRONTAGE of deep façade (façade with a room's depth behind it), at least one."""
+    from shapely import affinity
+
+    from .units import ROOM_DEPTH
+
+    lay = tri_layout(p)
+    outline = _truncate(_tri_vertices(p), p.get("corner_cut", 5.0))
+    taken = shapely.union_all([g for g in (lay["core"], lay["stub"]) if g is not None]
+                              + ([Polygon(lay["inner"])] if lay["inner"] else []))
+    outline = outline.difference(taken.buffer(0.001))  # (no float slivers joining the runs)
+    n = 0
+    for sec in tri_sectors(p, lay):
+        a, b = sec["a"], sec["b"]
+        L = math.dist(a, b)
+        nx, ny = -(b[1] - a[1]) / L, (b[0] - a[0]) / L  # inward normal (CCW)
+        face = LineString([a, b]).buffer(0.02)
+        for part in geo.polygons_of(sec["poly"].intersection(outline)):
+            if part.area < 1.0:
+                continue
+            deep = part.intersection(affinity.translate(part, -nx * ROOM_DEPTH, -ny * ROOM_DEPTH))
+            run = part.boundary.intersection(face).intersection(deep.buffer(0.05)).length
+            n += max(1, int(run / TRI_FLAT_FRONTAGE + 1e-6))
+    return max(2, n)
+
+
+def _line_x(p1, d1, p2, d2) -> tuple[float, float]:
+    den = d1[0] * d2[1] - d1[1] * d2[0]
+    t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / den
+    return (p1[0] + d1[0] * t, p1[1] + d1[1] * t)
+
+
+def tri_sectors(p: dict[str, float], lay: dict | None = None) -> list[dict]:
+    """The part of the plate each façade's band owns: [{"i", "a", "b", "poly"}] (side i runs a -> b).
+
+    Bands meet at the corners by ownership (``lay["own"]``, per vertex): the owning band runs on to the
+    other façade (its lobby line extended), so the other band starts with a 60° wedge instead of the 30°
+    sliver a bisector split leaves; flats stay rectangles with a short slanted end. ``split`` cuts on the
+    line from the corner to the lobby corner. Without a lobby triangle the sectors meet at the incentre."""
+    lay = lay or tri_layout(p)
+    verts = _tri_vertices(p)
+    inner = lay["inner"]
+    if inner is None:
+        ic = tri_incenter(p)
+        return [{"i": i, "a": verts[i], "b": verts[(i + 1) % 3],
+                 "poly": Polygon([ic, verts[i], verts[(i + 1) % 3]]).buffer(0)} for i in range(3)]
+
+    def side(i):
+        a, b = verts[i % 3], verts[(i + 1) % 3]
+        return a, (b[0] - a[0], b[1] - a[1])
+
+    def off(i):  # lobby line of side i (through inner vertices i, i+1)
+        a, b = inner[i % 3], inner[(i + 1) % 3]
+        return a, (b[0] - a[0], b[1] - a[1])
+
+    own = lay["own"]
+    out = []
+    for i in range(3):
+        j0, j1 = i, (i + 1) % 3
+        pts: list[tuple[float, float]] = []
+        if own[j0] == "next":  # this band owns its first corner
+            pts += [_line_x(*off(i), *side(i - 1)), verts[j0]]
+        elif own[j0] == "prev":
+            pts += [_line_x(*off(i - 1), *side(i))]
+        else:
+            pts += [verts[j0]]
+        if own[j1] == "prev":  # this band owns its last corner
+            pts += [verts[j1], _line_x(*off(i), *side(i + 1))]
+        elif own[j1] == "next":
+            pts += [_line_x(*off(i + 1), *side(i))]
+        else:
+            pts += [verts[j1]]
+        pts += [inner[j1], inner[j0]]
+        out.append({"i": i, "a": verts[j0], "b": verts[j1], "poly": Polygon(pts).buffer(0)})
+    return out
+
+
+TRI_SHAFT_LEAD = (1.6, 1.1)  # party-wall air shaft width either side of the party wall (larger, smaller share)
+TRI_SHAFT_D = 2.0  # shaft depth into the band (AVS >= 3 m2, shorter side >= 1.5 m)
+
+
+def tri_access_run(p: dict[str, float]) -> tuple[float, tuple[float, float]]:
+    """(entry run, shaft shares) for cutting a triangle band: every flat keeps the entry run of lobby
+    frontage, plus the share of each party-wall shaft that notches it (both flats get a shaft wall)."""
+    from .units import TRI_ACCESS_RUN
+
+    return TRI_ACCESS_RUN, (TRI_SHAFT_LEAD if int(p.get("shafts", 0)) > 0 else (0.0, 0.0))
+
+
+def _triangle_shafts(rest, passage, p: dict[str, float]) -> list:
+    """Air shafts (AVS) on the party walls between neighbouring flats of a triangle plate, against the lobby
+    where the entries, toilets and kitchens cluster, so wet rooms ventilate without taking façade from the
+    bedrooms. Each shaft straddles a cut, notching both flats (a room grid only sees a shaft wall where the
+    flat's outline turns), with the larger share in the flat that has lobby frontage to spare.
+    units.tri_runs is the single source of the cut positions."""
+    from shapely import affinity
+
+    from .units import tri_runs
+
+    out = []
+    for r in tri_runs(p, rest, int(p["units"]), passage, *tri_access_run(p)):
+        rot = r["rot"]
+        minx, miny, maxx, maxy = rot.bounds
+        for c in r["cuts"]:
+            x0, x1 = c - r["lb"], c + r["la"]
+            ln = LineString([(c, miny - 1), (c, maxy + 1)]).intersection(rot)
+            if ln.is_empty:
+                continue
+            y0, y1 = ln.bounds[1], ln.bounds[3]
+            if y1 - y0 < TRI_SHAFT_D + 5.0:  # too shallow for rooms in front of a shaft
+                continue
+            sq = box(x0, y1 - TRI_SHAFT_D, x1, y1)
+            g = affinity.rotate(sq, r["ang"], origin=(0, 0)).intersection(rest)
+            if g.area > 0.5:
+                out.append(g)
+    return out
+
+
+def _triangle_corner_shafts(rest, p: dict[str, float]) -> list:
+    """Cut the sharp corners off the flats that own them: past the point where the façade is truncated (or
+    where the other façade crosses the band's lobby line) a corner band is a sliver no room grid can use, so it
+    becomes an open-to-sky shaft. The flat behind it stays a rectangle on its façade, and its wet rooms get a
+    full-depth shaft wall to ventilate on."""
+    from shapely import affinity
+
+    lay = tri_layout(p)
+    own = lay["own"]
+    out = []
+    for sec in tri_sectors(p, lay):
+        i = sec["i"]
+        ends = [own[i] == "next", own[(i + 1) % 3] == "prev"]  # owns its first / last corner
+        if not any(ends):
+            continue
+        a, b = sec["a"], sec["b"]
+        ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
+        parts = [g for g in geo.polygons_of(rest.intersection(sec["poly"])) if g.area > 1.0]
+        if not parts:
+            continue
+        rots = [affinity.rotate(g, -ang, origin=(0, 0)) for g in parts]
+        for end, pick in ((0, min(range(len(rots)), key=lambda k: rots[k].bounds[0])),
+                          (1, max(range(len(rots)), key=lambda k: rots[k].bounds[2]))):
+            if not ends[end]:
+                continue
+            g = rots[pick]
+            minx, miny, maxx, maxy = g.bounds
+            bottom = g.intersection(box(minx - 1, miny - 0.01, maxx + 1, miny + 0.01))
+            top = g.intersection(box(minx - 1, maxy - 0.01, maxx + 1, maxy + 0.01))
+            if bottom.is_empty or top.is_empty:
+                continue
+            if end == 0:
+                x = max(bottom.bounds[0], top.bounds[0])
+                piece = g.intersection(box(minx - 1, miny - 1, x, maxy + 1))
+            else:
+                x = min(bottom.bounds[2], top.bounds[2])
+                piece = g.intersection(box(x, miny - 1, maxx + 1, maxy + 1))
+            piece = affinity.rotate(piece, ang, origin=(0, 0))
+            if piece.area > 0.5:
+                out.append(piece)
+    return out
+
+
+def _triangle_zones(outline: Polygon, p: dict[str, float]):
+    """Triangle plate: a band of flats along every façade, core + lobby where ``tri_layout`` puts them.
+
+    Zones never overlap: core and lobby are cut first, the flats are what is left (build_plate)."""
+    lay = tri_layout(p)
+    p["core_at_base"] = 1.0 if lay["mode"] == "base" else 0.0
+    p["band_depth"] = round(lay["depth"], 2)  # what the plate got (``unit_depth`` stays the request)
+    if lay["mode"] == "small":  # plate too small for a full core: shrink the core (flagged by NBC checks)
+        ic = tri_incenter(p)
+        cw, cd = p["core_w"], p["core_d"]
+        inner = outline.buffer(-lay["depth"], join_style="mitre", mitre_limit=5.0)
+        if inner.is_empty:
+            inner = outline.buffer(-6.5, join_style="mitre", mitre_limit=5.0)
+        core = None
         for k in (0.9, 0.8, 0.7, 0.6):
             c = box(ic[0] - cw * k / 2, ic[1] - cd * k / 2, ic[0] + cw * k / 2, ic[1] + cd * k / 2)
-            if inner.contains(c):
+            if not inner.is_empty and inner.contains(c):
                 core = c
                 break
         if core is None:
             core = box(ic[0] - 3.0, ic[1] - 2.0, ic[0] + 3.0, ic[1] + 2.0).intersection(outline)
-    p["unit_depth"] = round(depth, 2)
-    passage = inner.difference(core) if inner is not None and not inner.is_empty else core.buffer(1.5).difference(core)
-    return core, shapely.set_precision(passage.intersection(outline), 0.001)
+        passage = inner.difference(core) if not inner.is_empty else core.buffer(1.5).difference(core)
+        return core, shapely.set_precision(passage.intersection(outline), 0.001)
+    core = lay["core"].intersection(outline)
+    lobby = Polygon(lay["inner"])
+    if lay["stub"] is not None:
+        lobby = shapely.union(lobby, lay["stub"])
+    passage = lobby.intersection(outline).difference(core)
+    return core, shapely.set_precision(passage, 0.001)
 
 
 def _corridors(shape: ShapeKind, p: dict[str, float], core_c: tuple[float, float]) -> list[LineString]:
@@ -273,7 +506,17 @@ def _corridors(shape: ShapeKind, p: dict[str, float], core_c: tuple[float, float
     return lines
 
 
-def _core_parts(core: Polygon, height: float, p: dict[str, float]) -> list[CorePart]:
+def _core_parts(core: Polygon, height: float, p: dict[str, float], flip: bool = False) -> list[CorePart]:
+    """Stairs and lifts against the core's top edge, lift lobby below them. ``flip`` mirrors that top to
+    bottom (a core on the base façade of a triangle: stairs and lifts against the façade, lift lobby
+    opening onto the floor lobby above)."""
+    if flip:
+        from shapely import affinity
+
+        cy = (core.bounds[1] + core.bounds[3]) / 2
+        return [part.model_copy(update={"polygon": geo.ring_of(affinity.scale(Polygon(part.polygon), 1.0, -1.0,
+                                                                                origin=(0.0, cy)))})
+                for part in _core_parts(core, height, p)]
     c = rules.design()["core"]
     minx, miny, maxx, maxy = core.bounds
     cw, cd = maxx - minx, maxy - miny
@@ -364,7 +607,11 @@ def build_plate(
         rest = outline.difference(core).difference(passage)
     shafts = []
     n_sh = int(p["shafts"])
-    if n_sh > 0:
+    if shape == ShapeKind.triangle:
+        if n_sh > 0:
+            shafts = _triangle_shafts(rest, passage, p)
+        shafts += _triangle_corner_shafts(rest, p)
+    elif n_sh > 0:
         s = p["shaft_size"]
         for x, y, bx, by in _reflex_corners(outline)[:n_sh]:
             sx = s if bx > 0 else -s
@@ -400,7 +647,7 @@ def build_plate(
         depth=round(outline.bounds[3] - outline.bounds[1], 2),
         area=round(plate_area, 2),
         zones=zones,
-        core_parts=_core_parts(core, height, p),
+        core_parts=_core_parts(core, height, p, flip=shape == ShapeKind.triangle and bool(p.get("core_at_base"))),
         passage_width=pw,
         ratings=RATINGS[shape],
     )

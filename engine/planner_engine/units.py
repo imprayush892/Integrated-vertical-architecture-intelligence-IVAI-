@@ -13,6 +13,7 @@ from functools import lru_cache
 from importlib import resources
 
 import shapely
+from shapely import affinity
 from shapely.geometry import LineString, Polygon, box
 from shapely.geometry import Point as SPoint
 from shapely.ops import linemerge
@@ -26,6 +27,8 @@ CARPET_RATIO = 0.80  # carpet / flat gross (flat polygons exclude core and passa
 DOOR_CLEAR = 1.2  # need this much straight shared edge for an entry door
 ACCESS_RUN = 1.8  # passage frontage each flat keeps when the plate is cut
 MIN_FRONTAGE = 7.0  # below this a flat cannot light a living room and a bedroom
+ROOM_DEPTH = 4.5  # a habitable room needs this much depth behind its window wall
+RASTER_LOSS = 0.9  # façade the room grid loses on a flat that is not square to the plate axes (0.5 m cells)
 
 
 def outline_ring_free(plate: Plate):
@@ -149,9 +152,16 @@ def _merge_fragments(units: list[Polygon], fragments: list[Polygon]) -> list[Pol
     return units
 
 
-def _door(unit: Polygon, passage) -> tuple[tuple[float, float], tuple[float, float]] | None:
-    """Door point on the longest straight edge shared with the passage, plus the normal into it."""
+def _door(unit: Polygon, passage, slanted: bool = False) -> tuple[tuple[float, float], tuple[float, float]] | None:
+    """Door point on the longest straight edge shared with the passage, plus the normal into it.
+
+    ``slanted`` (triangle plates): edges off the axes rarely coincide to the last digit after rounding, so
+    the shared stretch is taken within 2 cm and nearly collinear pieces are merged."""
     inter = unit.boundary.intersection(passage.boundary)
+    if slanted and (inter.is_empty or inter.length < DOOR_CLEAR):
+        near = unit.boundary.intersection(passage.buffer(0.02))
+        if not near.is_empty and near.length >= DOOR_CLEAR:
+            inter = near
     if inter.is_empty:
         return None
     segs = []
@@ -163,8 +173,15 @@ def _door(unit: Polygon, passage) -> tuple[tuple[float, float], tuple[float, flo
             if ln.geom_type != "LineString":
                 continue
             cs = list(ln.coords)
-            for i in range(len(cs) - 1):
-                segs.append((cs[i], cs[i + 1]))
+            start = cs[0]
+            for i in range(1, len(cs)):
+                if slanted and i < len(cs) - 1:  # merge nearly collinear runs (rounded slanted vertices)
+                    d1 = math.atan2(cs[i][1] - start[1], cs[i][0] - start[0])
+                    d2 = math.atan2(cs[i + 1][1] - cs[i][1], cs[i + 1][0] - cs[i][0])
+                    if abs((d2 - d1 + math.pi) % (2 * math.pi) - math.pi) < 0.03:
+                        continue
+                segs.append((start, cs[i]))
+                start = cs[i]
     if not segs:
         return None
     a, b = max(segs, key=lambda s: math.dist(*s))
@@ -180,36 +197,130 @@ def _door(unit: Polygon, passage) -> tuple[tuple[float, float], tuple[float, flo
     return None
 
 
-def _split_by_sides(plate: Plate, flats, n: int) -> list:
-    """Façade-band plates (triangle): each long façade owns the band between it and the lobby (split at
-    the corner bisectors); each band is cut perpendicular to its façade, so every flat has one straight
-    façade and one straight lobby edge."""
-    from shapely import affinity
+TRI_ACCESS_RUN = 2.4  # lobby frontage each triangle flat keeps for its entry (door + foyer)
 
-    from .plate import _tri_vertices, tri_incenter
 
-    verts = _tri_vertices(plate.params)
-    ic = tri_incenter(plate.params)
-    sides = []
-    for i in range(3):
-        a, b = verts[i], verts[(i + 1) % 3]
-        sector = Polygon([ic, a, b]).buffer(0)
-        band = flats.intersection(sector)
-        if band.area > 1.0:
-            sides.append((a, b, band))
-    total = sum(sd[2].area for sd in sides)
-    counts = [max(1, int(round(n * sd[2].area / total))) for sd in sides]
+def _tri_cuts(band, k: int, contact: tuple[float, float] | None, run: float, lb: float = 0.0,
+              la: float = 0.0) -> list[float]:
+    """Cut positions along x for a façade band (façade along x at the bottom), each flat keeping ``run`` of
+    the lobby edge ``contact`` (an x-range) when the band is long enough for that; the shaft on each cut
+    takes ``lb`` of it from the flat before the cut and ``la`` from the flat after.
+
+    Flats get equal shares of *deep* façade (façade with a room's depth of flat behind it), so the flat that
+    holds a tapering corner wedge is not shortchanged on window wall; equal area if the band has none."""
+    minx, miny, maxx, maxy = band.bounds
+    deep = band.intersection(affinity.translate(band, 0.0, -ROOM_DEPTH))
+    face = band.boundary.intersection(box(minx - 1, miny - 0.01, maxx + 1, miny + 0.01))
+    face = face.intersection(deep.buffer(0.05)) if not deep.is_empty else face
+
+    def measure(x: float) -> float:
+        return face.intersection(box(minx - 1, miny - 1, x, maxy + 1)).length
+
+    total = face.length
+    if total < 1.0:
+        def measure(x: float) -> float:
+            return band.intersection(box(minx - 1, miny - 1, x, maxy + 1)).area
+
+        total = band.area
+    cuts: list[float] = []
+    prev = minx
+    for i in range(1, k):
+        target = total * i / k
+        lo, hi = prev, maxx
+        for _ in range(40):
+            mid = (lo + hi) / 2
+            if measure(mid) < target:
+                lo = mid
+            else:
+                hi = mid
+        cut = (lo + hi) / 2
+        if contact is not None:
+            c0, c1 = contact
+            lo_ok = (max(c0, prev) + la if cuts else c0) + run + lb
+            hi_ok = c1 - (run + la) - (run + la + lb) * (k - i - 1)
+            if lo_ok <= hi_ok:
+                cut = min(max(cut, lo_ok), hi_ok)
+        cut = round(cut / geo.SNAP) * geo.SNAP
+        cuts.append(cut)
+        prev = cut
+    return cuts
+
+
+def tri_runs(params: dict, flats, n: int, passage, run: float = TRI_ACCESS_RUN,
+             lead: tuple[float, float] = (0.0, 0.0)) -> list[dict]:
+    """Façade runs of a triangle plate and where each is cut into flats.
+
+    Each façade owns the band between it and the lobby (``plate.tri_sectors``: corners go to one band or are
+    split); a façade core splits the base band into two runs. Flats per run follow area; each run is cut
+    perpendicular to its façade into equal shares of deep façade (``cuts`` are x positions in the frame where
+    the façade runs along +x, ``ang`` degrees; ``lb``/``la`` the shaft shares either side of a cut). Shared
+    by plate.py (air shafts sit on the cuts) and the unit split, so both cut in the same places."""
+    from .plate import tri_layout, tri_sectors
+
+    lay = tri_layout(params)
+    runs = []
+    for sec in tri_sectors(params, lay):
+        a, b = sec["a"], sec["b"]
+        # a shaft straddles each cut, its larger share in the flat away from a bisector-split corner (the
+        # flat at that corner has the least lobby frontage to spare)
+        after = lay["own"][sec["i"]] == "split" and lay["own"][(sec["i"] + 1) % 3] != "split"
+        lb, la = (lead[1], lead[0]) if after else lead
+        for part in geo.polygons_of(flats.intersection(sec["poly"])):
+            if part.area > 1.0:
+                runs.append({"a": a, "b": b, "band": part, "lb": lb, "la": la,
+                             "ang": math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))})
+    if not runs:
+        return []
+    total = sum(r["band"].area for r in runs)
+    counts = [max(1, int(round(n * r["band"].area / total))) for r in runs]
     while sum(counts) > n and max(counts) > 1:
-        counts[counts.index(max(counts))] -= 1
+        j = max((k for k in range(len(runs)) if counts[k] > 1), key=lambda k: runs[k]["band"].area / (counts[k] - 1))
+        counts[j] -= 1
     while sum(counts) < n:
-        counts[counts.index(min(counts))] += 1
+        j = max(range(len(runs)), key=lambda k: runs[k]["band"].area / counts[k])
+        counts[j] += 1
+    for r, k in zip(runs, counts, strict=True):
+        rot = affinity.rotate(r["band"], -r["ang"], origin=(0, 0))
+        contact = None
+        if passage is not None and not passage.is_empty:
+            touch = rot.boundary.intersection(affinity.rotate(passage, -r["ang"], origin=(0, 0)).buffer(0.01))
+            if not touch.is_empty and touch.length > 0:
+                tb = touch.bounds
+                contact = (tb[0], tb[2])
+        r["k"] = k
+        r["rot"] = rot
+        r["cuts"] = _tri_cuts(rot, k, contact, run, r["lb"], r["la"])
+    return runs
+
+
+def _split_by_sides(plate: Plate, flats, n: int) -> list:
+    """Façade-band plates (triangle): cut every façade run (``tri_runs``) perpendicular to its façade, so
+    every flat has one straight façade and one straight lobby edge. Cuts go through the plate's air shafts
+    (computed on flats + shafts, the same geometry plate.py cut), so the shafts sit between two flats."""
+    from .plate import tri_access_run
+
+    shafts = zones_geom(plate, "shaft")
+    whole = shapely.union(flats, shafts) if not shafts.is_empty else flats
+    passage = zones_geom(plate, "passage")
     out = []
-    for (a, b, band), k in zip(sides, counts, strict=True):
-        ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
-        rot = affinity.rotate(band, -ang, origin=(0, 0))
-        for piece in _cut_equal(rot, k, "x"):
-            if not piece.is_empty:
-                out.append(affinity.rotate(piece, ang, origin=(0, 0)))
+    for r in tri_runs(plate.params, whole, n, passage, *tri_access_run(plate.params)):
+        rot_sh = affinity.rotate(shafts, -r["ang"], origin=(0, 0)) if not shafts.is_empty else None
+        cuts = list(r["cuts"])
+        if rot_sh is not None:  # snap each cut onto the line it was drawn through its shaft
+            sides = [g.bounds[0] + r["lb"] for g in geo.polygons_of(rot_sh)
+                     if g.intersects(r["rot"].buffer(0.05)) and abs(g.bounds[2] - g.bounds[0] - r["lb"] - r["la"]) < 0.05]
+            for j, c in enumerate(cuts):
+                near = min(sides, key=lambda x: abs(x - c), default=None)
+                if near is not None and abs(near - c) < 0.75:
+                    cuts[j] = near
+        minx, miny, maxx, maxy = r["rot"].bounds
+        edges = [minx - 1, *cuts, maxx + 1]
+        rot_flats = affinity.rotate(flats, -r["ang"], origin=(0, 0))
+        for x0, x1 in zip(edges, edges[1:], strict=False):
+            piece = r["rot"].intersection(box(x0, miny - 1, x1, maxy + 1)).intersection(rot_flats)
+            parts = geo.polygons_of(piece)
+            if parts:
+                out.append(affinity.rotate(shapely.union_all(parts), r["ang"], origin=(0, 0)))
     return out
 
 
@@ -222,7 +333,8 @@ def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] 
     if flats.is_empty or n <= 0:
         return []
     if plate.shape.value == "triangle":
-        return _finish_units(plate, _split_by_sides(plate, flats, n), [], flats, access, keep_programmes)
+        return _finish_units(plate, _split_by_sides(plate, flats, n), [], flats, access, keep_programmes,
+                             lobby=passage)
     # core line: horizontal through the core centre
     cy = core.centroid.y if not core.is_empty else 0.0
     minx, miny, maxx, maxy = flats.bounds
@@ -259,7 +371,9 @@ def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] 
     return _finish_units(plate, raw, fragments, flats, access, keep_programmes)
 
 
-def _finish_units(plate: Plate, raw: list, fragments: list, flats, access, keep_programmes) -> list[Unit]:
+def _finish_units(plate: Plate, raw: list, fragments: list, flats, access, keep_programmes,
+                  lobby=None) -> list[Unit]:
+    """``lobby``: when given, the entry door goes on the lobby if the flat reaches it, not on a core wall."""
     parts = []
     for g in raw:
         ps = sorted(geo.polygons_of(g), key=lambda q: -q.area)
@@ -276,8 +390,11 @@ def _finish_units(plate: Plate, raw: list, fragments: list, flats, access, keep_
     old = {u.id: u for u in (keep_programmes or [])}
     for i, poly in enumerate(raw):
         poly = shapely.set_precision(poly, 0.001)
+        if poly.geom_type != "Polygon":  # snapping can pinch off a hair-thin neck: keep the body
+            poly = max(geo.polygons_of(poly), key=lambda q: q.area)
         flags = []
-        door = _door(poly, access)
+        door = (_door(poly, lobby, slanted=True) or _door(poly, access, slanted=True)) if lobby is not None \
+            else _door(poly, access)
         if door is None:
             flags.append("no_core_access")
         if poly.area < MIN_UNIT_AREA:
@@ -295,6 +412,8 @@ def _finish_units(plate: Plate, raw: list, fragments: list, flats, access, keep_
         )
         if uid in old and old[uid].programme:
             u.programme = old[uid].programme
+        elif plate.shape.value == "triangle":
+            u.programme = pick_preset(poly.area * CARPET_RATIO, tri_frontage(plate, u))
         else:
             fac = facade_length(plate, u)
             has_shaft = not zones_geom(plate, "shaft").is_empty and poly.distance(zones_geom(plate, "shaft")) < 0.05
@@ -306,11 +425,13 @@ def _finish_units(plate: Plate, raw: list, fragments: list, flats, access, keep_
 def check_units(plate: Plate, units: list[Unit]) -> list[Unit]:
     """Re-flag units (e.g. after an import or a manual edit) without changing geometry."""
     outline = Polygon(plate.outline)
-    access = shapely.union(zones_geom(plate, "passage"), zones_geom(plate, "core"))
+    lobby = zones_geom(plate, "passage")
+    access = shapely.union(lobby, zones_geom(plate, "core"))
+    tri = plate.shape.value == "triangle"
     for u in units:
         poly = Polygon(u.polygon)
         flags = [f for f in u.flags if f not in ("no_core_access", "outside_outline", "small")]
-        door = _door(poly, access)
+        door = (_door(poly, lobby, slanted=True) or _door(poly, access, slanted=True)) if tri else _door(poly, access)
         u.core_link, u.core_link_normal = (door[0], door[1]) if door else (None, None)
         if door is None:
             flags.append("no_core_access")
@@ -350,6 +471,67 @@ def programme_from_rooms(name: str, rooms: list[dict], links: list[list[str]], e
         links=[(a, b) for a, b in links],
         entry=entry,
     )
+
+
+def _facade_edges(plate: Plate, unit: Unit, shafts: bool = True) -> list[tuple[float, float, tuple, tuple]]:
+    """(length, direction in degrees, a, b) of each unit edge on the plate's outer face (or on an air shaft)."""
+    poly = Polygon(unit.polygon)
+    outline = Polygon(plate.outline)
+    sh = zones_geom(plate, "shaft") if shafts else Polygon()
+    out = []
+    ring = geo.ring_of(poly)
+    for i in range(len(ring)):
+        a, b = ring[i], ring[(i + 1) % len(ring)]
+        L = math.dist(a, b)
+        if L < 1e-6:
+            continue
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        nx, ny = (b[1] - a[1]) / L, -(b[0] - a[0]) / L
+        probe = SPoint(mx + nx * 0.2, my + ny * 0.2)
+        if not outline.contains(probe) or (not sh.is_empty and sh.contains(probe)):
+            out.append((L, math.degrees(math.atan2(b[1] - a[1], b[0] - a[0])), a, b))
+    return out
+
+
+def straight_frontage(plate: Plate, unit: Unit, min_depth: float = ROOM_DEPTH) -> float:
+    """Outer façade the room solver can glaze: edges square to the flat's longest façade edge (the solver
+    works in that frame). On rectilinear plates this is the outer façade; on a triangle it leaves out the
+    second, 60°-slanted façade of a corner flat. Air-shaft edges ventilate but do not light rooms. Only the
+    stretches with ``min_depth`` of flat behind them count (the tapering wedge at a sharp corner takes a
+    toilet or a balcony, not a bedroom)."""
+    edges = _facade_edges(plate, unit, shafts=False)
+    if not edges:
+        return 0.0
+    ref = max(edges)[1]
+    poly = Polygon(unit.polygon).buffer(0)
+    total = 0.0
+    for L, ang, a, b in edges:
+        d = (ang - ref) % 90.0
+        if min(d, 90.0 - d) >= 2.0:
+            continue
+        if min_depth <= 0:
+            total += L
+            continue
+        nx, ny = -(b[1] - a[1]) / L, (b[0] - a[0]) / L  # left normal; flip to point into the flat
+        mid = ((a[0] + b[0]) / 2 + nx * 0.05, (a[1] + b[1]) / 2 + ny * 0.05)
+        if not poly.contains(SPoint(mid)):
+            nx, ny = -nx, -ny
+        deep = poly.intersection(affinity.translate(poly, -nx * min_depth, -ny * min_depth))
+        total += LineString([a, b]).intersection(deep.buffer(0.05)).length
+    return round(total, 2)
+
+
+def tri_frontage(plate: Plate, unit: Unit) -> float:
+    """Frontage a triangle flat's programme is picked on: straight façade with room depth behind it, less what
+    the room grid loses on a slanted flat. Shafts give no credit here: on a triangle every flat already has
+    one (party-wall or corner shaft) and the window rooms still need the full run."""
+    fac = straight_frontage(plate, unit)
+    edges = _facade_edges(plate, unit, shafts=False)
+    if edges:
+        ang = max(edges)[1] % 90.0
+        if min(ang, 90.0 - ang) > 0.01:
+            fac -= RASTER_LOSS
+    return max(0.0, round(fac, 2))
 
 
 def facade_length(plate: Plate, unit: Unit) -> float:
