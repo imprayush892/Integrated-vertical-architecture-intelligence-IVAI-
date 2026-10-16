@@ -10,7 +10,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from shapely.geometry import Point as SPoint, Polygon
+from shapely.geometry import Point as SPoint
+from shapely.geometry import Polygon
 
 from . import rules
 from .models import CheckResult, CheckSummary, Plan, PlanRoom

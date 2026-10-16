@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import shapely
-from shapely.geometry import LineString, Point as SPoint, Polygon
+from shapely.geometry import LineString, Polygon
+from shapely.geometry import Point as SPoint
 
 from . import geo, rules
 from .climate import analyse

@@ -8,7 +8,6 @@ keeps random web pages from driving the planner through localhost.
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager
 import inspect
 import json
 import os
@@ -17,6 +16,7 @@ import socket
 import tempfile
 import threading
 import time
+from contextlib import asynccontextmanager
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -278,8 +278,54 @@ async def _dispatch(planner: Planner, call: Any) -> dict:
         return {"jsonrpc": "2.0", "id": cid, "error": {"code": -32603, "message": f"{type(e).__name__}: {e}"}}
 
 
-def serve(project: str | None = None, port: int | None = None, open_browser: bool = False) -> None:
+def pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+
+        k = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        h = k.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return bool(ok) and code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def watch_parent(parent_pid: int | None) -> None:
+    """Exit when the desktop app that started us goes away (no orphaned engines)."""
+    start_ppid = os.getppid()
+
+    def loop() -> None:
+        while True:
+            time.sleep(1.0)
+            gone = (parent_pid is not None and not pid_alive(parent_pid)) or (os.name != "nt" and os.getppid() != start_ppid)
+            if gone:
+                try:
+                    info = read_lock()
+                    if info and info.get("pid") == os.getpid():
+                        lock_path().unlink()
+                finally:
+                    os._exit(0)
+
+    threading.Thread(target=loop, daemon=True, name="parent-watch").start()
+
+
+def serve(project: str | None = None, port: int | None = None, open_browser: bool = False,
+          parent_pid: int | None = None) -> None:
     import uvicorn
+
+    if parent_pid is not None or os.environ.get("PLANNER_PARENT_PID"):
+        watch_parent(parent_pid or int(os.environ["PLANNER_PARENT_PID"]))
 
     path = Path(project) if project else last_project_path()
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,30 @@
+[package]
+name = "apartment-planner"
+version = "1.0.0"
+description = "Parametric Apartment Planner - desktop shell"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+name = "apartment_planner_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde_json = "1"
+
+[features]
+default = []
+# Signed release builds run `cargo add tauri-plugin-updater@2 --optional` and build with
+# `--features updater` plus `--config tauri.updater.conf.json` (see .github/workflows/release.yml).
+updater = []
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

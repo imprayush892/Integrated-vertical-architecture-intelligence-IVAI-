@@ -19,7 +19,7 @@ import shapely
 from shapely.geometry import Polygon
 
 from . import geo, rules
-from .models import PlacementOption, Placement, PlateFootprint, Site
+from .models import Placement, PlacementOption, PlateFootprint, Site
 from .site import buildable_geom
 
 FAMILY_LABEL = {1: "single tower", 2: "twin staggered", 3: "three slender"}

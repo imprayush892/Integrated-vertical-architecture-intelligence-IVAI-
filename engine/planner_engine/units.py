@@ -13,7 +13,8 @@ from functools import lru_cache
 from importlib import resources
 
 import shapely
-from shapely.geometry import LineString, Point as SPoint, Polygon, box
+from shapely.geometry import LineString, Polygon, box
+from shapely.geometry import Point as SPoint
 from shapely.ops import linemerge
 
 from . import geo, rules

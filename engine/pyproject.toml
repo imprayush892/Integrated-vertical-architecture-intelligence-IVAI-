@@ -24,7 +24,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pvlib>=0.11", "ruff>=0.5", "mypy>=1.10", "pyinstaller>=6.6"]
+dev = ["pytest>=8", "pvlib>=0.11", "ruff>=0.5", "mypy>=1.10", "pyinstaller>=6.6", "anyio>=4"]
+crash = ["sentry-sdk>=2"]
 
 [project.scripts]
 planner = "planner_engine.cli:main"
@@ -47,4 +48,4 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
-ignore = ["E501", "B008"]
+ignore = ["E501", "B008", "E741"]

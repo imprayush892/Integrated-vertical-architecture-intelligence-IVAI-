@@ -77,9 +77,8 @@ def config_path() -> Path:
 
 def bridge_command() -> dict[str, Any]:
     """How Claude should start our bridge."""
-    if getattr(sys, "frozen", False):  # PyInstaller build: planner-mcp sits next to the engine binary
-        exe = Path(sys.executable).with_name("planner-mcp" + (".exe" if os.name == "nt" else ""))
-        return {"command": str(exe), "args": ["--stdio"]}
+    if getattr(sys, "frozen", False):  # PyInstaller build: the engine binary runs the bridge with "mcp"
+        return {"command": sys.executable, "args": ["mcp"]}
     env_cmd = os.environ.get("PLANNER_MCP_COMMAND")
     if env_cmd:
         return {"command": env_cmd, "args": ["--stdio"]}

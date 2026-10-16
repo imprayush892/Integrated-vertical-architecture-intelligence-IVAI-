@@ -1,0 +1,134 @@
+name: Release
+
+# Tag v1.2.3 -> signed installers for macOS (arm64 + x64), Windows and Linux, the Claude Desktop
+# extension (.mcpb) per platform, and the updater manifest. Secrets (all optional - unsigned builds
+# still work): APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_ID,
+# APPLE_PASSWORD, APPLE_TEAM_ID, WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD,
+# TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD, TAURI_UPDATER_PUBKEY, PLANNER_SENTRY_DSN.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            triple: aarch64-apple-darwin
+            mcpb: darwin
+          - os: macos-13
+            triple: x86_64-apple-darwin
+            mcpb: darwin
+          - os: windows-latest
+            triple: x86_64-pc-windows-msvc
+            mcpb: win32
+            ext: .exe
+          - os: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            mcpb: linux
+    runs-on: ${{ matrix.os }}
+    env:
+      PLANNER_SENTRY_DSN: ${{ secrets.PLANNER_SENTRY_DSN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Build UI and bundle it into the engine
+        shell: bash
+        run: ./scripts/build_web.sh
+      - name: Freeze the engine (PyInstaller)
+        working-directory: engine
+        shell: bash
+        run: |
+          pip install -e ".[dev,crash]"
+          pytest -q
+          cd packaging && pyinstaller planner-engine.spec --noconfirm --distpath ../dist
+          ../dist/planner-engine${{ matrix.ext }} doctor
+      - name: Place the sidecar
+        shell: bash
+        run: |
+          mkdir -p app/src-tauri/binaries
+          cp engine/dist/planner-engine${{ matrix.ext }} app/src-tauri/binaries/planner-engine-${{ matrix.triple }}${{ matrix.ext }}
+      - name: Enable the updater when a key is configured
+        if: env.TAURI_UPDATER_PUBKEY != ''
+        shell: bash
+        env:
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+        working-directory: app/src-tauri
+        run: |
+          cargo add tauri-plugin-updater@2 --optional
+          sed -i.bak 's/^updater = \[\]/updater = ["dep:tauri-plugin-updater"]/' Cargo.toml
+          sed -i.bak "s|REPLACE_WITH_TAURI_SIGNING_PUBLIC_KEY|${TAURI_UPDATER_PUBKEY}|" tauri.updater.conf.json
+          echo "TAURI_EXTRA_ARGS=--features updater --config src-tauri/tauri.updater.conf.json" >> $GITHUB_ENV
+      - name: Build installers (Tauri)
+        working-directory: app
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm ci
+          npx tauri build --target ${{ matrix.triple }} ${TAURI_EXTRA_ARGS:-}
+      - name: Sign Windows installer
+        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = "$env:RUNNER_TEMP\cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          Get-ChildItem app/src-tauri/target/${{ matrix.triple }}/release/bundle -Recurse -Include *.msi,*.exe | ForEach-Object {
+            & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign /f $pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
+          }
+      - name: Claude Desktop extension (.mcpb)
+        shell: bash
+        run: python engine/packaging/build_mcpb.py engine/dist/planner-engine${{ matrix.ext }} dist-mcpb --platform ${{ matrix.mcpb }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.triple }}
+          path: |
+            app/src-tauri/target/${{ matrix.triple }}/release/bundle/**/*.dmg
+            app/src-tauri/target/${{ matrix.triple }}/release/bundle/**/*.app.tar.gz*
+            app/src-tauri/target/${{ matrix.triple }}/release/bundle/**/*.msi*
+            app/src-tauri/target/${{ matrix.triple }}/release/bundle/**/*.exe*
+            app/src-tauri/target/${{ matrix.triple }}/release/bundle/**/*.deb
+            app/src-tauri/target/${{ matrix.triple }}/release/bundle/**/*.AppImage*
+            app/src-tauri/target/${{ matrix.triple }}/release/bundle/**/*.rpm
+            dist-mcpb/*.mcpb
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

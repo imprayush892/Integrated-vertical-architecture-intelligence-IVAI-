@@ -1,5 +1,4 @@
 import json
-import os
 from importlib import resources
 
 import pytest

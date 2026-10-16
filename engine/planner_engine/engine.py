@@ -27,8 +27,24 @@ from .dxf_io import export_dxf, import_dxf, learn_layer
 from .geocode import geocode
 from .layout import apply_fix, solve_flat
 from .models import (
-    Actor, CheckSummary, Diagram, DiagramRoom, Evidence, EvidenceKind, Plan, Placement, Plate, Programme,
-    Project, ShapeKind, Site, Ticket, TicketAnswer, TicketKind, TicketOption, Unit,
+    Actor,
+    CheckSummary,
+    Diagram,
+    DiagramRoom,
+    Evidence,
+    EvidenceKind,
+    Placement,
+    Plan,
+    Plate,
+    Programme,
+    Project,
+    ShapeKind,
+    Site,
+    Ticket,
+    TicketAnswer,
+    TicketKind,
+    TicketOption,
+    Unit,
 )
 from .placement import drivers_note, place
 from .plate import LABELS, RATINGS, all_shapes, build_plate, fit

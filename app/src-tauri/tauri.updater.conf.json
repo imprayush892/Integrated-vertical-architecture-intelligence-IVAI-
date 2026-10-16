@@ -1,0 +1,9 @@
+{
+  "bundle": { "createUpdaterArtifacts": true },
+  "plugins": {
+    "updater": {
+      "pubkey": "REPLACE_WITH_TAURI_SIGNING_PUBLIC_KEY",
+      "endpoints": ["https://github.com/imprayush892/Integrated-vertical-architecture-intelligence-IVAI-/releases/latest/download/latest.json"]
+    }
+  }
+}

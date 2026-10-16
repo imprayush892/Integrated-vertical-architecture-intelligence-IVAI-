@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window: core only (the UI talks to the local engine over HTTP).",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

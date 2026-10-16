@@ -17,7 +17,7 @@ def _print(obj) -> None:
 def cmd_serve(a) -> None:
     from .server import serve
 
-    serve(a.project, a.port, open_browser=not a.no_browser)
+    serve(a.project, a.port, open_browser=not a.no_browser, parent_pid=a.parent_pid)
 
 
 def cmd_mcp(a) -> None:
@@ -143,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--project")
     s.add_argument("--port", type=int)
     s.add_argument("--no-browser", action="store_true")
+    s.add_argument("--parent-pid", type=int, help="exit when this process exits (set by the desktop app)")
     s.set_defaults(fn=cmd_serve)
     m = sub.add_parser("mcp", help="run the Claude bridge (MCP over stdio)")
     m.set_defaults(fn=cmd_mcp)
@@ -168,6 +169,9 @@ def main(argv: list[str] | None = None) -> int:
     ck.add_argument("--height", type=float, default=24.0)
     ck.set_defaults(fn=cmd_check)
     a = ap.parse_args(argv)
+    from .telemetry import init as init_crash_reports
+
+    init_crash_reports()
     if not getattr(a, "fn", None):
         ap.print_help()
         return 0

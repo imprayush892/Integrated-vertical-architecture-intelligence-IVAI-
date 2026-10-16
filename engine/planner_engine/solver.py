@@ -25,7 +25,8 @@ from dataclasses import dataclass, field
 
 import shapely
 from ortools.sat.python import cp_model
-from shapely.geometry import Point as SPoint, Polygon, box
+from shapely.geometry import Point as SPoint
+from shapely.geometry import Polygon, box
 
 from . import geo, rules
 from .diagram import room_minimums

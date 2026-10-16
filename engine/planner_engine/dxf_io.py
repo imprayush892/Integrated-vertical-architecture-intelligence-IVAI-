@@ -21,7 +21,8 @@ import ezdxf
 import shapely
 from ezdxf import bbox as ezbbox
 from ezdxf.enums import TextEntityAlignment
-from shapely.geometry import LineString, Point as SPoint, Polygon, box
+from shapely.geometry import LineString, Polygon, box
+from shapely.geometry import Point as SPoint
 
 from . import geo
 from .models import DrawingReport, LayerMapping, Opening, Plan, PlanRoom, Plate, Wall
@@ -460,7 +461,7 @@ def import_dxf(path: str | Path, overrides: dict[str, str] | None = None, unit_c
     for key in ("wall", "rcc_wall", "column"):
         for g, closed, _h, _e in by_meaning.get(key, []):
             barrier_parts.append(g if closed else g.buffer(0.06))
-    for g, closed, _h, _e in by_meaning.get("window", []):
+    for g, _closed, _h, _e in by_meaning.get("window", []):
         barrier_parts.append(g.buffer(0.08))
     barrier = shapely.union_all(barrier_parts) if barrier_parts else Polygon()
     if not rooms and not barrier.is_empty:
@@ -619,7 +620,7 @@ def import_dxf(path: str | Path, overrides: dict[str, str] | None = None, unit_c
                 handles.setdefault("floor", []).append(h)
     pw = None
     common_rooms = [r for r in named if r["type"] == "passage" and r["id"] not in room_unit]
-    for g, closed, h, _e in by_meaning.get("passage", []):
+    for g, closed, _h, _e in by_meaning.get("passage", []):
         if closed:
             for p in geo.polygons_of(g):
                 common_rooms.append({"poly": p})

@@ -1,4 +1,3 @@
-import pytest
 
 from planner_engine.checks import FloorContext, run_checks
 from planner_engine.diagram import from_programme, precheck

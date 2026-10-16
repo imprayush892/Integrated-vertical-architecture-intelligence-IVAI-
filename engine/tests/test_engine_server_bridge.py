@@ -153,8 +153,8 @@ async def test_mcp_tools_in_memory(planner, monkeypatch):
 def test_mcp_stdio_subprocess(tmp_path):
     """The way Claude Desktop starts the bridge: a child process speaking MCP on stdio."""
     import anyio
-    from mcp.client.stdio import StdioServerParameters, stdio_client
     from mcp.client.session import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
 
     async def go():
         params = StdioServerParameters(command=sys.executable, args=["-m", "planner_engine.mcp_server", "--stdio"],

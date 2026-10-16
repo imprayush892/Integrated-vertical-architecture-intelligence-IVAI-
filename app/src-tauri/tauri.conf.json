@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Apartment Planner",
+  "version": "1.0.0",
+  "identifier": "ai.ivai.apartment-planner",
+  "build": {
+    "frontendDist": "../splash"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Apartment Planner",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 640,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "Pick a plot, get a checked apartment floor plan.",
+    "longDescription": "Parametric Apartment Planner: plot to DCPR 2034 / NBC 2016 checked floor plans. Rules first, Claude only for unclear choices.",
+    "copyright": "Apache-2.0",
+    "externalBin": ["binaries/planner-engine"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+  }
+}
