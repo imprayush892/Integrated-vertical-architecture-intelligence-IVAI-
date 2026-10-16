@@ -35,7 +35,7 @@ RPC_METHODS = {
     "propose_programme", "get_diagram", "update_diagram", "precheck", "solve_unit", "solve_all", "get_plan",
     "apply_edit", "run_checks", "explain_check", "export_dxf", "import_drawing", "list_decisions",
     "answer_decision", "review_decision", "decision_stats", "compare_options", "geojson", "bridge_hello",
-    "bridge_status",
+    "bridge_status", "claude_status", "claude_plan_link", "claude_link", "doctor",
 }
 
 
@@ -188,7 +188,8 @@ def create_app(planner: Planner, token: str | None = None) -> FastAPI:
         return StreamingResponse(gen(), media_type="text/event-stream")
 
     @app.post("/api/upload/drawing")
-    async def upload_drawing(request: Request, file: UploadFile = File(...)) -> JSONResponse:
+    async def upload_drawing(request: Request, file: UploadFile = File(...), purpose: str = "check",
+                             tower: str = "T1") -> JSONResponse:
         _check_token(request)
         name = Path(file.filename or "drawing.dxf").name
         if not name.lower().endswith(".dxf"):
@@ -201,7 +202,10 @@ def create_app(planner: Planner, token: str | None = None) -> FastAPI:
             raise HTTPException(status_code=413, detail="Drawing larger than 200 MB")
         dest.write_bytes(data)
         try:
-            res = await asyncio.to_thread(planner.import_drawing, str(dest))
+            if purpose == "plate":
+                res = await asyncio.to_thread(planner.import_plate_dxf, tower, str(dest))
+            else:
+                res = await asyncio.to_thread(planner.import_drawing, str(dest))
         except PlannerError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         return JSONResponse(res)

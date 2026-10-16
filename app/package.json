@@ -1,0 +1,35 @@
+{
+  "name": "apartment-planner-app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-shell": "2.5.0",
+    "konva": "9.3.22",
+    "maplibre-gl": "5.24.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-konva": "18.2.16",
+    "three": "0.169.0",
+    "zustand": "4.5.7"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.3",
+    "@types/geojson": "^7946.0.16",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@types/three": "0.169.0",
+    "@vitejs/plugin-react": "4.7.0",
+    "typescript": "5.9.3",
+    "vite": "5.4.21",
+    "vitest": "2.1.9"
+  }
+}

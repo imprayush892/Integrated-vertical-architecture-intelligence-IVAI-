@@ -1017,6 +1017,35 @@ class Planner:
         self._emit("bridge", **self.bridge)
         return {"ok": True, "project": self.project.name, "decisions_waiting": self.summary()["decisions_waiting"]}
 
+    # ================================================================= Claude link (5 steps) + doctor
+    def claude_status(self) -> dict:
+        from . import claude_link
+
+        st = claude_link.status()
+        st["handshake"] = self.bridge_status()
+        return st
+
+    def claude_plan_link(self) -> dict:
+        from . import claude_link
+
+        plan = claude_link.plan_link()
+        plan.pop("after", None)
+        return plan
+
+    def claude_link(self, confirm: bool = False) -> dict:
+        from . import claude_link
+
+        res = claude_link.link(confirm=confirm)
+        res.pop("after", None)
+        if self.store and res.get("written"):
+            self.store.event("claude_link", {"path": res["path"], "backup": res.get("backup")})
+        return res
+
+    def doctor(self) -> dict:
+        from .doctor import run_doctor
+
+        return run_doctor(False)
+
     def bridge_status(self) -> dict:
         b = dict(self.bridge)
         b["fresh"] = bool(b.get("linked")) and _now() - float(b.get("last_seen", 0)) < 600

@@ -141,10 +141,14 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
                           LineString([(ug.ox + e.pos * G, ug.oy + e.a * G), (ug.ox + e.pos * G, ug.oy + e.b * G)]))
         fac_all = shapely.union_all(fl) if fl else LineString()
         for rid, c in cells.items():
+            # service rooms may grow at most 60% (or 1.5 m2) past their target when absorbing leftovers
+            if spec[rid].type in ("toilet", "bath", "wc", "utility", "store", "pooja", "dress", "kitchen", "foyer"):
+                caps[rid] = max(c.area, spec[rid].target_area * 1.6, spec[rid].target_area + 1.5)
             if spec[rid].window_run and spec[rid].type != "balcony" and not fac_all.is_empty:
                 segs = _segments(c.boundary.intersection(fac_all))
                 L = max((math.dist(*sg) for sg in segs), default=0.0)
-                caps[rid] = max(c.area, (L - 0.4) * 9.0)  # window (L-0.25) x 1.5 m >= area / 6, with margin
+                cap_w = max(c.area, (L - 0.4) * 9.0)  # window (L-0.25) x 1.5 m >= area / 6, with margin
+                caps[rid] = min(caps.get(rid, cap_w), cap_w)
     cells = _merge_leftover(cells, ug.interior, types, caps)
     for rid in cells:
         if rid not in spec:  # leftover turned into a store
