@@ -35,7 +35,7 @@ RPC_METHODS = {
     "propose_programme", "get_diagram", "update_diagram", "precheck", "solve_unit", "solve_all", "get_plan",
     "apply_edit", "run_checks", "explain_check", "export_dxf", "import_drawing", "list_decisions",
     "answer_decision", "review_decision", "decision_stats", "compare_options", "geojson", "bridge_hello",
-    "bridge_status", "claude_status", "claude_plan_link", "claude_link", "doctor",
+    "bridge_status", "claude_status", "claude_plan_link", "claude_link", "doctor", "get_settings", "set_settings",
 }
 
 

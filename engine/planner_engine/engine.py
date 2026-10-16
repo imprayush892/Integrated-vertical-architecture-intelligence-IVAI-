@@ -374,25 +374,57 @@ class Planner:
         opt = next(o for o in pl.options if o.id == pl.chosen)
         return next((f for f in opt.plates if f.id == tower_id), None)
 
+    def _envelope(self, tower_id: str, shape: ShapeKind):
+        """Footprint a template is fitted to. Rectangles use the placement plate; a triangle gets the largest
+        triangle that fits the buildable area, clear of the other towers by the gap rule."""
+        fp = self._footprint(tower_id)
+        if shape != ShapeKind.triangle or fp is None or not self.project.site:
+            return fp
+        cache = getattr(self, "_tri_cache", {})
+        key = (tower_id, self.project.placement.chosen if self.project.placement else None, self.project.site.area)
+        if key in cache:
+            return cache[key]
+        from .placement import fit_triangle
+        from .site import buildable_geom
+
+        gap, _ = rules.tower_gap_for(self.project.site.building_height)
+        opt = next(o for o in self.project.placement.options if o.id == self.project.placement.chosen)
+        others = [Polygon(f.polygon).buffer(gap) for f in opt.plates if f.id != tower_id]
+        obstacles = shapely.union_all(others) if others else None
+        tri = fit_triangle(buildable_geom(self.project.site), obstacles)
+        if tri is not None:
+            tri.id = tower_id
+        cache[key] = tri or fp
+        self._tri_cache = cache
+        return cache[key]
+
     def list_shapes(self, tower_id: str = "T1") -> list[dict]:
         fp = self._footprint(tower_id)
         if fp is None:
             raise PlannerError("Choose a placement first", "no_placement")
         h = self.project.site.building_height if self.project.site else 24.0
-        return all_shapes(fp, h)
+        out = all_shapes(fp, h)
+        tri = self._envelope(tower_id, ShapeKind.triangle)
+        if tri is not fp:
+            from .plate import all_shapes as _all
+
+            t = next(x for x in _all(tri, h) if x["shape"] == "triangle")
+            out = [t if x["shape"] == "triangle" else x for x in out]
+        return out
 
     def set_plate(self, tower_id: str = "T1", shape: str | None = None, params: dict | None = None) -> dict:
         """Build or edit a plate from template parameters (drag handles send new params here)."""
         with self._lock:
             cur = self._plate(tower_id)
-            fp = self._footprint(tower_id)
-            env = (fp.width, fp.depth) if fp else (cur.params["W"], cur.params["D"])
             shape_k = ShapeKind(shape) if shape else cur.shape
+            fp = self._envelope(tower_id, shape_k)
+            env = (fp.width, fp.depth) if fp else (cur.params["W"], cur.params["D"])
+            angle = fp.angle_deg if fp else cur.angle_deg
+            origin = fp.center if fp else cur.origin
             base = dict(cur.params) if shape_k == cur.shape else {}
             base.update({k: float(v) for k, v in (params or {}).items()})
             h = self.project.site.building_height if self.project.site else 24.0
-            plate = build_plate(shape_k, base, tower_id=tower_id, angle_deg=cur.angle_deg, origin=cur.origin, env=env,
-                                height=h)
+            plate = build_plate(shape_k, base, tower_id=tower_id, angle_deg=angle, origin=origin, env=env, height=h)
             idx = self.project.plates.index(cur)
             self.project.plates[idx] = plate
             keep_units = shape_k == cur.shape and int(plate.params["units"]) == int(cur.params.get("units", 0))
@@ -403,11 +435,12 @@ class Planner:
     def preview_plate(self, tower_id: str, shape: str, params: dict) -> dict:
         """Zones for a drag in progress (no save)."""
         cur = self._plate(tower_id)
-        fp = self._footprint(tower_id)
+        fp = self._envelope(tower_id, ShapeKind(shape))
         env = (fp.width, fp.depth) if fp else (cur.params["W"], cur.params["D"])
         base = dict(cur.params) if ShapeKind(shape) == cur.shape else {}
         base.update({k: float(v) for k, v in params.items()})
-        plate = build_plate(shape, base, tower_id=tower_id, angle_deg=cur.angle_deg, origin=cur.origin, env=env)
+        plate = build_plate(shape, base, tower_id=tower_id, angle_deg=fp.angle_deg if fp else cur.angle_deg,
+                            origin=fp.center if fp else cur.origin, env=env)
         return plate.model_dump(mode="json")
 
     def import_plate_dxf(self, tower_id: str, path: str) -> dict:
@@ -1056,6 +1089,22 @@ class Planner:
         if self.store and res.get("written"):
             self.store.event("claude_link", {"path": res["path"], "backup": res.get("backup")})
         return res
+
+    def get_settings(self) -> dict:
+        from . import settings
+
+        return settings.public()
+
+    def set_settings(self, mapbox_token: str | None = None, crash_reports: bool | None = None,
+                     map_provider: str | None = None) -> dict:
+        from . import settings
+
+        changes = {k: v for k, v in {"mapbox_token": mapbox_token, "crash_reports": crash_reports,
+                                      "map_provider": map_provider}.items() if v is not None}
+        try:
+            return settings.save(**changes)
+        except ValueError as e:
+            raise PlannerError(str(e), "bad_setting") from e
 
     def doctor(self) -> dict:
         from .doctor import run_doctor

@@ -10,6 +10,7 @@ const IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imag
 const LABELS = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
 
 interface Props {
+  imagery?: { provider: string; token: string };
   tracing: boolean;
   points: [number, number][];
   onPoints: (p: [number, number][]) => void;
@@ -18,7 +19,7 @@ interface Props {
 
 const emptyFC = { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection;
 
-export default function MapView({ tracing, points, onPoints, flyTo }: Props) {
+export default function MapView({ tracing, points, onPoints, flyTo, imagery }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
@@ -39,12 +40,19 @@ export default function MapView({ tracing, points, onPoints, flyTo }: Props) {
       style: {
         version: 8,
         projection: { type: "globe" },
-        sources: {
+        sources: imagery?.provider === "mapbox" && imagery.token ? {
+          imagery: { type: "raster", tileSize: 512, maxzoom: 22,
+            tiles: [`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${encodeURIComponent(imagery.token)}`],
+            attribution: "© Mapbox © OpenStreetMap © Maxar" },
+        } : {
           imagery: { type: "raster", tiles: [IMAGERY], tileSize: 256, maxzoom: 19,
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           labels: { type: "raster", tiles: [LABELS], tileSize: 256, maxzoom: 19 },
         },
-        layers: [
+        layers: imagery?.provider === "mapbox" && imagery.token ? [
+          { id: "bg", type: "background", paint: { "background-color": "#0b1d2a" } },
+          { id: "imagery", type: "raster", source: "imagery" },
+        ] : [
           { id: "bg", type: "background", paint: { "background-color": "#0b1d2a" } },
           { id: "imagery", type: "raster", source: "imagery" },
           { id: "labels", type: "raster", source: "labels", paint: { "raster-opacity": 0.9 } },

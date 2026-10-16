@@ -78,7 +78,8 @@ def _nominatim(query: str, limit: int) -> list[GeocodeResult]:
 
 def _mapbox(query: str, limit: int, token: str) -> list[GeocodeResult]:
     r = httpx.get("https://api.mapbox.com/search/geocode/v6/forward",
-                  params={"q": query, "limit": limit, "access_token": token}, timeout=8.0)
+                  params={"q": query, "limit": limit, "access_token": token, "country": "in",
+                          "types": "neighborhood,locality,place,district,address,street,poi"}, timeout=8.0)
     r.raise_for_status()
     out = []
     for f in r.json().get("features", []):
@@ -104,8 +105,10 @@ def geocode(query: str, limit: int = 5) -> list[GeocodeResult]:
     query = query.strip()
     if not query:
         return []
+    from .settings import mapbox_token
+
     provider = os.environ.get("PLANNER_GEOCODER", "").lower()
-    mapbox = os.environ.get("MAPBOX_TOKEN")
+    mapbox = mapbox_token()
     google = os.environ.get("GOOGLE_MAPS_KEY")
     if not provider:
         provider = "mapbox" if mapbox else "google" if google else "nominatim"

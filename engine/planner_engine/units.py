@@ -180,6 +180,39 @@ def _door(unit: Polygon, passage) -> tuple[tuple[float, float], tuple[float, flo
     return None
 
 
+def _split_by_sides(plate: Plate, flats, n: int) -> list:
+    """Façade-band plates (triangle): each long façade owns the band between it and the lobby (split at
+    the corner bisectors); each band is cut perpendicular to its façade, so every flat has one straight
+    façade and one straight lobby edge."""
+    from shapely import affinity
+
+    from .plate import _tri_vertices, tri_incenter
+
+    verts = _tri_vertices(plate.params)
+    ic = tri_incenter(plate.params)
+    sides = []
+    for i in range(3):
+        a, b = verts[i], verts[(i + 1) % 3]
+        sector = Polygon([ic, a, b]).buffer(0)
+        band = flats.intersection(sector)
+        if band.area > 1.0:
+            sides.append((a, b, band))
+    total = sum(sd[2].area for sd in sides)
+    counts = [max(1, int(round(n * sd[2].area / total))) for sd in sides]
+    while sum(counts) > n and max(counts) > 1:
+        counts[counts.index(max(counts))] -= 1
+    while sum(counts) < n:
+        counts[counts.index(min(counts))] += 1
+    out = []
+    for (a, b, band), k in zip(sides, counts, strict=True):
+        ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
+        rot = affinity.rotate(band, -ang, origin=(0, 0))
+        for piece in _cut_equal(rot, k, "x"):
+            if not piece.is_empty:
+                out.append(affinity.rotate(piece, ang, origin=(0, 0)))
+    return out
+
+
 def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] | None = None) -> list[Unit]:
     flats = zones_geom(plate, "flats")
     passage = zones_geom(plate, "passage")
@@ -188,6 +221,8 @@ def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] 
     n = int(n or plate.params.get("units", 6))
     if flats.is_empty or n <= 0:
         return []
+    if plate.shape.value == "triangle":
+        return _finish_units(plate, _split_by_sides(plate, flats, n), [], flats, access, keep_programmes)
     # core line: horizontal through the core centre
     cy = core.centroid.y if not core.is_empty else 0.0
     minx, miny, maxx, maxy = flats.bounds
@@ -221,6 +256,17 @@ def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] 
                 continue
             raw.append(parts[0])
             fragments.extend(parts[1:])
+    return _finish_units(plate, raw, fragments, flats, access, keep_programmes)
+
+
+def _finish_units(plate: Plate, raw: list, fragments: list, flats, access, keep_programmes) -> list[Unit]:
+    parts = []
+    for g in raw:
+        ps = sorted(geo.polygons_of(g), key=lambda q: -q.area)
+        if ps:
+            parts.append(ps[0])
+            fragments = list(fragments) + ps[1:]
+    raw = parts
     raw = _merge_fragments(raw, [f for f in fragments if f.area > 1e-4])
     # order units clockwise from the top-left like the reference (APT-1..)
     cx0, cy0 = flats.centroid.x, flats.centroid.y

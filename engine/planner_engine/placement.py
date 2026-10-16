@@ -337,3 +337,67 @@ def place(site: Site, families: tuple[int, ...] = (1, 2, 3), view_bearing: float
         options.append(opt)
     _ = (gap_clause, cov_clause)
     return Placement(options=options, elapsed_s=round(time.perf_counter() - t0, 3))
+
+
+def fit_triangle(geom, obstacles=None, angle_step: int = 4, grid: float = 1.5,
+                 aspect: float = 0.866) -> PlateFootprint | None:
+    """Largest triangle (base B, height aspect*B; equilateral by default) inside ``geom`` minus obstacles.
+
+    Sweeps the orientation (0-119 deg; a triangle repeats every 120), and for each one binary-searches the
+    size with a vectorised containment test over a grid of candidate positions."""
+    region = geom.difference(obstacles) if obstacles is not None and not obstacles.is_empty else geom
+    parts = geo.polygons_of(region)
+    if not parts:
+        return None
+    region = max(parts, key=lambda p: p.area)
+    best = None
+    for theta in range(0, 120, angle_step):
+        rot = shapely.affinity.rotate(region, -theta, origin=(0, 0))
+        minx, miny, maxx, maxy = rot.bounds
+        xs = np.arange(minx, maxx, grid)
+        ys = np.arange(miny, maxy, grid)
+        gx, gy = np.meshgrid(xs, ys)
+        cx, cy = gx.ravel(), gy.ravel()
+        inside = shapely.contains_xy(rot, cx, cy)
+        cx, cy = cx[inside], cy[inside]
+        if cx.size == 0:
+            continue
+        prep = shapely.prepared.prep(rot) if hasattr(shapely, "prepared") else None
+        _ = prep
+
+        def fits(B: float, cx=cx, cy=cy, rot=rot):
+            H = aspect * B
+            # triangle with its bounding-box centre at (cx, cy): base at cy - H/2
+            coords = np.stack([
+                np.stack([cx - B / 2, cy - H / 2], 1), np.stack([cx + B / 2, cy - H / 2], 1),
+                np.stack([cx, cy + H / 2], 1), np.stack([cx - B / 2, cy - H / 2], 1)], 1)
+            tris = shapely.polygons(coords)
+            ok = shapely.contains(rot, tris)
+            return np.flatnonzero(ok)
+
+        lo, hi = 0.0, math.hypot(maxx - minx, maxy - miny)
+        hit = None
+        for _ in range(14):
+            mid = (lo + hi) / 2
+            idx = fits(mid)
+            if idx.size:
+                lo, hit = mid, (mid, idx)
+            else:
+                hi = mid
+        if hit and (best is None or hit[0] > best[0]):
+            B, idx = hit
+            # among fitting positions take the one closest to the region centroid (keeps margins balanced)
+            c = rot.centroid
+            k = idx[np.argmin((cx[idx] - c.x) ** 2 + (cy[idx] - c.y) ** 2)]
+            best = (B, theta, cx[k], cy[k])
+    if best is None:
+        return None
+    B, theta, x, y = best
+    B = math.floor(B * 10) / 10
+    H = round(aspect * B, 2)
+    tri = Polygon([(x - B / 2, y - H / 2), (x + B / 2, y - H / 2), (x, y + H / 2)])
+    tri_site = shapely.affinity.rotate(tri, theta, origin=(0, 0))
+    center = geo.rotate_pts([(x, y)], theta)[0]
+    return PlateFootprint(id="T1", polygon=[(round(a, 3), round(b, 3)) for a, b in geo.ring_of(tri_site)],
+                          angle_deg=float(theta), center=(round(center[0], 3), round(center[1], 3)),
+                          width=B, depth=H, area=round(tri.area, 2))

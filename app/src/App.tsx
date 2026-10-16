@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BubbleCanvas from "./components/BubbleCanvas";
 import ClaudeLink from "./components/ClaudeLink";
+import Settings, { type AppSettings } from "./components/Settings";
 import Inbox from "./components/Inbox";
 import MapView from "./components/MapView";
 import PlateCanvas from "./components/PlateCanvas";
@@ -36,6 +37,9 @@ export default function App() {
   const [focus, setFocus] = useState<CheckResult | null>(null);
   const [show3d, setShow3d] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  useEffect(() => { void rpc<AppSettings>("get_settings").then(setSettings).catch(() => undefined); }, []);
   const [error, setError] = useState<string | null>(null);
   const previewSeq = useRef(0);
 
@@ -139,6 +143,7 @@ export default function App() {
         <button className={`btn small ${waitingN ? "amber" : ""}`} onClick={() => s.setInbox(!inboxOpen)}>
           Decisions {waitingN ? `· ${waitingN}` : ""}
         </button>
+        <button className="btn small ghost" onClick={() => setSettingsOpen(true)} title="Settings" aria-label="Settings">⚙ Settings</button>
         <button className="btn small" onClick={() => setLinkOpen(true)} title="Link Claude">
           <span className="dot" style={{ background: fresh ? "var(--teal)" : "var(--muted)" }} /> {fresh ? "Claude linked" : "Claude not linked"}
         </button>
@@ -153,7 +158,10 @@ export default function App() {
           ))}
         </nav>
         <main className="stage">
-          {mapStage && <MapView tracing={step === "trace"} points={points} onPoints={setPoints} flyTo={fly} />}
+          {mapStage && settings && (
+            <MapView key={`${settings.imagery}:${settings.mapbox_token}`} imagery={{ provider: settings.imagery, token: settings.mapbox_token }}
+              tracing={step === "trace"} points={points} onPoints={setPoints} flyTo={fly} />
+          )}
           {!mapStage && plate && (step === "shape" || step === "units" || step === "program") && (
             <PlateCanvas plate={preview ?? plate} mode={step === "shape" ? "shape" : "units"} units={step === "shape" && preview ? [] : unitsOfTower}
               selectedUnit={unitId} onSelectUnit={(id) => s.setUnit(id)} onDrag={onDrag} onCommit={onCommit} />
@@ -199,6 +207,7 @@ export default function App() {
         </aside>
       </div>
       {linkOpen && <ClaudeLink onClose={() => setLinkOpen(false)} />}
+      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} onSaved={setSettings} />}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`} onClick={() => s.dismiss(t.id)}>{t.text}</div>)}
       </div>

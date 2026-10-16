@@ -75,6 +75,8 @@ def limits(shape: ShapeKind, env_w: float, env_d: float) -> dict[str, Limit]:
         base |= {"bar_width": Limit(6.0, env_w / 2), "bridge_depth": Limit(6.0, env_d)}
     elif shape == ShapeKind.t_shape:
         base |= {"bar_depth": Limit(8.0, env_d), "stem_width": Limit(8.0, env_w)}
+    elif shape == ShapeKind.triangle:
+        base |= {"corner_cut": Limit(0.0, 12.0), "unit_depth": Limit(7.0, 14.0)}
     return base
 
 
@@ -108,13 +110,20 @@ def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float =
         p["core_w"] = min(p["core_w"], p["stem_width"] - 1.0)
         p["shafts"] = 2
     elif shape == ShapeKind.triangle:
-        p["core_w"] = min(p["core_w"], W * 0.3)
-        p["core_d"] = min(p["core_d"], D * 0.3)
+        p["corner_cut"] = round(min(7.0, max(3.0, min(W, D) * 0.14)), 1)
+        p["unit_depth"] = 9.0
+        # compact core: two stairs either side of two lifts, lobby in front
+        p["core_w"] = 11.8
+        p["core_d"] = 8.0
     p["core_w"] = max(4.0, round(p["core_w"], 1))
     p["core_d"] = max(4.0, round(p["core_d"], 1))
-    flats_guess = W * D * (0.75 if shape != ShapeKind.triangle else 0.38)
+    flats_guess = W * D * (0.75 if shape != ShapeKind.triangle else 0.33)
     n = max(2, int(round(flats_guess / 150.0)))
     p["units"] = float(n + (n % 2 if shape in (ShapeKind.central_core, ShapeKind.side_core) else 0))
+    if shape == ShapeKind.triangle:
+        # flats along every façade with ~11 m of frontage each
+        sides = [W, math.hypot(W / 2, D), math.hypot(W / 2, D)]
+        p["units"] = float(sum(max(1, round((L - 2 * p["corner_cut"]) / 11.0)) for L in sides))
     return p
 
 
@@ -136,7 +145,7 @@ def _core_center(shape: ShapeKind, p: dict[str, float]) -> tuple[float, float]:
         # core in the stem, just below the bar: bar flats stay single-loaded and deep
         return (0.0, D / 2 - p["bar_depth"] - p["core_d"] / 2 + p["passage"])
     if shape == ShapeKind.triangle:
-        return (0.0, -D / 2 + D / 3)
+        return tri_incenter(p)
     return (0.0, 0.0)
 
 
@@ -156,8 +165,73 @@ def _outline(shape: ShapeKind, p: dict[str, float]) -> Polygon:
         bd, sw = min(p["bar_depth"], D), min(p["stem_width"], W)
         return shapely.union(box(-W / 2, D / 2 - bd, W / 2, D / 2), box(-sw / 2, -D / 2, sw / 2, D / 2 - bd + 0.001))
     if shape == ShapeKind.triangle:
-        return Polygon([(-W / 2, -D / 2), (W / 2, -D / 2), (0.0, D / 2)])
+        return _truncate(_tri_vertices(p), p.get("corner_cut", 5.0))
     raise ValueError(shape)
+
+
+def _tri_vertices(p: dict[str, float]) -> list[tuple[float, float]]:
+    W, D = p["W"], p["D"]
+    return [(-W / 2, -D / 2), (W / 2, -D / 2), (0.0, D / 2)]
+
+
+def _truncate(verts: list[tuple[float, float]], c: float) -> Polygon:
+    """Cut each corner of a polygon by ``c`` metres along both edges (no unusable acute tips)."""
+    if c <= 0:
+        return Polygon(verts)
+    out = []
+    n = len(verts)
+    for i in range(n):
+        p0, p1, p2 = verts[i - 1], verts[i], verts[(i + 1) % n]
+        for q in (p0, p2):
+            L = math.dist(p1, q)
+            t = min(c, L * 0.3) / L
+            out.append((p1[0] + (q[0] - p1[0]) * t, p1[1] + (q[1] - p1[1]) * t))
+        # keep CCW order: point toward previous vertex first, then toward next
+    return Polygon(out).buffer(0)
+
+
+def tri_incenter(p: dict[str, float]) -> tuple[float, float]:
+    A, B, C = _tri_vertices(p)
+    a, b, c = math.dist(B, C), math.dist(A, C), math.dist(A, B)
+    s = a + b + c
+    return ((a * A[0] + b * B[0] + c * C[0]) / s, (a * A[1] + b * B[1] + c * C[1]) / s)
+
+
+def _triangle_zones(outline: Polygon, p: dict[str, float]):
+    """Triangle plate: a band of flats along every façade, core + lobby in the middle.
+
+    The core keeps its full size (two stairs, lifts): it sits on the inner triangle's base, where the
+    triangle is widest, with a passage strip in front. The band depth shrinks (to 6.5 m) until it fits.
+    The lobby is the inner triangle minus the core, so every flat meets it along a straight edge."""
+    ic = tri_incenter(p)
+    cw, cd, pw = p["core_w"], p["core_d"], p["passage"]
+    depth = p.get("unit_depth", 9.0)
+    core = inner = None
+    while depth >= 6.5 and core is None:
+        inner = outline.buffer(-depth, join_style="mitre", mitre_limit=5.0)
+        if not inner.is_empty:
+            y0 = inner.bounds[1] + pw
+            while y0 + cd <= inner.bounds[3]:
+                c = box(ic[0] - cw / 2, y0, ic[0] + cw / 2, y0 + cd)
+                if inner.contains(c):
+                    core = c
+                    break
+                y0 += 0.25
+        if core is None:
+            depth -= 0.25
+    if core is None:  # plate too small for a full core: keep the depth, shrink the core (flagged by NBC checks)
+        depth = 6.5
+        inner = outline.buffer(-depth, join_style="mitre", mitre_limit=5.0)
+        for k in (0.9, 0.8, 0.7, 0.6):
+            c = box(ic[0] - cw * k / 2, ic[1] - cd * k / 2, ic[0] + cw * k / 2, ic[1] + cd * k / 2)
+            if inner.contains(c):
+                core = c
+                break
+        if core is None:
+            core = box(ic[0] - 3.0, ic[1] - 2.0, ic[0] + 3.0, ic[1] + 2.0).intersection(outline)
+    p["unit_depth"] = round(depth, 2)
+    passage = inner.difference(core) if inner is not None and not inner.is_empty else core.buffer(1.5).difference(core)
+    return core, shapely.set_precision(passage.intersection(outline), 0.001)
 
 
 def _corridors(shape: ShapeKind, p: dict[str, float], core_c: tuple[float, float]) -> list[LineString]:
@@ -269,13 +343,16 @@ def build_plate(
     outline = _outline(shape, p).buffer(0)
     outline = shapely.set_precision(outline, 0.001)
     cc = _core_center(shape, p)
-    core = box(cc[0] - p["core_w"] / 2, cc[1] - p["core_d"] / 2, cc[0] + p["core_w"] / 2, cc[1] + p["core_d"] / 2)
-    core = core.intersection(outline)
     pw = p["passage"]
-    ring = core.buffer(pw, join_style="mitre", mitre_limit=2.0)
-    corr = [ln.buffer(pw / 2, cap_style="flat", join_style="mitre") for ln in _corridors(shape, p, cc)]
-    passage = shapely.union_all([ring, *corr]).intersection(outline).difference(core)
-    passage = shapely.set_precision(passage, 0.001)
+    if shape == ShapeKind.triangle:
+        core, passage = _triangle_zones(outline, p)
+    else:
+        core = box(cc[0] - p["core_w"] / 2, cc[1] - p["core_d"] / 2, cc[0] + p["core_w"] / 2, cc[1] + p["core_d"] / 2)
+        core = core.intersection(outline)
+        ring = core.buffer(pw, join_style="mitre", mitre_limit=2.0)
+        corr = [ln.buffer(pw / 2, cap_style="flat", join_style="mitre") for ln in _corridors(shape, p, cc)]
+        passage = shapely.union_all([ring, *corr]).intersection(outline).difference(core)
+        passage = shapely.set_precision(passage, 0.001)
     rest = outline.difference(core).difference(passage)
     # flat-zone slivers too thin for a room (< 5 m) become part of the lobby (daylit common space)
     thick = rest.buffer(-2.5, join_style="mitre").buffer(2.5, join_style="mitre").intersection(rest)

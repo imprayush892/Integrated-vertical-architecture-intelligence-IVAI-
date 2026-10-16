@@ -187,6 +187,8 @@ def unit_grid(plate: Plate, unit: Unit) -> UnitGrid:
     interior = max(parts, key=lambda p: p.area) if parts else Polygon()
     interior = geo.rectilinearize(interior, 0.5) if not interior.is_empty else interior
     interior = shapely.set_precision(interior, 0.001)
+    # merge collinear vertices (raster unions leave one every 0.5 m), so a straight façade is one edge
+    interior = interior.simplify(0.0) if not interior.is_empty else interior
     minx, miny, maxx, maxy = interior.bounds
     ox, oy = minx, miny
     Wg = int(math.floor((maxx - minx) / G + 1e-6))
