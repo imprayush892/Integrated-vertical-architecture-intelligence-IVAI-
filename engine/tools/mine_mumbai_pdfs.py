@@ -35,6 +35,43 @@ def classify(text: str) -> str | None:
     return None
 
 
+def group_lines(words):
+    """Union words that sit on one visual line close together ("3.05" "x" "3.05" -> "3.05 x 3.05")."""
+    n = len(words)
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    order = sorted(range(n), key=lambda i: words[i][1])
+    for ii, i in enumerate(order):
+        wi = words[i]
+        cyi = wi[2] + wi[4] / 2
+        for j in order[ii + 1:]:
+            wj = words[j]
+            h = max(wi[4], wj[4])
+            gap = wj[1] - (wi[1] + wi[3])
+            if gap > 1.6 * h:
+                break
+            if abs((wj[2] + wj[4] / 2) - cyi) < 0.5 * h and gap > -wi[3]:
+                parent[find(j)] = find(i)
+    groups = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(words[i])
+    lines = []
+    for g in groups.values():
+        g.sort(key=lambda w: w[1])
+        x0 = min(w[1] for w in g)
+        y0 = min(w[2] for w in g)
+        x1 = max(w[1] + w[3] for w in g)
+        y1 = max(w[2] + w[4] for w in g)
+        lines.append((" ".join(w[0] for w in g), x0, y0, x1 - x0, y1 - y0))
+    return lines
+
+
 def page_rooms(args):
     pdf, pno = args
     import pymupdf
@@ -56,16 +93,7 @@ def page_rooms(args):
         if not w or float(data["conf"][i]) < 30:
             continue
         words.append((w, data["left"][i], data["top"][i], data["width"][i], data["height"][i]))
-    # join words that sit on the same visual line and are close together (e.g. "3.05", "x", "3.05")
-    words.sort(key=lambda t: (round(t[2] / 8), t[1]))
-    lines = []
-    for w in words:
-        if lines:
-            lw = lines[-1]
-            if abs(w[2] - lw[2]) < max(8, lw[4] * 0.6) and 0 <= w[1] - (lw[1] + lw[3]) < lw[4] * 1.6:
-                lines[-1] = (lw[0] + " " + w[0], lw[1], min(lw[2], w[2]), w[1] + w[3] - lw[1], max(lw[4], w[4]))
-                continue
-        lines.append(w)
+    lines = group_lines(words)
     names = [(ln, classify(ln[0])) for ln in lines]
     names = [(ln, t) for ln, t in names if t]
     title = " ".join(ln[0] for ln in lines if "PLAN" in ln[0].upper())[:120]
@@ -112,14 +140,22 @@ def main() -> None:
     for pdf in sorted(root.glob("*/*.pdf")):
         n = pymupdf.open(str(pdf)).page_count
         jobs += [(str(pdf), i) for i in range(n)]
-    print(len(jobs), "pages", file=sys.stderr)
-    with ProcessPoolExecutor(workers) as ex, open(outp, "w") as fh:
-        for k, rows in enumerate(ex.map(page_rooms, jobs, chunksize=2)):
+    done: set[tuple[str, int]] = set()
+    if outp.exists():  # resume: a page is done once its marker line is written
+        for line in outp.read_text().splitlines():
+            r = json.loads(line)
+            if r.get("type") == "_page_done":
+                done.add((r["pdf"], r["page"]))
+    jobs = [j for j in jobs if (Path(j[0]).parent.name, j[1]) not in done]
+    print(len(jobs), "pages to do,", len(done), "done", file=sys.stderr)
+    with ProcessPoolExecutor(workers) as ex, open(outp, "a") as fh:
+        for k, (job, rows) in enumerate(zip(jobs, ex.map(page_rooms, jobs, chunksize=2))):
             for r in rows:
                 fh.write(json.dumps(r) + "\n")
-            if k % 50 == 0:
+            fh.write(json.dumps({"pdf": Path(job[0]).parent.name, "page": job[1], "type": "_page_done"}) + "\n")
+            fh.flush()
+            if k % 25 == 0:
                 print(k, file=sys.stderr, flush=True)
-
 
 if __name__ == "__main__":
     main()
