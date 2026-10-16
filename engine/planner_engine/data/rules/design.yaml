@@ -1,4 +1,6 @@
 # Architect-authored design defaults (not statutory). Edit per office.
+# source: room programmes (data/programmes/*.json) and layout_priors.yaml are calibrated to municipal-approved Mumbai
+# plans, see planner_engine/data/mumbai_approved_stats.json (50 projects, 655 pages). Plate/core values below are unchanged.
 plate:
   min_depth: 12.0
   ideal_depth: 22.0
@@ -18,7 +20,7 @@ core:
   stair_flight_width: 1.5
   stair_length: 6.6
   lobby_depth: 2.4
-  passage_width: 1.8
+  passage_width: 1.8       # COMMON passage / lobby: approved lobby_width p50 = 1.8 m; DCPR Reg 37(12) floor is 1.5 m clear
 walls:
   external: 0.23
   internal: 0.115
@@ -30,3 +32,9 @@ windows:
   head_height: 2.1
   sill_height: 0.6
 floor_to_floor: 3.0
+flat:
+  # Passage INSIDE a flat (programme room "passage"): approved plans give p50 1.03-1.15 m clear (widths.passage_width p50 1.15,
+  # passage short side p50 1.03). Reference default; the solver derives it from the passage target_area, aspect_max.passage
+  # (layout_priors.yaml) and the 1.0 m room minimum in diagram.room_minimums. The 1.15 approved p50 is NOT applicable to the
+  # common passage above, which must stay >= 1.5 m (DCPR floor).
+  passage_width: 1.1

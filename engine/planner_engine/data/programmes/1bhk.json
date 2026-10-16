@@ -12,7 +12,7 @@
    "id": "foyer",
    "type": "foyer",
    "name": "Foyer",
-   "target_area": 2.5,
+   "target_area": 3.0,
    "min_area": 1.5,
    "needs_window": false,
    "wet": false,
@@ -22,7 +22,7 @@
    "id": "living",
    "type": "living",
    "name": "Living",
-   "target_area": 14,
+   "target_area": 17,
    "min_area": 11,
    "needs_window": true,
    "wet": false,
@@ -32,7 +32,7 @@
    "id": "kitchen",
    "type": "kitchen",
    "name": "Kitchen",
-   "target_area": 6,
+   "target_area": 7.0,
    "min_area": 5.5,
    "needs_window": true,
    "wet": true,
@@ -42,7 +42,7 @@
    "id": "master",
    "type": "master",
    "name": "Bedroom",
-   "target_area": 11,
+   "target_area": 11.5,
    "min_area": 9.5,
    "needs_window": true,
    "wet": false,
@@ -52,7 +52,7 @@
    "id": "toilet",
    "type": "toilet",
    "name": "Toilet",
-   "target_area": 3.2,
+   "target_area": 3.0,
    "min_area": 2.2,
    "needs_window": false,
    "wet": true,
@@ -62,7 +62,7 @@
    "id": "balcony",
    "type": "balcony",
    "name": "Balcony",
-   "target_area": 3,
+   "target_area": 3.5,
    "min_area": 0,
    "needs_window": false,
    "wet": false,
@@ -91,5 +91,5 @@
    "balcony"
   ]
  ],
- "note": "A starting point, not the answer."
+ "note": "A starting point, not the answer. Source: target_area values calibrated to the p50 (p50-p75 for larger flats) of room areas in municipal-approved Mumbai plans, see planner_engine/data/mumbai_approved_stats.json (50 projects, 655 pages); min_area stays at the DCPR 2034 / office floors."
 }

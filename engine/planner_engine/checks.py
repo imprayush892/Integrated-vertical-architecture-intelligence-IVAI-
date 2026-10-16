@@ -37,6 +37,8 @@ def _cmp(op: str, v: float, t: float) -> bool:
 def _grade(c: rules.Clause, value: float, threshold: float) -> str:
     ok = _cmp(c.op, value, threshold)
     if not ok:
+        if c.review_below and c.op in (">=", ">") and value >= threshold * (1 - c.review_below) - 1e-9:
+            return "review"
         return "fail"
     if c.review_band and abs(value - threshold) <= c.review_band:
         return "review"

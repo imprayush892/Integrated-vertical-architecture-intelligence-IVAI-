@@ -42,6 +42,7 @@ class Clause(BaseModel):
     threshold: Any
     unit: str = ""
     review_band: float = 0.0
+    review_below: float = 0.0  # fraction under the threshold graded "review" (seen in approved plans)
     when: str | None = None
     advice: str | None = None
     code: str = ""

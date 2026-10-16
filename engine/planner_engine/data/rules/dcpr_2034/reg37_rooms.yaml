@@ -39,6 +39,9 @@ clauses:
     op: ">="
     threshold: [5.5, 1.8]
     unit: "m2 / m"
+    # Approved Mumbai plans (data/golden/approved_rooms.json) show sanctioned kitchens of 5.0-5.5 m2 in 12
+    # projects: up to 10% under is "review" (consultant to confirm), not a fail.
+    review_below: 0.10
   - id: DCPR-37-6-a
     clause: "Reg 37(6)(a)"
     title: "WC at least 1.10 m2, width 0.90 m"

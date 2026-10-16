@@ -1,24 +1,24 @@
 # Deterministic layout priors. Shape limits are derived from the ResPlan dataset
 # (m-agour/ResPlan, 17,000 residential plans, CC BY 4.0) - see resplan_priors.json and tools/mine_resplan.py.
 # These are design rules (not statutory). Statutory minimums stay in dcpr_2034/ and nbc_2016/.
-source: "ResPlan (Agour et al.), CC BY 4.0 - mined 17,000 plans"
-aspect_max:            # long side / short side, ~p95 of ResPlan rooms (rounded)
-  master: 1.6
+source: "ResPlan (Agour et al.), CC BY 4.0 - mined 17,000 plans; aspect limits tightened to the p95 of municipal-approved Mumbai plans where that is tighter (planner_engine/data/mumbai_approved_stats.json, 50 projects, 655 pages)"
+aspect_max:            # long side / short side, ~p95 of ResPlan rooms (rounded); Mumbai-approved p95 where tighter (noted per line)
+  master: 1.5          # Mumbai approved p95 1.51 (ResPlan 1.6)
   bedroom: 1.6
   study: 1.8
   living: 2.3
   dining: 2.0
-  kitchen: 2.0
+  kitchen: 1.8         # Mumbai approved p95 1.76 (ResPlan 2.0)
   toilet: 2.3
   bath: 2.3
   wc: 3.0
   utility: 3.0
-  foyer: 8.0
+  foyer: 5.0           # Mumbai approved p95 5.04 (ResPlan 8.0)
   pooja: 2.0
   store: 3.0
   dress: 3.0
   balcony: 5.0
-  passage: 12.0
+  passage: 5.5         # Mumbai approved p95 5.40 (ResPlan 12.0)
 balcony:
   min_aspect: 1.5          # balconies are elongated (ResPlan median 2.3)
   long_side_outside: true  # 94% of ResPlan balconies expose the long side

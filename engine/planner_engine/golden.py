@@ -10,6 +10,7 @@ Gates measured here:
 * stage 4: placement options in under 3 s, each passing coverage and gap rules
 * stage 5: zones sum to the plate area exactly on all six shapes
 * stage 8: rule results on the reference drawings match the expected (consultant) results 100%
+* approved plans: the DCPR room-size / width clauses pass >= 95% of the municipal-approved Mumbai rooms, per clause
 """
 
 from __future__ import annotations
@@ -167,6 +168,16 @@ def gate_rules() -> dict:
     return {"gate": "rules", "ok": not mism and total > 0, "compared": total, "mismatches": mism}
 
 
+def gate_approved() -> dict:
+    """Approved Mumbai rooms are legal by definition: each DCPR room clause must pass >= 95% of them."""
+    from .approved import approved_gate
+
+    t0 = time.perf_counter()
+    r = approved_gate()
+    r["seconds"] = round(time.perf_counter() - t0, 2)
+    return r
+
+
 def gate_decisions() -> dict:
     from .engine import Planner
 
@@ -185,7 +196,7 @@ def gate_decisions() -> dict:
 
 def run_all(quick: bool = False) -> dict[str, Any]:
     out: dict[str, Any] = {}
-    for fn in (gate_geocode, gate_trace, gate_place, gate_zones, gate_dxf, gate_rules):
+    for fn in (gate_geocode, gate_trace, gate_place, gate_zones, gate_dxf, gate_rules, gate_approved):
         out[fn.__name__[5:]] = fn()
     out["flats"] = gate_flats(limit=12 if quick else None)
     if not quick:

@@ -10,7 +10,8 @@ hard-coded in Python.
 | `dcpr_2034/reg39_light.yaml` | Openings ≥ 1/6 floor area, toilet ventilation (window or AVS shaft = pass, mechanical duct = review), AVS minimum size (3.0 m², 1.5 m side, `DCPR-39-3`), common passage width |
 | `nbc_2016/part4_egress.yaml` | Travel distance, number of staircases, stair flight width, exit door width, fire lift / refuge advisory |
 | `design.yaml` | Architect-authored defaults (plate limits, core sizes, wall thicknesses) - not statutory |
-| `layout_priors.yaml` | Shape priors from ResPlan (aspect ratios, balcony rules, door affinities) - not statutory |
+| `layout_priors.yaml` | Shape priors from ResPlan (aspect ratios, balcony rules, door affinities), with aspect limits tightened to the approved-Mumbai p95 (`mumbai_approved_stats.json`) for master, kitchen, foyer and passage; balcony rules unchanged (long side on the façade, aspect >= 1.5) - not statutory |
+| `../programmes/*.json` | Flat room programmes (target / minimum areas per BHK). Targets are calibrated to the p50 (towards p75 for larger flats) of municipal-approved Mumbai plans, `planner_engine/data/mumbai_approved_stats.json` (50 projects, 655 pages); `min_area` is the legal floor and is never lowered to an approved p5-p10 value (measurement noise) |
 
 ## A clause record
 
