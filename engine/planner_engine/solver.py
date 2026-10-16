@@ -38,7 +38,7 @@ EXT_WALL = 0.23
 PARTY_WALL = 0.115
 INT_WALL = 0.115
 WIN_HEIGHT = 1.5  # sill 0.6 to head 2.1
-TIME_CAP = 7.5
+TIME_CAP = 8.5  # CP-SAT wall-clock cap for one solve; layout.FLAT_BUDGET (9.5 s) bounds a whole flat incl. fix attempts
 ASPECT_X10 = {"passage": 120, "foyer": 30, "balcony": 60, "utility": 40, "dress": 40, "toilet": 25, "bath": 25,
              "wc": 30, "kitchen": 25, "store": 40, "pooja": 25}  # max long/short side x10; default 20
 CIRCULATION = {"foyer", "passage"}
@@ -601,6 +601,14 @@ def entry_fallback(specs: list[RoomSpec], entry: str) -> str | None:
     return None
 
 
+def stall_patience(time_limit: float, n_rooms: int) -> float:
+    """Seconds without a better incumbent before the search stops early.
+
+    Big programmes (3BHK and up, 12+ rooms) improve in rarer, larger steps, so they get more patience."""
+    scale = 1.0 + 0.08 * max(0, n_rooms - 8)
+    return min(3.5, max(0.5, time_limit * 0.25 * scale))
+
+
 def _params(solver: cp_model.CpSolver, time_limit: float, workers: int | None = None) -> None:
     p = solver.parameters
     p.max_time_in_seconds = time_limit
@@ -614,8 +622,8 @@ def solve(ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], ent
     t0 = time.perf_counter()
     b = _Builder(ug, specs, links, entry, guards=False)
     solver = cp_model.CpSolver()
-    _params(solver, time_limit)
-    cb = _Stall(patience=min(2.0, max(0.5, time_limit * 0.25)))
+    _params(solver, max(0.2, time_limit - (time.perf_counter() - t0)))  # model build counts against the cap
+    cb = _Stall(patience=stall_patience(time_limit, len(specs)))
     st = _solve_with_stall(solver, b.m, cb, time_limit)
     elapsed = time.perf_counter() - t0
     if st in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -628,7 +636,7 @@ def solve(ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], ent
         status = "optimal" if st == cp_model.OPTIMAL else ("feasible" if elapsed < time_limit * 0.98 else "timeout")
         return SolveResult(status, rects, dropped, solver.objective_value, round(elapsed, 3))
     if st == cp_model.INFEASIBLE or st == cp_model.MODEL_INVALID:
-        core = explain_infeasible(ug, specs, links, entry, budget=max(1.0, time_limit - elapsed)) if explain else []
+        core = explain_infeasible(ug, specs, links, entry, budget=min(3.0, max(0.3, time_limit - elapsed))) if explain else []
         return SolveResult("infeasible", time_s=round(time.perf_counter() - t0, 3), core=core)
     return SolveResult("timeout", time_s=round(elapsed, 3))
 

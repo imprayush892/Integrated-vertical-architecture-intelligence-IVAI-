@@ -315,16 +315,30 @@ def largest_inscribed_rect(geom: BaseGeometry, res: float = 0.25, max_dim: float
 
 
 def clear_width(geom: BaseGeometry) -> float:
-    """Clear minimum width of a room: short side of its largest inscribed rectangle.
+    """Clear minimum width of a room: short side of its largest inscribed axis-aligned rectangle.
 
-    Rooms are rectilinear in the plate frame, so the axis-aligned inscribed rectangle is exact for
-    rectangles and conservative for L-shapes.
+    Exact for rectilinear rooms (the optimal rectangle has its edges on vertex coordinates, so those are
+    enumerated); other shapes fall back to a raster search, which can read up to ``bbox/80`` low.
     """
     if geom.is_empty:
         return 0.0
     minx, miny, maxx, maxy = geom.bounds
     if abs(geom.area - (maxx - minx) * (maxy - miny)) < 1e-6:
         return round(min(maxx - minx, maxy - miny), 3)
+    if isinstance(geom, Polygon) and not geom.interiors and is_rectilinear(list(geom.exterior.coords)[:-1]):
+        xs = sorted({round(c[0], 6) for c in geom.exterior.coords})
+        ys = sorted({round(c[1], 6) for c in geom.exterior.coords})
+        if len(xs) <= 14 and len(ys) <= 14:
+            grown = geom.buffer(1e-6, join_style="mitre")
+            best = 0.0
+            for i, x0 in enumerate(xs):
+                for x1 in xs[i + 1:]:
+                    for j, y0 in enumerate(ys):
+                        for y1 in ys[j + 1:]:
+                            side = min(x1 - x0, y1 - y0)
+                            if side > best + 1e-9 and grown.contains(shapely.box(x0, y0, x1, y1)):
+                                best = side
+            return round(best, 3)
     res = max(0.02, min(maxx - minx, maxy - miny) / 80.0)
     r = largest_inscribed_rect(geom, res=res, objective="minside")
     if r is None:

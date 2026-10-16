@@ -88,12 +88,15 @@ export default function BubbleCanvas({ diagram, onChange }: Props) {
 
   const clash = useMemo(() => new Set(diagram.conflicts.flatMap((c) => c.rooms)), [diagram.conflicts]);
   const byId = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms]);
-  // fit the bubble layout's bounding box into the free area between the HUD (top) and the legend (bottom);
-  // room positions stay in the engine's own coordinates
-  const PAD = 44; // approx. bubble radius at k = 1
-  const xs = rooms.map((r) => r.x), ys = rooms.map((r) => r.y);
-  const minX = Math.min(0, ...xs) - PAD, maxX = Math.max(0, ...xs) + PAD;
-  const minY = Math.min(0, ...ys) - PAD, maxY = Math.max(0, ...ys) + PAD;
+  // fit the bubble layout's bounding box (bubbles included) into the free area between the HUD (top) and the legend
+  // (bottom); room positions stay in the engine's own coordinates, and bubbles scale with the fit so they never
+  // overlap on screen when the engine's layout has none (engine radius = bubbleRadius(area), same formula)
+  const bubbleRadius = (area: number) => 16 + Math.sqrt(Math.max(1, area)) * 6;
+  const PAD = 8; // breathing room around the outermost bubble edge
+  const minX = Math.min(0, ...rooms.map((r) => r.x - bubbleRadius(r.target_area))) - PAD;
+  const maxX = Math.max(0, ...rooms.map((r) => r.x + bubbleRadius(r.target_area))) + PAD;
+  const minY = Math.min(0, ...rooms.map((r) => r.y - bubbleRadius(r.target_area))) - PAD;
+  const maxY = Math.max(0, ...rooms.map((r) => r.y + bubbleRadius(r.target_area))) + PAD;
   const freeTop = 64, freeBottom = 120;
   const k = Math.max(0.2, Math.min(1.4, (size.w - 24) / (maxX - minX), (size.h - freeTop - freeBottom) / (maxY - minY)));
   const cx = size.w / 2 - ((minX + maxX) / 2) * k;
@@ -167,7 +170,7 @@ export default function BubbleCanvas({ diagram, onChange }: Props) {
         {/* rooms: convex domes sized by target area */}
         <Layer>
           {rooms.map((r) => {
-            const rad = 16 + Math.sqrt(Math.max(1, r.target_area)) * 6;
+            const rad = bubbleRadius(r.target_area) * k;
             const [x, y] = pos(r.id);
             const entry = diagram.entry === r.id;
             const isPick = pick === r.id;

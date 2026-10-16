@@ -80,6 +80,9 @@ def limits(shape: ShapeKind, env_w: float, env_d: float) -> dict[str, Limit]:
     return base
 
 
+T_BAY = 8.8  # least bar façade per flat in a T-shape (m)
+
+
 def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float = 24.0) -> dict[str, float]:
     cw, cd, _ = core_size(height)
     W, D = math.floor(env_w * 10) / 10, math.floor(env_d * 10) / 10
@@ -124,6 +127,11 @@ def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float =
     if shape == ShapeKind.triangle:
         # flats along every façade with ~11-12 m of frontage each (a 2BHK's window rooms)
         p["units"] = float(tri_default_units(p))
+    elif shape == ShapeKind.t_shape:
+        # W*D counts the two empty corner quadrants, so the area rule above over-fills a wide T (8 flats on a
+        # 52.9 m bar leave 8-9 m wide bays that cannot light a 2BHK, and the end cuts crowd into slivers):
+        # one flat per ~8.8 m of bar at most
+        p["units"] = float(max(2, min(int(p["units"]), int(round(W / T_BAY)))))
     return p
 
 

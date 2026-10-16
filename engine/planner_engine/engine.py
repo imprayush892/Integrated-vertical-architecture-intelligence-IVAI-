@@ -25,7 +25,7 @@ from .checks import FloorContext, run_checks
 from .diagram import from_programme, precheck
 from .dxf_io import export_dxf, import_dxf, learn_layer
 from .geocode import geocode
-from .layout import apply_fix, solve_flat
+from .layout import apply_fix, candidate_fixes, solve_flat
 from .models import (
     Actor,
     CheckSummary,
@@ -627,6 +627,15 @@ class Planner:
                     f"{', '.join(fr.result.dropped)} did not fit. Keep it and shrink others?"
                 self._open_ticket(TicketKind.T3, 7, u.id, q, opts, opts[0]["id"],
                                   [c.reason for c in fr.conflicts][:3] or [f"dropped {fr.result.dropped}"])
+        elif not fr.plan:
+            # No plan that passes the statutory room checks: never ship a bad one, ask instead. Nothing here was
+            # verified to solve, so no option is applied by default.
+            opts = [{"id": f"fix{i}", "label": f["label"] + " (will re-solve)", "payload": f}
+                    for i, f in enumerate(candidate_fixes(fr.result.core, d, d.overrides, u)[:4])]
+            if opts:
+                why = fr.conflicts[-1].reason if fr.conflicts else "No layout fits this flat."
+                self._open_ticket(TicketKind.T3, 7, u.id, why + " Pick a change to try.", opts, None,
+                                  [c.reason for c in fr.conflicts][:3] or ["no layout"])
         self.project.checks = None
         self.project.stage = max(self.project.stage, 7)
         self._save(f"solve {u.id}")

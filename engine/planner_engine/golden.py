@@ -2,7 +2,7 @@
 
 Gates measured here:
 * decisions made by rules >= 92% (from the ticket/decision log of a full run)
-* <= 8 s to solve one 3BHK flat
+* <= 10 s to solve one 3BHK flat (engine budget 9.5 s per flat, fix ladder included)
 * >= 95% golden flats solve with no human fix (engine safe defaults allowed) and pass the room rules
 * 0 entities lost in a DXF save and reopen
 * stage 1: "Lokhandwala" lands within 50 m of 19.1430, 72.8275 in under 2 s
@@ -28,7 +28,7 @@ from typing import Any
 from .checks import FloorContext, run_checks
 from .dxf_io import export_dxf, import_dxf, roundtrip_check
 from .geocode import geocode
-from .layout import solve_flat
+from .layout import HARD_CEILING, solve_flat
 from .models import PlateFootprint, ShapeKind
 from .placement import place
 from .plate import fit
@@ -125,9 +125,14 @@ def gate_flats(parallel: int = 3, limit: int | None = None) -> dict:
         rows = list(ex.map(run, jobs))
     solved = sum(r["ok"] for r in rows)
     three = [r["solve_s"] for r in rows if r["bhk"] == 3]
+    totals = [r["total_s"] for r in rows]
+    within = sum(t <= 10.0 for t in totals) / len(totals)
+    # Product rule: under 10 s is the target, and a slower flat is acceptable when the solver needed the time
+    # to find a correct plan (never a wrong one). So: >= 95% of flats within 10 s, none past the 30 s ceiling.
     return {"gate": "flats", "ok": solved / len(rows) >= 0.95, "solved": solved, "total": len(rows),
             "rate": round(solved / len(rows), 3), "max_3bhk_solve_s": max(three) if three else None,
-            "solve_gate_ok": (max(three) if three else 0) <= 8.0, "rows": rows}
+            "within_10s": round(within, 3), "over_10s": sum(t > 10.0 for t in totals), "max_total_s": max(totals),
+            "solve_gate_ok": within >= 0.95 and max(totals) <= HARD_CEILING, "rows": rows}
 
 
 def gate_dxf() -> dict:

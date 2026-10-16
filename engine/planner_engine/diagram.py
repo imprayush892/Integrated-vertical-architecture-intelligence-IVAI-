@@ -111,67 +111,182 @@ def audit_programme(prog: Programme) -> list[dict]:
     return out
 
 
+BUBBLE_GAP = 10.0  # px of clear space wanted between linked bubbles
+BUBBLE_MARGIN = 1.5  # px kept between any two bubbles after the overlap pass (survives 0.1 rounding)
+
+
+def bubble_radius(target_area: float) -> float:
+    """Bubble radius in the bubble canvas's own px (app/src/components/BubbleCanvas.tsx draws 16 + 6 * sqrt(area))."""
+    return 16.0 + 6.0 * math.sqrt(max(1.0, target_area))
+
+
 def from_programme(unit: Unit, prog: Programme) -> Diagram:
-    n = len(prog.rooms)
     links = complete_links(prog)
-    rooms = []
-    for i, r in enumerate(prog.rooms):
-        a = 2 * math.pi * i / max(1, n)
-        rooms.append(
-            DiagramRoom(
-                id=r.id,
-                type=r.type,
-                name=r.name,
-                target_area=r.target_area,
-                needs_window=prior_needs_window(r.type, r.needs_window),
-                optional=r.optional,
-                placed=True,
-                x=round(math.cos(a) * 140, 1),
-                y=round(math.sin(a) * 140, 1),
-            )
+    rooms = [
+        DiagramRoom(
+            id=r.id,
+            type=r.type,
+            name=r.name,
+            target_area=r.target_area,
+            needs_window=prior_needs_window(r.type, r.needs_window),
+            optional=r.optional,
+            placed=True,
         )
-    _spring_layout(rooms, links, prog.entry)
+        for r in prog.rooms
+    ]
+    _bubble_layout(rooms, links, prog.entry, _entrance_dir(unit))
     return Diagram(unit_id=unit.id, rooms=rooms, links=links, entry=prog.entry)
 
 
-def _spring_layout(rooms: list[DiagramRoom], links: list[tuple[str, str]], entry: str, iters: int = 200) -> None:
-    """Deterministic force layout for the bubble view (UI only)."""
-    pos = {r.id: [r.x, r.y] for r in rooms}
-    ids = list(pos)
-    k = 90.0
-    for it in range(iters):
-        disp = {i: [0.0, 0.0] for i in ids}
-        for a in range(len(ids)):
-            for b in range(a + 1, len(ids)):
-                pa, pb = pos[ids[a]], pos[ids[b]]
-                dx, dy = pa[0] - pb[0], pa[1] - pb[1]
-                d = max(1.0, math.hypot(dx, dy))
-                f = k * k / d
-                disp[ids[a]][0] += dx / d * f
-                disp[ids[a]][1] += dy / d * f
-                disp[ids[b]][0] -= dx / d * f
-                disp[ids[b]][1] -= dy / d * f
-        for a, b in links:
-            if a not in pos or b not in pos:
-                continue
-            pa, pb = pos[a], pos[b]
-            dx, dy = pa[0] - pb[0], pa[1] - pb[1]
-            d = max(1.0, math.hypot(dx, dy))
-            f = d * d / k
-            disp[a][0] -= dx / d * f
-            disp[a][1] -= dy / d * f
-            disp[b][0] += dx / d * f
-            disp[b][1] += dy / d * f
-        t = 20.0 * (1 - it / iters) + 1
-        for i in ids:
-            dx, dy = disp[i]
-            d = max(1e-9, math.hypot(dx, dy))
-            pos[i][0] += dx / d * min(d, t)
-            pos[i][1] += dy / d * min(d, t)
-        if entry in pos:
-            pos[entry] = [0.0, 200.0]
-    for r in rooms:
-        r.x, r.y = round(pos[r.id][0], 1), round(pos[r.id][1], 1)
+def _entrance_dir(unit: Unit) -> tuple[float, float, bool]:
+    """Unit vector (bubble canvas: x right, y down) from the flat's centre toward its entrance, and whether the unit
+    geometry gave one. The door normal points into the passage, so the façade lies on the opposite side. The plate
+    frame is y-up, the canvas y-down, hence the flip."""
+    n = unit.core_link_normal
+    if n and math.hypot(n[0], n[1]) > 1e-9:
+        d = math.hypot(n[0], n[1])
+        return n[0] / d, -n[1] / d, True
+    return 0.0, 1.0, False  # entrance at the bottom, as the UI has always drawn it
+
+
+def _bubble_layout(rooms: list[DiagramRoom], links: list[tuple[str, str]], entry: str,
+                   entrance: tuple[float, float, bool] = (0.0, 1.0, False), steps: int = 90) -> None:
+    """Deterministic force layout for the bubble view (UI only). No randomness, no dependencies, identical every run.
+
+    Linked rooms are springs with a rest length of touching radii plus a gap; unlinked rooms push apart when closer
+    than a wider gap; a weak pull to the centre keeps it compact. The entry is held toward the entrance side and rooms
+    that need a window drift toward the opposite (façade) side when the unit gave an entrance direction. A fixed number
+    of cooling steps runs first, then a pairwise pass removes any residual overlap, and a final uniform scale makes the
+    no-overlap guarantee unconditional. Positions are in the canvas px frame (see bubble_radius).
+    """
+    n = len(rooms)
+    if n == 0:
+        return
+    idx = {r.id: i for i, r in enumerate(rooms)}
+    rad = [bubble_radius(r.target_area) for r in rooms]
+    ux, uy, has_dir = entrance
+    px, py = -uy, ux  # perpendicular to the entrance axis
+    span = math.sqrt(sum(math.pi * q * q for q in rad) / 0.5)  # side of a square holding the bubbles at ~50% fill
+    edges = sorted({(min(idx[a], idx[b]), max(idx[a], idx[b])) for a, b in links if a in idx and b in idx and a != b})
+    linked = set(edges)
+    e = idx.get(entry, -1)
+    win = [i for i, r in enumerate(rooms) if r.needs_window and i != e and has_dir]
+
+    # start: breadth-first layers from the entry, entrance side first, spread across the perpendicular
+    adj: list[list[int]] = [[] for _ in range(n)]
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    layer = [-1] * n
+    if e >= 0:
+        layer[e] = 0
+        q = deque([e])
+        while q:
+            a = q.popleft()
+            for b in adj[a]:
+                if layer[b] < 0:
+                    layer[b] = layer[a] + 1
+                    q.append(b)
+    top = max(layer) + 1
+    layer = [top if v < 0 else v for v in layer]
+    groups: dict[int, list[int]] = {}
+    for i, v in enumerate(layer):
+        groups.setdefault(v, []).append(i)
+    x = [0.0] * n
+    y = [0.0] * n
+    nl = max(1, max(groups))
+    for v, g in groups.items():
+        axial = (0.4 - 0.8 * v / nl) * span
+        for j, i in enumerate(g):
+            lat = (j - (len(g) - 1) / 2) * 2.2 * (sum(rad[k] for k in g) / len(g)) + 3.0 * math.sin(2.399 * (i + 1))
+            x[i] = ux * axial + px * lat
+            y[i] = uy * axial + py * lat
+
+    for it in range(steps):
+        fx = [0.0] * n
+        fy = [0.0] * n
+        for a in range(n):
+            xa, ya, ra = x[a], y[a], rad[a]
+            for b in range(a + 1, n):
+                dx, dy = xa - x[b], ya - y[b]
+                d2 = dx * dx + dy * dy
+                if d2 < 1e-12:
+                    ang = 2.399 * (a * n + b + 1)  # coincident: separate along a fixed per-pair direction
+                    dx, dy, d2 = math.cos(ang) * 1e-3, math.sin(ang) * 1e-3, 1e-6
+                d = math.sqrt(d2)
+                touch = ra + rad[b]
+                if (a, b) in linked:
+                    f = 0.35 * (touch + BUBBLE_GAP - d)  # spring toward touching-plus-gap, either way
+                else:
+                    wide = touch + 4 * BUBBLE_GAP
+                    if d >= wide:
+                        continue
+                    f = 0.5 * (wide - d)  # positive: push apart
+                ox, oy = dx / d * f, dy / d * f
+                fx[a] += ox
+                fy[a] += oy
+                fx[b] -= ox
+                fy[b] -= oy
+        for i in range(n):
+            fx[i] -= 0.012 * x[i]
+            fy[i] -= 0.012 * y[i]
+        if e >= 0:
+            ax = 0.4 * span
+            fx[e] += 0.25 * (ux * ax - x[e])
+            fy[e] += 0.25 * (uy * ax - y[e])
+        for i in win:
+            axial = x[i] * ux + y[i] * uy
+            lim = -0.25 * span
+            if axial > lim:  # one-sided pull toward the façade side
+                fx[i] -= 0.06 * (axial - lim) * ux
+                fy[i] -= 0.06 * (axial - lim) * uy
+        cap = 14.0 * (1 - it / steps) + 1.0
+        for i in range(n):
+            mx, my = fx[i] * 0.5, fy[i] * 0.5
+            m = math.hypot(mx, my)
+            if m > cap:
+                mx, my = mx / m * cap, my / m * cap
+            x[i] += mx
+            y[i] += my
+
+    # residual overlaps: push apart pairwise, then (unconditional guarantee) scale everything out from the centroid
+    for _ in range(400):
+        moved = False
+        for a in range(n):
+            for b in range(a + 1, n):
+                dx, dy = x[a] - x[b], y[a] - y[b]
+                d = math.hypot(dx, dy)
+                need = rad[a] + rad[b] + BUBBLE_MARGIN
+                if d < need - 1e-9:
+                    if d < 1e-9:
+                        ang = 2.399 * (a * n + b + 1)
+                        dx, dy, d = math.cos(ang), math.sin(ang), 1.0
+                    push = (need - d) / 2 + 1e-3
+                    x[a] += dx / d * push
+                    y[a] += dy / d * push
+                    x[b] -= dx / d * push
+                    y[b] -= dy / d * push
+                    moved = True
+        if not moved:
+            break
+    s = 1.0
+    for a in range(n):
+        for b in range(a + 1, n):
+            d = math.hypot(x[a] - x[b], y[a] - y[b])
+            need = rad[a] + rad[b] + BUBBLE_MARGIN
+            if d < need:
+                s = max(s, need / max(d, 1e-9))
+    if s > 1.0:
+        s *= 1.001
+        mx, my = sum(x) / n, sum(y) / n
+        x = [mx + (v - mx) * s for v in x]
+        y = [my + (v - my) * s for v in y]
+
+    # centre the bounding box of the bubbles on the origin
+    x0 = (min(x[i] - rad[i] for i in range(n)) + max(x[i] + rad[i] for i in range(n))) / 2
+    y0 = (min(y[i] - rad[i] for i in range(n)) + max(y[i] + rad[i] for i in range(n))) / 2
+    for i, r in enumerate(rooms):
+        r.x, r.y = round(x[i] - x0, 1), round(y[i] - y0, 1)
 
 
 def room_minimums(room_type: str, programme_min: float = 0.0) -> tuple[float, float]:

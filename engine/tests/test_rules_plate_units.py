@@ -68,7 +68,7 @@ def test_drag_params_keep_zones_exact(footprint):
 
 
 def test_units_reach_core_and_never_deleted(footprint):
-    for shape in ("central_core", "cruciform", "h_shape", "side_core"):
+    for shape in ("central_core", "cruciform", "h_shape", "t_shape", "side_core"):
         p = fit(shape, footprint())
         us = split_units(p)
         assert len(us) == int(p.params["units"])

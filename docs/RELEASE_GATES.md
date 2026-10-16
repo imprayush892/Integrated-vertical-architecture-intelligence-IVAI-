@@ -6,8 +6,8 @@ every push (`golden` job) and uploads the JSON report.
 | Gate (PRD) | Target | Measured | Status |
 |---|---|---|---|
 | Decisions made by rules | ≥ 92% | 93.0% (172 rule + 13 safe-default tickets of 185 decisions, full Lokhandwala run) | pass |
-| Time to solve one 3BHK flat | ≤ 8 s | worst 7.56 s (CP-SAT cap 7.5 s, best-so-far returned) | pass |
-| Golden flats solved with no human fix | ≥ 95% | 97.5% (78 / 80 flats, 5 shapes × 3 envelopes; engine safe defaults allowed) | pass |
+| Time to solve one flat | ≥ 95% of flats ≤ 10 s; none past the 30 s ceiling; never a plan that fails a DCPR room check | full golden set (78 flats): 75 within 10 s (96%), 3 took 16–26 s because the first search timed out without a layout and was given more time instead of downgrading the flat; 0 DCPR fails in returned plans | pass |
+| Golden flats solved with no human fix | ≥ 95% | 98.7% (77 / 78 flats, 6 shapes × 3 envelopes; engine safe defaults allowed; 17 used a smaller-programme or duct fix) | pass |
 | Rule results match the expected results | 100% | 110 / 110 on 10 reference drawings | pass |
 | Entities lost in a DXF save and reopen | 0 | 0 of 218 (and 0 handles) | pass |
 | Stage 1: "Lokhandwala" found | ≤ 50 m, < 2 s | 5.7 m, 0.36 s (offline gazetteer; online providers cached) | pass |

@@ -324,6 +324,50 @@ def _split_by_sides(plate: Plate, flats, n: int) -> list:
     return out
 
 
+def _slivers(pieces: list, access) -> bool:
+    """True when a cut left a piece too small to be a flat, or one that cannot reach the passage/core."""
+    for pc in pieces:
+        if pc.is_empty or pc.area < MIN_UNIT_AREA:
+            return True
+        if _door(max(geo.polygons_of(pc), key=lambda q: q.area), access) is None:
+            return True
+    return False
+
+
+def _cut_wings(h, k: int, access, outer) -> list | None:
+    """Cut a half whose flat band runs past both ends of the passage (T/L wings): each overhanging end is one
+    flat entered at the passage end, and the remaining ``k - ends`` flats share the band along the passage,
+    equal by area (equal by façade when the cut leaves a flat too narrow to light two rooms). Returns None
+    when this does not give a valid cut, so the caller keeps its own."""
+    touch = h.boundary.intersection(access)
+    if touch.is_empty or touch.length <= 0:
+        return None
+    t0, _, t1, _ = touch.bounds
+    t0, t1 = round(t0 / geo.SNAP) * geo.SNAP, round(t1 / geo.SNAP) * geo.SNAP
+    minx, miny, maxx, maxy = h.bounds
+    ends = [e for e, over in (("l", minx < t0 - ACCESS_RUN), ("r", maxx > t1 + ACCESS_RUN)) if over]
+    mid_k = k - len(ends)
+    if not ends or mid_k < 1:
+        return None
+    lo = t0 if "l" in ends else minx - 1
+    hi = t1 if "r" in ends else maxx + 1
+    mid = h.intersection(box(lo, miny - 1, hi, maxy + 1))
+    mids = _cut_equal(mid, mid_k, "x", (max(t0, lo), min(t1, hi)))
+    if mid_k > 1:
+        fr = [p.boundary.intersection(outer).length if not p.is_empty else 0.0 for p in mids]
+        if min(fr) < MIN_FRONTAGE and sum(fr) >= MIN_FRONTAGE * mid_k:
+            mids = _cut_equal(mid, mid_k, "x", (max(t0, lo), min(t1, hi)),
+                              measure=lambda g, o=outer: 0.0 if g.is_empty else g.boundary.intersection(o).length)
+    out = []
+    if "l" in ends:
+        out.append(h.intersection(box(minx - 1, miny - 1, lo, maxy + 1)))
+    out += mids
+    if "r" in ends:
+        out.append(h.intersection(box(hi, miny - 1, maxx + 1, maxy + 1)))
+    out = [shapely.union_all(geo.polygons_of(pc)) if geo.polygons_of(pc) else Polygon() for pc in out]
+    return None if _slivers(out, access) else out
+
+
 def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] | None = None) -> list[Unit]:
     flats = zones_geom(plate, "flats")
     passage = zones_geom(plate, "passage")
@@ -362,6 +406,8 @@ def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] 
             if min(fronts) < MIN_FRONTAGE and sum(fronts) >= MIN_FRONTAGE * k:
                 pieces = _cut_equal(h, k, "x", contact,
                                     measure=lambda g, o=outer: 0.0 if g.is_empty else g.boundary.intersection(o).length)
+            if _slivers(pieces, access):  # clamped cuts crowded into a sliver: give the wings their own flats
+                pieces = _cut_wings(h, k, access, outer) or pieces
         for piece in pieces:
             parts = sorted(geo.polygons_of(piece), key=lambda p: -p.area)
             if not parts:

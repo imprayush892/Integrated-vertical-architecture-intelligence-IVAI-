@@ -15,14 +15,21 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from .checks import FloorContext, run_checks
 from .diagram import from_programme, precheck
 from .drafting import draft
 from .models import Conflict, Diagram, Plan, Plate, Unit
-from .solver import SolveResult, room_specs, solve, unit_grid
+from .solver import TIME_CAP, SolveResult, room_specs, solve, unit_grid
 from .units import facade_length, presets
 
 FIX_ORDER = ["drop_room", "duct", "duct_all", "shrink", "smaller_programme", "remove_link", "no_window"]
 _CACHE: dict[str, tuple[SolveResult, dict]] = {}
+FLAT_BUDGET = 9.5  # s: wall clock for one flat - first solve, explanation, every fix and validation attempt, drafting.
+# Product limit is 10 s per flat; nothing in solve_flat may run past this deadline.
+HARD_CEILING = 30.0  # s: only two paths may run past FLAT_BUDGET, never past this: a first search that timed out
+# without finding (or disproving) a layout, and a plan that failed a DCPR room check. Slow is fine; wrong is not.
+DRAFT_RESERVE = 0.5  # s kept back for drafting and checking the plan once a layout exists
+MIN_ATTEMPT = 0.5  # s: a solve attempt shorter than this cannot find a layout, so the ladder stops
 
 
 @dataclass
@@ -34,6 +41,7 @@ class FlatResult:
     fixes: list[dict] = field(default_factory=list)
     conflicts: list[Conflict] = field(default_factory=list)
     message: str = ""
+    validation: dict = field(default_factory=dict)  # validated/failed_checks/retries/extended
 
 
 def _key(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict) -> str:
@@ -151,8 +159,24 @@ def apply_fix(fix: dict, diagram: Diagram, overrides: dict, unit: Unit) -> tuple
     return d, ov, u
 
 
-def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_limit: float, explain: bool):
-    key = _key(plate, unit, diagram, overrides)
+HABITABLE = ("living", "master", "bedroom", "study", "kitchen")
+# tighter-allowance levels for the re-solve after a failed check: (wmin cells, amin m2) added to the rooms
+TIGHTEN = [(2, 0.5), (4, 1.0), (6, 1.5)]
+
+
+def room_check_fails(plan: Plan, plate: Plate) -> list[tuple[str, str, str]]:
+    """DCPR room-scope checks run on a drafted plan: [(rule_id, room_id, message)] for every fail.
+
+    Same checks.py engine the release gate uses, so a plan that passes here passes the gate."""
+    stairs = [(c.polygon, c.width) for c in plate.core_parts if c.kind == "stair"]
+    sm = run_checks(FloorContext(plans=[plan], height=24, passage_width=plate.passage_width, stairs=stairs))
+    return [(r.rule_id, r.target.split("/", 1)[1], r.message) for r in sm.results
+            if r.result == "fail" and r.rule_id.startswith("DCPR") and "/" in r.target]
+
+
+def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_limit: float, explain: bool,
+           tight: tuple[int, float, frozenset | None] | None = None):
+    key = _key(plate, unit, diagram, overrides) + (repr((tight[0], tight[1], sorted(tight[2] or ())) if tight else None))
     if key in _CACHE:
         return _CACHE[key]
     ug = unit_grid(plate, unit)
@@ -163,6 +187,9 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
             s.vent_run = 0
         if overrides.get(s.id, {}).get("needs_window") is False:
             s.window_run = 0
+        if tight and (tight[2] is None or s.type in tight[2]):
+            s.wmin += tight[0]  # tighter allowance: drafting may take more off a room than the solver assumed
+            s.amin += tight[1]
     res = solve(ug, specs, [tuple(l) for l in diagram.links], diagram.entry, time_limit=time_limit, explain=explain)
     out = (res, {"ug": ug, "specs": specs})
     if res.status != "timeout" or res.rects:
@@ -171,20 +198,48 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
 
 
 def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrides: dict | None = None,
-               time_limit: float = 7.5, auto_fix: bool = True, max_fix_rounds: int = 4) -> FlatResult:
+               time_limit: float = TIME_CAP, auto_fix: bool = True, max_fix_rounds: int = 4,
+               budget: float = FLAT_BUDGET) -> FlatResult:
+    """Solve, draft and VALIDATE a flat inside ``budget`` seconds of wall time (fix ladder and validation
+    retries included; ``time_limit`` caps a single CP-SAT run). A plan that fails a DCPR room check is never
+    returned: the flat is re-solved with a tighter allowance / further fixes while budget remains, else it
+    comes back infeasible."""
     t0 = time.perf_counter()
+    limit = [budget]  # the validation-failure path may stretch this to HARD_CEILING; nothing else does
+
+    def remaining() -> float:
+        """Seconds a solve may still use, leaving room to draft and check the plan."""
+        return t0 + limit[0] - DRAFT_RESERVE - time.perf_counter()
+
+    def tl(x: float) -> float:
+        return max(0.2, min(x, remaining()))
+
     overrides = dict(overrides or {})
     if diagram is None:
         assert unit.programme is not None
         diagram = from_programme(unit, unit.programme)
     fac = facade_length(plate, unit)
     conflicts = precheck(diagram, unit.area, fac, 0.0, unit.core_link is not None)
-    res, ctx = _solve(plate, unit, diagram, overrides, time_limit, explain=True)
+    res, ctx = _solve(plate, unit, diagram, overrides, tl(time_limit), explain=True)
+    slow = False
+    if not res.rects and res.status == "timeout":
+        # The search ran out of time, not out of options (nothing was proven impossible): a correct plan is worth
+        # waiting for, so take time up to HARD_CEILING before any fix changes the programme.
+        slow = True
+        limit[0] = max(budget, HARD_CEILING)
+        res, ctx = _solve(plate, unit, diagram, overrides, tl(HARD_CEILING), explain=True)
     applied: dict | None = None
     all_fixes: list[dict] = []
     cur_d, cur_ov, cur_u = diagram, overrides, unit
     rounds = 0
-    while not res.rects and auto_fix and rounds < max_fix_rounds:
+
+    def chain(step: dict) -> dict:
+        if applied is None:
+            return step
+        prev = applied["steps"] if applied.get("action") == "multi" else [applied]
+        return {"action": "multi", "steps": [*prev, step], "label": " + ".join(x["label"] for x in [*prev, step])}
+
+    while not res.rects and auto_fix and rounds < max_fix_rounds and remaining() > MIN_ATTEMPT:
         rounds += 1
         core = res.core
         conf = Conflict(id=f"solver-{rounds}", rooms=sorted({c.split(":", 1)[1] for c in core}), kind="solver",
@@ -193,10 +248,13 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
         verified = []
         winner = None
         for f in fixes:
-            if time.perf_counter() - t0 > 40:
+            # attempts share what is left; once a fix works, further checks (they only fill the fix list)
+            # run short and only while time is plentiful
+            if remaining() < (MIN_ATTEMPT if winner is None else 3.0):
                 break
+            cap = min(time_limit, 4.0, remaining() / 2) if winner is None else min(2.0, remaining() - 1.0)
             d2, ov2, u2 = apply_fix(f, cur_d, cur_ov, cur_u)
-            r2, c2 = _solve(plate, u2, d2, ov2, min(time_limit, 4.0), explain=False)
+            r2, c2 = _solve(plate, u2, d2, ov2, tl(cap), explain=False)
             f = {**f, "valid": bool(r2.rects)}
             verified.append(f)
             if r2.rects and winner is None:
@@ -208,11 +266,7 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
         all_fixes.extend(verified)
         if winner:
             f, cur_d, cur_ov, cur_u, res, ctx = winner
-            if applied is None:
-                applied = f
-            else:
-                prev = applied["steps"] if applied.get("action") == "multi" else [applied]
-                applied = {"action": "multi", "steps": [*prev, f], "label": " + ".join(x["label"] for x in [*prev, f])}
+            applied = chain(f)
             break
         # nothing single worked: apply the strongest fix and go round again
         if not fixes:
@@ -220,23 +274,74 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
         strength = {"smaller_programme": 0, "duct_all": 1, "duct": 2, "drop_room": 3}
         step = min(fixes, key=lambda f: strength.get(f["action"], 9))
         cur_d, cur_ov, cur_u = apply_fix(step, cur_d, cur_ov, cur_u)
-        if applied is None:
-            applied = step
+        applied = chain(step)
+        if remaining() < MIN_ATTEMPT:
+            break
+        res, ctx = _solve(plate, cur_u, cur_d, cur_ov, tl(time_limit), explain=remaining() > 3.0)
+
+    # ---- validate the drafted plan; never hand back one that fails a DCPR room check
+    plan: Plan | None = None
+    fails: list[tuple[str, str, str]] = []
+    stats = {"validated": 0, "failed_checks": 0, "retries": 0, "extended": slow}
+
+    def draft_checked() -> bool:
+        nonlocal plan, fails
+        stats["validated"] += 1
+        plan = draft(ctx["ug"], ctx["specs"], res.rects, [tuple(l) for l in cur_d.links], cur_d.entry, cur_ov)
+        fails = room_check_fails(plan, plate)
+        if fails:
+            stats["failed_checks"] += 1
+        return not fails
+
+    ok = bool(res.rects) and draft_checked()
+    if not ok and res.rects:
+        limit[0] = max(budget, HARD_CEILING)  # a plan that fails a statutory check is never returned: take the time
+    steps = [("tight", t) for t in TIGHTEN] + [("fix", None)] * 2
+    for kind, t in steps:
+        if ok or not res.rects or remaining() < MIN_ATTEMPT:
+            break
+        stats["extended"] = True
+        stats["retries"] += 1
+        if kind == "tight":
+            bad_types = frozenset(ctx_type for ctx_type in
+                                  {sp.type for sp in ctx["specs"] if sp.id in {f[1] for f in fails}}) or None
+            tight = (t[0], t[1], bad_types if t is TIGHTEN[0] else frozenset(HABITABLE))
+            r2, c2 = _solve(plate, cur_u, cur_d, cur_ov, tl(time_limit), explain=False, tight=tight)
+            if r2.rects:
+                res, ctx = r2, c2
+                ok = draft_checked()
         else:
-            prev = applied["steps"] if applied.get("action") == "multi" else [applied]
-            applied = {"action": "multi", "steps": [*prev, step], "label": " + ".join(x["label"] for x in [*prev, step])}
-        res, ctx = _solve(plate, cur_u, cur_d, cur_ov, time_limit, explain=True)
+            fixes = candidate_fixes([], cur_d, cur_ov, cur_u)
+            if not fixes:
+                break
+            strength = {"smaller_programme": 0, "duct_all": 1, "duct": 2, "drop_room": 3}
+            step = min(fixes, key=lambda f: strength.get(f["action"], 9))
+            cur_d, cur_ov, cur_u = apply_fix(step, cur_d, cur_ov, cur_u)
+            applied = chain(step)
+            r2, c2 = _solve(plate, cur_u, cur_d, cur_ov, tl(time_limit), explain=False)
+            if r2.rects:
+                res, ctx = r2, c2
+                ok = draft_checked()
+            else:
+                res = r2
     cur_d.conflicts = conflicts
+    if fails and not ok:
+        names = _names(cur_d)
+        why = "; ".join(sorted({f"{names.get(rid, rid)}: {msg} ({rule})" for rule, rid, msg in fails}))
+        conflicts.append(Conflict(id="validation", rooms=sorted({f[1] for f in fails}), kind="geometry",
+                                  reason="The drafted plan breaks a statutory room check, so it was not used. " + why))
+        res = SolveResult("infeasible", time_s=round(time.perf_counter() - t0, 3),
+                          core=sorted({f"size:{f[1]}" for f in fails}))
     cur_d.feasible = bool(res.rects)
     if not res.rects:
         cur_d.message = "No layout found. " + (conflicts[-1].reason if conflicts else "")
-        return FlatResult(None, cur_d, res, applied, all_fixes, conflicts, cur_d.message)
-    plan = draft(ctx["ug"], ctx["specs"], res.rects, [tuple(l) for l in cur_d.links], cur_d.entry, cur_ov)
+        return FlatResult(None, cur_d, res, applied, all_fixes, conflicts, cur_d.message, stats)
+    assert plan is not None
     plan.status = res.status if res.status in ("optimal", "feasible", "timeout") else "feasible"  # type: ignore[assignment]
     plan.solve_time_s = round(time.perf_counter() - t0, 3)
     plan.objective = res.objective
     cur_d.message = "This diagram can become a plan." if not applied else f"Solved after: {applied['label']}."
-    return FlatResult(plan, cur_d, res, applied, all_fixes, conflicts, cur_d.message)
+    return FlatResult(plan, cur_d, res, applied, all_fixes, conflicts, cur_d.message, stats)
 
 
 def flat_overrides_from(diagram: Diagram) -> dict[str, Any]:

@@ -43,6 +43,11 @@ def _shaft_dims(shaft_lines, contact) -> tuple[float, float]:
     return round(w * h, 2), round(min(w, h), 2)
 
 
+def clear_width(net: Polygon) -> float:
+    """Exact clear width of a rectilinear room (see ``geo.clear_width``)."""
+    return geo.clear_width(net)
+
+
 def _segments(geom) -> list[tuple[tuple[float, float], tuple[float, float]]]:
     if geom is None or geom.is_empty:
         return []
@@ -303,7 +308,7 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
             PlanRoom(
                 id=rid, type=s.type, name=s.name,
                 polygon=[(round(x, 3), round(y, 3)) for x, y in geo.ring_of(net)],
-                area=round(area, 2), width=geo.clear_width(net), has_window=has_window,
+                area=round(area, 2), width=clear_width(net), has_window=has_window,
                 window_area=round(win_area, 3), ventilated=ventilated, vent_via=vent_via,
                 vent_shaft_area=shaft_area, vent_shaft_width=shaft_width, unit_id=ug.unit_id,
                 target_area=s.target_area,

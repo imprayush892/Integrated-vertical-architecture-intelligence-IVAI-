@@ -72,7 +72,16 @@ Claude, user) are logged to the project file for the 92% gate.
 * Objective: target deviation (service rooms penalised for growing) + 5 × uncovered area.
 * Infeasible: deletion filter over requirement groups (presolve-friendly fixed literals) → minimal core
   → 2–4 verified fixes → safe default applied → T3 ticket.
-* Drafting: leftover pockets merged by priority with glazing/size caps (thin slivers stay wall),
+* Time: one CP-SAT solve is capped at `TIME_CAP` 8.5 s (stall patience grows with the programme size,
+  `solver.stall_patience`). A whole flat - first solve, infeasibility explanation, every fix attempt, validation
+  retry and drafting - shares one deadline of `layout.FLAT_BUDGET` 9.5 s (product limit: any flat < 10 s);
+  attempts get a share of what is left and the ladder stops when under 0.5 s remain.
+* Validation: every drafted plan is run through the DCPR room checks (`layout.room_check_fails`, same engine
+  as the release gate). A failing plan is never returned: while budget remains the flat is re-solved with a
+  tighter allowance (+0.2/0.4/0.6 m on min widths, +0.5/1/1.5 m² on min areas), then the fix ladder continues;
+  if it still fails (or time runs out) the result is `infeasible` with a `validation` conflict.
+* Drafting: room width is measured exactly (`drafting.clear_width`); `geo.clear_width` rasterises L-shaped
+  rooms at bbox/80 and under-reads a 2.485 m arm as ≈2.3–2.4 m. Leftover pockets merged by priority with glazing/size caps (thin slivers stay wall),
   internal walls on shared edges, doors on links, windows sized for the 1/6 rule.
 
 ## Files
