@@ -171,7 +171,7 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
 
 
 def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrides: dict | None = None,
-               time_limit: float = 7.5, auto_fix: bool = True, max_fix_rounds: int = 3) -> FlatResult:
+               time_limit: float = 7.5, auto_fix: bool = True, max_fix_rounds: int = 4) -> FlatResult:
     t0 = time.perf_counter()
     overrides = dict(overrides or {})
     if diagram is None:
@@ -208,13 +208,23 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
         all_fixes.extend(verified)
         if winner:
             f, cur_d, cur_ov, cur_u, res, ctx = winner
-            applied = f if applied is None else {"action": "multi", "steps": [applied, f], "label": applied["label"] + " + " + f["label"]}
+            if applied is None:
+                applied = f
+            else:
+                prev = applied["steps"] if applied.get("action") == "multi" else [applied]
+                applied = {"action": "multi", "steps": [*prev, f], "label": " + ".join(x["label"] for x in [*prev, f])}
             break
-        # nothing single worked: apply the first fix and go round again
+        # nothing single worked: apply the strongest fix and go round again
         if not fixes:
             break
-        cur_d, cur_ov, cur_u = apply_fix(fixes[0], cur_d, cur_ov, cur_u)
-        applied = fixes[0] if applied is None else {"action": "multi", "steps": [applied, fixes[0]], "label": applied["label"] + " + " + fixes[0]["label"]}
+        strength = {"smaller_programme": 0, "duct_all": 1, "duct": 2, "drop_room": 3}
+        step = min(fixes, key=lambda f: strength.get(f["action"], 9))
+        cur_d, cur_ov, cur_u = apply_fix(step, cur_d, cur_ov, cur_u)
+        if applied is None:
+            applied = step
+        else:
+            prev = applied["steps"] if applied.get("action") == "multi" else [applied]
+            applied = {"action": "multi", "steps": [*prev, step], "label": " + ".join(x["label"] for x in [*prev, step])}
         res, ctx = _solve(plate, cur_u, cur_d, cur_ov, time_limit, explain=True)
     cur_d.conflicts = conflicts
     cur_d.feasible = bool(res.rects)

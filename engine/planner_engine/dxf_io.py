@@ -69,7 +69,7 @@ EXACT: dict[str, str] = {name.lower(): meaning for name, (_, meaning) in LAYERS.
 TOKENS: list[tuple[str, str]] = [
     (r"rcc|shear|concrete|conc\b", "rcc_wall"), (r"wall|partition|brick|masonry|block", "wall"),
     (r"col(umn)?s?\b|pillar", "column"), (r"stair|steps?\b", "stair"), (r"lift|elev", "lift"),
-    (r"shaft|duct|\bots\b", "shaft"), (r"win(dow)?|glaz|glass", "window"), (r"door|\bdr\b", "door"),
+    (r"shaft|duct|\bots\b", "shaft"), (r"door|\bdr\b|swing", "door"), (r"\bwin\b|window|glaz|glass|\bwdw\b", "window"),
     (r"\bfins?\b", "fin"), (r"rail", "railing"), (r"text|anno|label|name|tag", "text"),
     (r"room|area|space", "room"), (r"\bunit|flat|apart|\bapt", "unit"), (r"core", "core"),
     (r"passage|corridor|lobby", "passage"), (r"dim|furn|hatch-pattern|defpoints|viewport|xref", "ignore"),

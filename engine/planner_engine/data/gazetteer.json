@@ -1,0 +1,185 @@
+{
+ "note": "Offline fallback gazetteer (used when no geocoding provider is reachable).",
+ "places": [
+  {
+   "name": "Lokhandwala Complex",
+   "display_name": "Lokhandwala Complex, Andheri West, Mumbai, Maharashtra, India",
+   "lat": 19.142967,
+   "lng": 72.827541
+  },
+  {
+   "name": "Andheri West",
+   "display_name": "Andheri West, Mumbai, Maharashtra, India",
+   "lat": 19.1364,
+   "lng": 72.8296
+  },
+  {
+   "name": "Andheri East",
+   "display_name": "Andheri East, Mumbai, Maharashtra, India",
+   "lat": 19.1136,
+   "lng": 72.8697
+  },
+  {
+   "name": "Bandra West",
+   "display_name": "Bandra West, Mumbai, Maharashtra, India",
+   "lat": 19.0596,
+   "lng": 72.8295
+  },
+  {
+   "name": "Bandra Kurla Complex",
+   "display_name": "Bandra Kurla Complex, Mumbai, Maharashtra, India",
+   "lat": 19.066,
+   "lng": 72.865
+  },
+  {
+   "name": "Juhu",
+   "display_name": "Juhu, Mumbai, Maharashtra, India",
+   "lat": 19.1075,
+   "lng": 72.8263
+  },
+  {
+   "name": "Versova",
+   "display_name": "Versova, Andheri West, Mumbai, Maharashtra, India",
+   "lat": 19.131,
+   "lng": 72.814
+  },
+  {
+   "name": "Powai",
+   "display_name": "Powai, Mumbai, Maharashtra, India",
+   "lat": 19.1176,
+   "lng": 72.906
+  },
+  {
+   "name": "Goregaon West",
+   "display_name": "Goregaon West, Mumbai, Maharashtra, India",
+   "lat": 19.1663,
+   "lng": 72.8406
+  },
+  {
+   "name": "Malad West",
+   "display_name": "Malad West, Mumbai, Maharashtra, India",
+   "lat": 19.1874,
+   "lng": 72.8484
+  },
+  {
+   "name": "Kandivali West",
+   "display_name": "Kandivali West, Mumbai, Maharashtra, India",
+   "lat": 19.2045,
+   "lng": 72.8376
+  },
+  {
+   "name": "Borivali West",
+   "display_name": "Borivali West, Mumbai, Maharashtra, India",
+   "lat": 19.2307,
+   "lng": 72.8567
+  },
+  {
+   "name": "Worli",
+   "display_name": "Worli, Mumbai, Maharashtra, India",
+   "lat": 19.0176,
+   "lng": 72.818
+  },
+  {
+   "name": "Lower Parel",
+   "display_name": "Lower Parel, Mumbai, Maharashtra, India",
+   "lat": 18.9953,
+   "lng": 72.8258
+  },
+  {
+   "name": "Dadar",
+   "display_name": "Dadar, Mumbai, Maharashtra, India",
+   "lat": 19.0178,
+   "lng": 72.8478
+  },
+  {
+   "name": "Colaba",
+   "display_name": "Colaba, Mumbai, Maharashtra, India",
+   "lat": 18.9067,
+   "lng": 72.8147
+  },
+  {
+   "name": "Chembur",
+   "display_name": "Chembur, Mumbai, Maharashtra, India",
+   "lat": 19.0522,
+   "lng": 72.9005
+  },
+  {
+   "name": "Ghatkopar",
+   "display_name": "Ghatkopar, Mumbai, Maharashtra, India",
+   "lat": 19.079,
+   "lng": 72.908
+  },
+  {
+   "name": "Mulund",
+   "display_name": "Mulund, Mumbai, Maharashtra, India",
+   "lat": 19.1726,
+   "lng": 72.9425
+  },
+  {
+   "name": "Thane",
+   "display_name": "Thane, Maharashtra, India",
+   "lat": 19.2183,
+   "lng": 72.9781
+  },
+  {
+   "name": "Navi Mumbai",
+   "display_name": "Navi Mumbai, Maharashtra, India",
+   "lat": 19.033,
+   "lng": 73.0297
+  },
+  {
+   "name": "Santacruz West",
+   "display_name": "Santacruz West, Mumbai, Maharashtra, India",
+   "lat": 19.0815,
+   "lng": 72.8361
+  },
+  {
+   "name": "Khar West",
+   "display_name": "Khar West, Mumbai, Maharashtra, India",
+   "lat": 19.0713,
+   "lng": 72.834
+  },
+  {
+   "name": "Vile Parle",
+   "display_name": "Vile Parle, Mumbai, Maharashtra, India",
+   "lat": 19.099,
+   "lng": 72.844
+  },
+  {
+   "name": "Pune",
+   "display_name": "Pune, Maharashtra, India",
+   "lat": 18.5204,
+   "lng": 73.8567
+  },
+  {
+   "name": "Ahmedabad",
+   "display_name": "Ahmedabad, Gujarat, India",
+   "lat": 23.0225,
+   "lng": 72.5714
+  },
+  {
+   "name": "Bengaluru",
+   "display_name": "Bengaluru, Karnataka, India",
+   "lat": 12.9716,
+   "lng": 77.5946
+  },
+  {
+   "name": "New Delhi",
+   "display_name": "New Delhi, Delhi, India",
+   "lat": 28.6139,
+   "lng": 77.209
+  },
+  {
+   "name": "Hyderabad",
+   "display_name": "Hyderabad, Telangana, India",
+   "lat": 17.385,
+   "lng": 78.4867
+  },
+  {
+   "name": "Chennai",
+   "display_name": "Chennai, Tamil Nadu, India",
+   "lat": 13.0827,
+   "lng": 80.2707
+  }
+ ]
+}

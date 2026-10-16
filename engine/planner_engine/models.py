@@ -269,6 +269,7 @@ class Diagram(Model):
     conflicts: list[Conflict] = Field(default_factory=list)
     feasible: bool | None = None
     message: str = ""
+    overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class PlanRoom(Model):
@@ -418,6 +419,9 @@ class Ticket(Model):
 
 class Project(Model):
     schema_version: int = SCHEMA_VERSION
+    drawing_overrides: dict[str, Any] = Field(default_factory=dict)  # layer map / units / room names (T1, T2, T4)
+    drawing_path: str | None = None
+    explanations: dict[str, str] = Field(default_factory=dict)  # T6 answers: rule/target -> plain words
     id: str
     name: str
     stage: int = 1

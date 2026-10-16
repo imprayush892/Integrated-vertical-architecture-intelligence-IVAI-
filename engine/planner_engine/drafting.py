@@ -64,6 +64,8 @@ def _merge_leftover(cells: dict[str, Polygon], interior: Polygon, types: dict[st
     max_area = max_area or {}
     used = shapely.union_all(list(cells.values())) if cells else Polygon()
     left = interior.difference(used)
+    # slivers thinner than 0.3 m (grid rounding along the walls) stay wall; only real pockets are given away
+    left = left.buffer(-0.15, join_style="mitre").buffer(0.15, join_style="mitre").intersection(left)
     for comp in sorted(geo.polygons_of(left), key=lambda g: -g.area):
         if comp.area < 1e-4:
             continue
