@@ -18,3 +18,4 @@ app/src-tauri/gen/
 engine/dist/
 engine/packaging/build/
 planner-demo/
+*.tsbuildinfo
