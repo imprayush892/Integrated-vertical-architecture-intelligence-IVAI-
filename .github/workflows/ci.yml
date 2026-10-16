@@ -35,6 +35,8 @@ jobs:
       - name: Release gates (quick)
         if: runner.os == 'Linux'
         run: planner golden --quick
+        env:
+          PLANNER_GEOCODER: offline  # live geocoders drift; the gate checks the pipeline, not OSM
       - name: Doctor
         run: planner doctor
 
@@ -54,6 +56,8 @@ jobs:
           cache-dependency-path: engine/pyproject.toml
       - run: pip install -e ".[dev]"
       - run: planner golden --verbose | tee golden-report.json
+        env:
+          PLANNER_GEOCODER: offline
       - uses: actions/upload-artifact@v4
         if: always()
         with:

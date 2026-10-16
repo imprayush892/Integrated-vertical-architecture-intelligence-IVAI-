@@ -27,6 +27,7 @@ class FloorContext:
     stairs: list[tuple[list[tuple[float, float]], float]] = field(default_factory=list)  # (polygon, flight width)
     handles: dict[str, list[str]] = field(default_factory=dict)  # room/unit id -> DXF handles
     ducts: dict[str, bool] = field(default_factory=dict)  # room id -> ventilated by duct
+    shafts: list[list[tuple[float, float]]] = field(default_factory=list)  # AVS outlines (plate frame)
 
 
 def _cmp(op: str, v: float, t: float) -> bool:
@@ -71,17 +72,59 @@ def _room_result(c: rules.Clause, room: PlanRoom, ctx: FloorContext) -> CheckRes
         g = _grade(c, ratio, float(c.threshold))
         return CheckResult(**base, result=g, value=round(ratio, 4), threshold=float(c.threshold),
                            message=f"{room.name}: openings {room.window_area:.2f} m² for {room.area:.2f} m²")
+    if c.metric == "ventilated" and isinstance(c.threshold, (list, tuple)):
+        return _shaft_size_result(c, room, base, ctx)
     if c.metric == "ventilated":
-        if room.ventilated:
+        # window / AVS shaft = compliant (approved Mumbai plans ventilate toilets through a shaft, DCPR 2034);
+        # mechanical duct only = "review"; nothing = fail
+        if room.ventilated or room.vent_via in ("window", "shaft"):
             g = "pass"
         elif ctx.ducts.get(room.id) or room.vent_via == "duct":
             g = "review"
         else:
             g = "fail"
-        msg = "opens to façade or shaft" if room.ventilated else ("mechanical duct - confirm" if g == "review" else "no ventilation")
-        return CheckResult(**base, result=g, value="yes" if room.ventilated else ("duct" if g == "review" else "no"),
+        if g == "pass":
+            msg = "ventilated through an air-ventilation shaft (AVS)" if room.vent_via == "shaft" else "opens to façade or shaft"
+        else:
+            msg = "mechanical duct - confirm" if g == "review" else "no ventilation"
+        return CheckResult(**base, result=g, value="yes" if g == "pass" else ("duct" if g == "review" else "no"),
                            threshold="yes", message=f"{room.name}: {msg}")
     return None
+
+
+def _measured_shaft(room: PlanRoom, ctx: FloorContext) -> tuple[float, float] | None:
+    """(area, shorter side) of the drawn shaft next to the room (within a wall thickness), if known."""
+    if not ctx.shafts or len(room.polygon) < 3:
+        return None
+    rp = Polygon(room.polygon)
+    best = None
+    for ring in ctx.shafts:
+        sp = Polygon(ring)
+        if sp.is_valid and rp.distance(sp) < 0.4:
+            mrr = sp.minimum_rotated_rectangle
+            xs = list(mrr.exterior.coords)
+            side = min(math.dist(xs[0], xs[1]), math.dist(xs[1], xs[2]))
+            if best is None or sp.area > best[0]:
+                best = (round(sp.area, 2), round(side, 2))
+    return best
+
+
+def _shaft_size_result(c: rules.Clause, room: PlanRoom, base: dict, ctx: FloorContext) -> CheckResult | None:
+    """AVS minimum size (area, side). Only rooms that rely on a shaft are tested; unknown size -> review."""
+    if room.vent_via != "shaft":
+        return None
+    measured = _measured_shaft(room, ctx)
+    if measured:  # the plate's shaft outline beats the flat's partial view of it
+        room = room.model_copy(update={"vent_shaft_area": measured[0], "vent_shaft_width": measured[1]})
+    ta, tw = float(c.threshold[0]), float(c.threshold[1])
+    thr = f"{ta} m² / {tw} m"
+    if room.vent_shaft_area is None or room.vent_shaft_width is None:
+        return CheckResult(**base, result="review", value=None, threshold=thr,
+                           message=f"{room.name}: AVS size not measured - confirm")
+    ga, gw = _grade(c, room.vent_shaft_area, ta), _grade(c, room.vent_shaft_width, tw)
+    g = "pass" if (ga, gw) == ("pass", "pass") else "review"  # a small shaft is a doubt, never a silent fail
+    return CheckResult(**base, result=g, value=f"{room.vent_shaft_area:.2f} m² / {room.vent_shaft_width:.2f} m",
+                       threshold=thr, message=f"{room.name}: AVS {room.vent_shaft_area:.2f} m², side {room.vent_shaft_width:.2f} m")
 
 
 def _entry_point(plan: Plan) -> tuple[float, float] | None:

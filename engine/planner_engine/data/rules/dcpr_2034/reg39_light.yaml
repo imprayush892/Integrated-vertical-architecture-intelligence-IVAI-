@@ -30,3 +30,15 @@ clauses:
     op: ">="
     threshold: 1.5
     unit: m
+  # AVS (air-ventilation shaft): a toilet / kitchen ventilated through a shaft is compliant (Reg 39(2));
+  # the shaft itself must meet a minimum plan area and shorter side. Values are the office default and
+  # depend on building height in the Regulations - consultant to confirm (verified: false above).
+  - id: DCPR-39-3
+    clause: "Reg 39(2) - AVS size"
+    title: "Ventilation shaft at least 3.0 m2, shorter side 1.5 m"
+    scope: room
+    metric: ventilated
+    types: [wc, bath, toilet, kitchen]
+    op: ">="
+    threshold: [3.0, 1.5]
+    unit: "m2 / m"

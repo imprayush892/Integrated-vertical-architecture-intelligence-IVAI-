@@ -27,6 +27,22 @@ VENT_W = 0.6
 VENT_H = 0.45
 
 
+def _shaft_dims(shaft_lines, contact) -> tuple[float, float]:
+    """(area, shorter side) of the AVS a room touches, from the shaft edges seen by the unit.
+
+    Shafts are drawn square (plate.py); a single visible side is taken as the side of a square shaft. The
+    flat only sees the part of the shaft it touches, so this is a lower bound (small result = "review")."""
+    touching = [ln for ln in shaft_lines if any(ln.distance(LineString(seg)) < 0.05 for seg in contact)]
+    if not touching:
+        return 0.0, 0.0
+    near = [ln for ln in shaft_lines if any(ln.distance(t) < 0.05 for t in touching)]
+    x0, y0, x1, y1 = shapely.union_all(near).bounds
+    w, h = x1 - x0, y1 - y0
+    if min(w, h) < 0.3:
+        w = h = max(w, h)
+    return round(w * h, 2), round(min(w, h), 2)
+
+
 def _segments(geom) -> list[tuple[tuple[float, float], tuple[float, float]]]:
     if geom is None or geom.is_empty:
         return []
@@ -248,6 +264,7 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         win_area = 0.0
         ventilated = False
         vent_via = None
+        shaft_area = shaft_width = None
         f_contact = _segments(base[rid].boundary.intersection(facade)) if not facade.is_empty else []
         s_contact = _segments(base[rid].boundary.intersection(shafts)) if not shafts.is_empty else []
         needs = overrides.get(rid, {}).get("needs_window", s.window_run > 0)
@@ -277,6 +294,8 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
                     cut_geoms.append(_cut(placed[0], placed[1], EXT_WALL + 0.05))
                     ventilated = True
                     vent_via = "window" if f_contact else "shaft"
+                    if vent_via == "shaft":
+                        shaft_area, shaft_width = _shaft_dims(shaft_lines, contact)
                     win_area = math.dist(*placed) * VENT_H
         if overrides.get(rid, {}).get("vent") == "duct" and not ventilated:
             vent_via = "duct"  # reported as "review" by the checks
@@ -285,7 +304,8 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
                 id=rid, type=s.type, name=s.name,
                 polygon=[(round(x, 3), round(y, 3)) for x, y in geo.ring_of(net)],
                 area=round(area, 2), width=geo.clear_width(net), has_window=has_window,
-                window_area=round(win_area, 3), ventilated=ventilated, vent_via=vent_via, unit_id=ug.unit_id,
+                window_area=round(win_area, 3), ventilated=ventilated, vent_via=vent_via,
+                vent_shaft_area=shaft_area, vent_shaft_width=shaft_width, unit_id=ug.unit_id,
                 target_area=s.target_area,
             )
         )

@@ -283,6 +283,8 @@ class PlanRoom(Model):
     window_area: float = 0.0
     ventilated: bool = False
     vent_via: Literal["window", "shaft", "duct"] | None = None
+    vent_shaft_area: float | None = None  # estimated AVS plan area (m²) when vent_via == "shaft"
+    vent_shaft_width: float | None = None  # estimated AVS shorter side (m)
     unit_id: str | None = None
     target_area: float | None = None
 

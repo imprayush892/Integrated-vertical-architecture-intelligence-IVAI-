@@ -747,7 +747,9 @@ class Planner:
                 if not plans:
                     continue
                 stairs = [(c.polygon, c.width) for c in plate.core_parts if c.kind == "stair"]
-                ctx = FloorContext(plans=plans, height=h, passage_width=plate.passage_width, stairs=stairs)
+                shafts = [list(map(tuple, ring[0])) for z in plate.zones if z.kind == "shaft" for ring in z.polygon]
+                ctx = FloorContext(plans=plans, height=h, passage_width=plate.passage_width, stairs=stairs,
+                                   shafts=shafts)
                 results.append(run_checks(ctx))
             imported = [p for p in pr.plans if p.status == "imported"]
             if imported and pr.drawing and not results:

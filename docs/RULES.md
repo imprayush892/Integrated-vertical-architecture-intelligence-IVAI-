@@ -7,7 +7,7 @@ hard-coded in Python.
 |---|---|
 | `site.yaml` | DCPR 2034 marginal open spaces (by height, front by road width), distance between buildings, maximum ground coverage |
 | `dcpr_2034/reg37_rooms.yaml` | Habitable rooms (9.5 / 7.5 m², 2.40 m), kitchen, WC, bath, bath+WC |
-| `dcpr_2034/reg39_light.yaml` | Openings ≥ 1/6 floor area, toilet ventilation, common passage width |
+| `dcpr_2034/reg39_light.yaml` | Openings ≥ 1/6 floor area, toilet ventilation (window or AVS shaft = pass, mechanical duct = review), AVS minimum size (3.0 m², 1.5 m side, `DCPR-39-3`), common passage width |
 | `nbc_2016/part4_egress.yaml` | Travel distance, number of staircases, stair flight width, exit door width, fire lift / refuge advisory |
 | `design.yaml` | Architect-authored defaults (plate limits, core sizes, wall thicknesses) - not statutory |
 | `layout_priors.yaml` | Shape priors from ResPlan (aspect ratios, balcony rules, door affinities) - not statutory |
@@ -32,6 +32,14 @@ hard-coded in Python.
 
 Every file carries `code`, `source`, `version` and `verified`. Ship with `verified: false` until the
 office's licensed consultant has reviewed the values; the UI and `explain_check` report it.
+
+## Ventilation: window, shaft, duct
+
+`PlanRoom.vent_via` is `window`, `shaft` or `duct`. A toilet or kitchen opening onto a plate air-ventilation
+shaft (AVS) is `shaft` and passes `DCPR-39-2`, as in approved Mumbai plans; a mechanical duct only
+is `duct` and stays `review`. `DCPR-39-3` (metric `ventilated`, list threshold `[min area, min side]`) tests
+the AVS size of shaft-ventilated rooms; a smaller or unmeasured shaft is `review`. The shaft size is a lower-bound
+estimate from the shaft edges the flat sees (shafts are square), so confirm a `review` on the drawing.
 
 ## Office overrides
 
