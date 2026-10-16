@@ -82,7 +82,24 @@ def bridge_command() -> dict[str, Any]:
     env_cmd = os.environ.get("PLANNER_MCP_COMMAND")
     if env_cmd:
         return {"command": env_cmd, "args": ["--stdio"]}
-    return {"command": sys.executable, "args": ["-m", "planner_engine.mcp_server", "--stdio"]}
+    return {"command": console_python(), "args": ["-m", "planner_engine.mcp_server", "--stdio"]}
+
+
+def console_python(exe: str | None = None) -> str:
+    """The console interpreter next to ``exe``. The Windows launcher runs the app under pythonw.exe, which has no
+    usable stdio, so Claude must start the bridge with python.exe from the same environment."""
+    exe = exe or sys.executable
+    p = Path(exe)
+    if p.name.lower() == "pythonw.exe":
+        twin = p.with_name("python.exe")
+        if twin.exists() or exe != sys.executable:
+            return str(twin)
+    return exe
+
+
+def claude_code_installed() -> bool:
+    """The Claude Code command-line tool (``claude``), not the Claude Desktop app."""
+    return shutil.which("claude") is not None
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -171,4 +188,5 @@ def status() -> dict[str, Any]:
     except (ValueError, json.JSONDecodeError) as e:
         linked, err = False, str(e)
     return {"app": app_installed(), "config": str(p), "config_exists": p.exists(), "linked_in_config": linked,
-            "error": err, "entry": bridge_command(), "claude_code": claude_code_command()}
+            "error": err, "entry": bridge_command(), "claude_code": claude_code_command(),
+            "claude_code_installed": claude_code_installed()}

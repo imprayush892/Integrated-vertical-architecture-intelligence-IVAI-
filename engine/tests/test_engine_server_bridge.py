@@ -173,3 +173,14 @@ def test_mcp_stdio_subprocess(tmp_path):
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def test_bridge_uses_console_python_not_pythonw(tmp_path):
+    from planner_engine import claude_link
+
+    scripts = tmp_path / "Scripts"
+    scripts.mkdir()
+    (scripts / "python.exe").write_text("")
+    assert claude_link.console_python(str(scripts / "pythonw.exe")) == str(scripts / "python.exe")
+    assert claude_link.console_python(str(scripts / "python.exe")) == str(scripts / "python.exe")
+    assert "claude_code_installed" in claude_link.status()

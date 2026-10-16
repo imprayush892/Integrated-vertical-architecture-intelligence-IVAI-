@@ -6,7 +6,7 @@ import "./agent.css";
 
 interface Status {
   app: { installed: boolean; paths: string[]; os: string }; config: string; config_exists: boolean;
-  linked_in_config: boolean; error: string | null; claude_code: string; handshake: { linked: boolean; fresh?: boolean; client: string | null };
+  linked_in_config: boolean; error: string | null; claude_code: string; claude_code_installed?: boolean; handshake: { linked: boolean; fresh?: boolean; client: string | null };
 }
 interface Plan { diff: string; path: string; already_linked: boolean; error?: string; replacing_our_entry?: boolean }
 interface LinkResult { message: string; backup?: string | null; written?: boolean; error?: string }
@@ -233,6 +233,12 @@ export default function ClaudeLink({ onClose }: { onClose: () => void }) {
       <details>
         <summary className="ax-note"><b>Using Claude Code or your own API key?</b></summary>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+          <p className="ax-note">
+            This is only for <b>Claude Code</b>, the command-line tool. For the Claude Desktop app, use the steps above instead.
+          </p>
+          {st && !st.claude_code_installed && (
+            <p className="ax-hint">Claude Code is not installed on this computer, so this command will say “claude is not recognized”.</p>
+          )}
           <p className="ax-note">Claude Code: run this once in a terminal.</p>
           <div className="ax-codebox"><code>{st?.claude_code ?? "…"}</code><CopyButton text={st?.claude_code ?? ""} what="Claude Code command" disabled={!st} /></div>
           <p className="ax-hint">Without Claude, every decision keeps its safe default and is marked <i>check me</i>. The plan still finishes.</p>
