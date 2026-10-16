@@ -1,0 +1,50 @@
+code: NBC 2016 Part 4
+source: "National Building Code of India 2016, Part 4 - Fire and Life Safety"
+version: "2016"
+verified: false
+clauses:
+  - id: NBC-4-4.4.2.4
+    clause: "4.4.2.4 / Table 22"
+    title: "Travel distance to an exit at most 22.5 m (residential)"
+    scope: unit
+    metric: travel_distance
+    op: "<="
+    threshold: 22.5
+    unit: m
+    review_band: 2.0
+  - id: NBC-4-4.4.2.1
+    clause: "4.4.2.1"
+    title: "At least two staircases above 15 m"
+    scope: floor
+    metric: stair_count
+    op: ">="
+    threshold: 2
+    unit: ""
+    when: "height > 15"
+  - id: NBC-4-T6
+    clause: "4.4.2.4.3.2 / Table 6"
+    title: "Stair flight width at least 1.50 m (high-rise residential)"
+    scope: floor
+    metric: stair_width
+    op: ">="
+    threshold: 1.5
+    unit: m
+    review_band: 0.05
+  - id: NBC-4-4.4.2.4.2
+    clause: "4.4.2.4.2"
+    title: "Exit doorway (flat entry) at least 1.00 m"
+    scope: unit
+    metric: entry_door_width
+    op: ">="
+    threshold: 1.0
+    unit: m
+  - id: NBC-4-C1.12
+    clause: "C-1.12 / C-1.5"
+    title: "Fire lift and refuge areas above 24 m"
+    scope: floor
+    metric: advisory
+    op: "=="
+    threshold: true
+    unit: ""
+    when: "height > 24"
+    advice: "Provide a fire lift and refuge areas at the levels required by NBC Part 4 Annex C."

@@ -1,0 +1,32 @@
+# Architect-authored design defaults (not statutory). Edit per office.
+plate:
+  min_depth: 12.0
+  ideal_depth: 22.0
+  max_depth: 32.0
+  min_length: 15.0
+  max_length: 70.0
+  min_area: 200.0
+  max_area_per_tower: 1500.0
+placement:
+  angle_step_coarse: 5
+  angle_step_fine: 1
+  raster: 1.0
+  weights: {coverage: 0.35, gap: 0.10, breeze: 0.15, view: 0.05, west_glass: 0.10, balance: 0.10, depth: 0.15}
+  coverage_target: 0.40
+core:
+  lift_size: [2.4, 2.6]
+  stair_flight_width: 1.5
+  stair_length: 6.6
+  lobby_depth: 2.4
+  passage_width: 1.8
+walls:
+  external: 0.23
+  internal: 0.115
+doors:
+  internal: 0.9
+  entry: 1.0
+  toilet: 0.75
+windows:
+  head_height: 2.1
+  sill_height: 0.6
+floor_to_floor: 3.0

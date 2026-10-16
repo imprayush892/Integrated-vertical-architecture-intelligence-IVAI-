@@ -1,0 +1,68 @@
+code: DCPR 2034
+source: "Development Control and Promotion Regulations for Greater Mumbai, 2034"
+version: "2034.1"
+verified: false
+clauses:
+  - id: DCPR-37-1-a
+    clause: "Reg 37(1)(a)"
+    title: "One habitable room of at least 9.5 m2"
+    scope: unit
+    metric: max_area
+    types: [living, master, bedroom, study]
+    op: ">="
+    threshold: 9.5
+    unit: m2
+  - id: DCPR-37-1-b
+    clause: "Reg 37(1)(b)"
+    title: "Other habitable rooms at least 7.5 m2"
+    scope: room
+    metric: area
+    types: [living, master, bedroom, study]
+    op: ">="
+    threshold: 7.5
+    unit: m2
+  - id: DCPR-37-1-c
+    clause: "Reg 37(1)(c)"
+    title: "Habitable room width at least 2.40 m"
+    scope: room
+    metric: width
+    types: [living, master, bedroom, study]
+    op: ">="
+    threshold: 2.4
+    unit: m
+  - id: DCPR-37-2
+    clause: "Reg 37(2)"
+    title: "Kitchen at least 5.5 m2, width 1.80 m"
+    scope: room
+    metric: area_and_width
+    types: [kitchen]
+    op: ">="
+    threshold: [5.5, 1.8]
+    unit: "m2 / m"
+  - id: DCPR-37-6-a
+    clause: "Reg 37(6)(a)"
+    title: "WC at least 1.10 m2, width 0.90 m"
+    scope: room
+    metric: area_and_width
+    types: [wc]
+    op: ">="
+    threshold: [1.1, 0.9]
+    unit: "m2 / m"
+  - id: DCPR-37-6-b
+    clause: "Reg 37(6)(b)"
+    title: "Bath at least 1.80 m2, width 1.20 m"
+    scope: room
+    metric: area_and_width
+    types: [bath]
+    op: ">="
+    threshold: [1.8, 1.2]
+    unit: "m2 / m"
+  - id: DCPR-37-6-c
+    clause: "Reg 37(6)(c)"
+    title: "Bath + WC combined at least 2.20 m2, width 1.20 m"
+    scope: room
+    metric: area_and_width
+    types: [toilet]
+    op: ">="
+    threshold: [2.2, 1.2]
+    unit: "m2 / m"

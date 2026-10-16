@@ -1,0 +1,95 @@
+{
+ "id": "1bhk",
+ "name": "1 BHK (35-50 m\u00b2)",
+ "bhk": 1,
+ "area_range": [
+  35,
+  50
+ ],
+ "entry": "foyer",
+ "rooms": [
+  {
+   "id": "foyer",
+   "type": "foyer",
+   "name": "Foyer",
+   "target_area": 2.5,
+   "min_area": 1.5,
+   "needs_window": false,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "living",
+   "type": "living",
+   "name": "Living",
+   "target_area": 14,
+   "min_area": 11,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "kitchen",
+   "type": "kitchen",
+   "name": "Kitchen",
+   "target_area": 6,
+   "min_area": 5.5,
+   "needs_window": true,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "master",
+   "type": "master",
+   "name": "Bedroom",
+   "target_area": 11,
+   "min_area": 9.5,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "toilet",
+   "type": "toilet",
+   "name": "Toilet",
+   "target_area": 3.2,
+   "min_area": 2.2,
+   "needs_window": false,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "balcony",
+   "type": "balcony",
+   "name": "Balcony",
+   "target_area": 3,
+   "min_area": 0,
+   "needs_window": false,
+   "wet": false,
+   "optional": true
+  }
+ ],
+ "links": [
+  [
+   "foyer",
+   "living"
+  ],
+  [
+   "living",
+   "kitchen"
+  ],
+  [
+   "living",
+   "master"
+  ],
+  [
+   "living",
+   "toilet"
+  ],
+  [
+   "living",
+   "balcony"
+  ]
+ ],
+ "note": "A starting point, not the answer."
+}

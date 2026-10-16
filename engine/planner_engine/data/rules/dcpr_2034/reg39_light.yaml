@@ -1,0 +1,32 @@
+code: DCPR 2034
+source: "Development Control and Promotion Regulations for Greater Mumbai, 2034"
+version: "2034.1"
+verified: false
+clauses:
+  - id: DCPR-39-1
+    clause: "Reg 39(1)"
+    title: "Openings at least 1/6 of floor area (habitable rooms, kitchen)"
+    scope: room
+    metric: window_ratio
+    types: [living, master, bedroom, study, kitchen]
+    op: ">="
+    threshold: 0.1667
+    unit: ratio
+    review_band: 0.01
+  - id: DCPR-39-2
+    clause: "Reg 39(2)"
+    title: "WC / bath ventilated to open air or a shaft"
+    scope: room
+    metric: ventilated
+    types: [wc, bath, toilet]
+    op: "=="
+    threshold: true
+    unit: ""
+  - id: DCPR-37-12
+    clause: "Reg 37(12)"
+    title: "Common passage at least 1.50 m clear"
+    scope: floor
+    metric: passage_width
+    op: ">="
+    threshold: 1.5
+    unit: m

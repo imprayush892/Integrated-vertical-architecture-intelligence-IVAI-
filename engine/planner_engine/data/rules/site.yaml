@@ -1,0 +1,17 @@
+# Site-level regulation tables. Values are encoded from DCPR 2034 (Mumbai) as commonly applied and
+# MUST be verified by the project's licensed consultant for each plot (road width, zone, scheme).
+code: DCPR 2034
+version: "2034.1"
+verified: false
+setback:
+  clause: "DCPR 2034 Reg 41(1) Table 18 - marginal open spaces (residential)"
+  # [max building height m, minimum side/rear open space m]
+  by_height: [[24.0, 3.0], [32.0, 3.6], [45.0, 4.5], [70.0, 6.0], [120.0, 9.0], [9999.0, 12.0]]
+  # [max road width m, minimum front open space m]; applied to road-facing edges
+  front_by_road_width: [[9.0, 3.0], [12.0, 3.0], [18.0, 4.5], [30.0, 6.0], [9999.0, 6.0]]
+tower_gap:
+  clause: "DCPR 2034 Reg 41(4) - distance between buildings on the same plot"
+  by_height: [[24.0, 6.0], [32.0, 7.2], [45.0, 9.0], [70.0, 12.0], [9999.0, 16.0]]
+coverage:
+  clause: "DCPR 2034 Reg 30 / project design limit - maximum ground coverage"
+  max: 0.45

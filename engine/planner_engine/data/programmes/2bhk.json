@@ -1,0 +1,151 @@
+{
+ "id": "2bhk",
+ "name": "2 BHK (60-79 m\u00b2)",
+ "bhk": 2,
+ "area_range": [
+  60,
+  79
+ ],
+ "entry": "foyer",
+ "rooms": [
+  {
+   "id": "foyer",
+   "type": "foyer",
+   "name": "Foyer",
+   "target_area": 3,
+   "min_area": 2,
+   "needs_window": false,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "living",
+   "type": "living",
+   "name": "Living",
+   "target_area": 18,
+   "min_area": 12,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "dining",
+   "type": "dining",
+   "name": "Dining",
+   "target_area": 9.5,
+   "min_area": 6,
+   "needs_window": false,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "kitchen",
+   "type": "kitchen",
+   "name": "Kitchen",
+   "target_area": 8,
+   "min_area": 5.5,
+   "needs_window": true,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "passage",
+   "type": "passage",
+   "name": "Passage",
+   "target_area": 3.5,
+   "min_area": 2,
+   "needs_window": false,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "master",
+   "type": "master",
+   "name": "Master",
+   "target_area": 14,
+   "min_area": 10,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "toilet_m",
+   "type": "toilet",
+   "name": "Toilet (master)",
+   "target_area": 3.8,
+   "min_area": 2.2,
+   "needs_window": false,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "bed2",
+   "type": "bedroom",
+   "name": "Bed 2",
+   "target_area": 11,
+   "min_area": 9,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "toilet_c",
+   "type": "toilet",
+   "name": "Toilet",
+   "target_area": 3.2,
+   "min_area": 2.2,
+   "needs_window": false,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "balcony",
+   "type": "balcony",
+   "name": "Balcony",
+   "target_area": 3.5,
+   "min_area": 0,
+   "needs_window": false,
+   "wet": false,
+   "optional": true
+  }
+ ],
+ "links": [
+  [
+   "foyer",
+   "living"
+  ],
+  [
+   "living",
+   "dining"
+  ],
+  [
+   "dining",
+   "kitchen"
+  ],
+  [
+   "living",
+   "passage"
+  ],
+  [
+   "passage",
+   "master"
+  ],
+  [
+   "master",
+   "toilet_m"
+  ],
+  [
+   "passage",
+   "bed2"
+  ],
+  [
+   "passage",
+   "toilet_c"
+  ],
+  [
+   "living",
+   "balcony"
+  ]
+ ],
+ "note": "A starting point, not the answer."
+}

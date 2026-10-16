@@ -1,0 +1,221 @@
+{
+ "id": "4bhk",
+ "name": "4 BHK (140-180 m\u00b2)",
+ "bhk": 4,
+ "area_range": [
+  140,
+  180
+ ],
+ "entry": "foyer",
+ "rooms": [
+  {
+   "id": "foyer",
+   "type": "foyer",
+   "name": "Foyer",
+   "target_area": 5,
+   "min_area": 3,
+   "needs_window": false,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "living",
+   "type": "living",
+   "name": "Living",
+   "target_area": 26,
+   "min_area": 16,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "dining",
+   "type": "dining",
+   "name": "Dining",
+   "target_area": 12,
+   "min_area": 8,
+   "needs_window": false,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "kitchen",
+   "type": "kitchen",
+   "name": "Kitchen",
+   "target_area": 10,
+   "min_area": 6.5,
+   "needs_window": true,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "utility",
+   "type": "utility",
+   "name": "Utility",
+   "target_area": 3,
+   "min_area": 0,
+   "needs_window": false,
+   "wet": true,
+   "optional": true
+  },
+  {
+   "id": "passage",
+   "type": "passage",
+   "name": "Passage",
+   "target_area": 7,
+   "min_area": 3,
+   "needs_window": false,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "master",
+   "type": "master",
+   "name": "Master",
+   "target_area": 17,
+   "min_area": 12,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "toilet_m",
+   "type": "toilet",
+   "name": "Toilet (master)",
+   "target_area": 4.8,
+   "min_area": 2.2,
+   "needs_window": false,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "bed2",
+   "type": "bedroom",
+   "name": "Bed 2",
+   "target_area": 13,
+   "min_area": 10,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "toilet_2",
+   "type": "toilet",
+   "name": "Toilet (bed 2)",
+   "target_area": 3.8,
+   "min_area": 2.2,
+   "needs_window": false,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "bed3",
+   "type": "bedroom",
+   "name": "Bed 3",
+   "target_area": 12,
+   "min_area": 9.5,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "toilet_3",
+   "type": "toilet",
+   "name": "Toilet (bed 3)",
+   "target_area": 3.5,
+   "min_area": 2.2,
+   "needs_window": false,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "bed4",
+   "type": "bedroom",
+   "name": "Bed 4",
+   "target_area": 11,
+   "min_area": 9,
+   "needs_window": true,
+   "wet": false,
+   "optional": false
+  },
+  {
+   "id": "toilet_c",
+   "type": "toilet",
+   "name": "Toilet",
+   "target_area": 3.2,
+   "min_area": 2.2,
+   "needs_window": false,
+   "wet": true,
+   "optional": false
+  },
+  {
+   "id": "balcony",
+   "type": "balcony",
+   "name": "Balcony",
+   "target_area": 5,
+   "min_area": 0,
+   "needs_window": false,
+   "wet": false,
+   "optional": true
+  }
+ ],
+ "links": [
+  [
+   "foyer",
+   "living"
+  ],
+  [
+   "living",
+   "dining"
+  ],
+  [
+   "dining",
+   "kitchen"
+  ],
+  [
+   "kitchen",
+   "utility"
+  ],
+  [
+   "living",
+   "passage"
+  ],
+  [
+   "passage",
+   "master"
+  ],
+  [
+   "master",
+   "toilet_m"
+  ],
+  [
+   "passage",
+   "bed2"
+  ],
+  [
+   "bed2",
+   "toilet_2"
+  ],
+  [
+   "passage",
+   "bed3"
+  ],
+  [
+   "bed3",
+   "toilet_3"
+  ],
+  [
+   "passage",
+   "bed4"
+  ],
+  [
+   "passage",
+   "toilet_c"
+  ],
+  [
+   "living",
+   "balcony"
+  ]
+ ],
+ "note": "A starting point, not the answer."
+}
