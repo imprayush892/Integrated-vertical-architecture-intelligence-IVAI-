@@ -9,6 +9,7 @@ An office can override any file by placing a copy in ``$PLANNER_RULES_DIR``.
 
 from __future__ import annotations
 
+import json
 import os
 from functools import lru_cache
 from importlib import resources
@@ -105,6 +106,18 @@ def priors() -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
+def topology_priors() -> dict[str, Any]:
+    """Counted topology priors of municipal-approved Mumbai plans (``tools/derive_topology_priors.py``).
+
+    Empty when the file is missing, so every caller keeps its built-in default.
+    """
+    rel = "mumbai_topology_priors.json"
+    o = _override_dir()
+    p = o / rel if o and (o / rel).exists() else _data_dir() / rel
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+@lru_cache(maxsize=1)
 def clauses() -> list[Clause]:
     out: list[Clause] = []
     seen: set[str] = set()
@@ -159,4 +172,5 @@ def reload() -> None:
     site_rules.cache_clear()
     design.cache_clear()
     priors.cache_clear()
+    topology_priors.cache_clear()
     clauses.cache_clear()

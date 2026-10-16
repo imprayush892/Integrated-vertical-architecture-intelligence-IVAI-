@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 from collections import deque
 
+from . import rules
 from .models import Conflict, Diagram, DiagramRoom, Programme, Unit
 from .units import statutory_minimums
 
@@ -17,8 +18,102 @@ HABITABLE_WINDOW = {"living", "master", "bedroom", "study", "kitchen"}
 WINDOW_MIN_RUN = {"living": 2.4, "master": 2.4, "bedroom": 2.4, "study": 2.4, "kitchen": 1.8, "dining": 1.5}
 
 
+# ------------------------------------------------------------------------------------------ topology priors
+# Counted from municipal-approved Mumbai plans (data/rules/mumbai_topology_priors.json, built by
+# tools/derive_topology_priors.py). A prior is used only when strong (thresholds in layout_priors.yaml `topology`);
+# otherwise the programme JSON default stands. Priors only ever add a window or a link, they never remove one.
+
+
+def _cfg() -> dict:
+    c = rules.priors().get("topology", {})
+    return {"min_projects": int(c.get("min_projects", 5)), "link": float(c.get("link_default_min", 0.6)),
+            "facade": float(c.get("facade_needs_window_min", 0.8))}
+
+
+def _strong(fig: dict | None, floor: float) -> bool:
+    """Pooled p and the median across projects both reach the floor, with enough projects behind it."""
+    if not fig or fig.get("n_projects", 0) < _cfg()["min_projects"]:
+        return False
+    return fig["p"] >= floor and fig.get("p_project_median", fig["p"]) >= floor
+
+
+def facade_figure(room_type: str) -> dict | None:
+    return rules.topology_priors().get("exterior", {}).get(room_type, {}).get("facade")
+
+
+def link_figure(a: str, b: str) -> dict | None:
+    """P(door arc or open gap between a room of type a and one of type b), flat level (pair key is sorted)."""
+    return rules.topology_priors().get("pairs", {}).get("|".join(sorted((a, b))), {}).get("link")
+
+
+def prior_needs_window(room_type: str, default: bool) -> bool:
+    """Rooms that touch the façade in >= 80% of approved plans (bedroom, master, study) need a window by default."""
+    return default or _strong(facade_figure(room_type), _cfg()["facade"])
+
+
+def prior_default_link(a: str, b: str) -> bool:
+    """True when the pair is linked in >= 60% of approved flats that contain both."""
+    return _strong(link_figure(a, b), _cfg()["link"])
+
+
+def complete_links(prog: Programme) -> list[tuple[str, str]]:
+    """The programme's links plus, for a room the links leave unreachable from the entry, the strongest prior link.
+
+    Stock programmes are fully connected so this adds nothing; it only helps a custom programme (a study, a dress
+    room) arrive with a sensible door instead of a "cannot be reached" conflict.
+    """
+    links = [tuple(x) for x in prog.links]
+    ids = {r.id: r for r in prog.rooms}
+    if prog.entry not in ids:
+        return links
+    adj: dict[str, set[str]] = {k: set() for k in ids}
+    for a, b in links:
+        if a in adj and b in adj:
+            adj[a].add(b)
+            adj[b].add(a)
+
+    def reach() -> set[str]:
+        seen, q = {prog.entry}, deque([prog.entry])
+        while q:
+            for nb in adj[q.popleft()]:
+                if nb not in seen:
+                    seen.add(nb)
+                    q.append(nb)
+        return seen
+
+    for rid in [r.id for r in prog.rooms]:
+        seen = reach()
+        if rid in seen:
+            continue
+        best: tuple[float, str] | None = None
+        for other in prog.rooms:
+            if other.id in seen and not other.optional and prior_default_link(ids[rid].type, other.type):
+                p = link_figure(ids[rid].type, other.type)["p"]
+                if best is None or p > best[0]:
+                    best = (p, other.id)
+        if best:
+            links.append((best[1], rid))
+            adj[best[1]].add(rid)
+            adj[rid].add(best[1])
+    return links
+
+
+def audit_programme(prog: Programme) -> list[dict]:
+    """Evidence behind each programme link: supported / weak / no data, with n and n_projects (for docs and review)."""
+    types = {r.id: r.type for r in prog.rooms}
+    out = []
+    for a, b in prog.links:
+        fig = link_figure(types.get(a, ""), types.get(b, ""))
+        out.append({"a": a, "b": b, "pair": "|".join(sorted((types.get(a, ""), types.get(b, "")))),
+                    "p_link": fig["p"] if fig else None, "n": fig["n"] if fig else 0,
+                    "n_projects": fig["n_projects"] if fig else 0,
+                    "verdict": "no data" if not fig else "supported" if _strong(fig, _cfg()["link"]) else "weak"})
+    return out
+
+
 def from_programme(unit: Unit, prog: Programme) -> Diagram:
     n = len(prog.rooms)
+    links = complete_links(prog)
     rooms = []
     for i, r in enumerate(prog.rooms):
         a = 2 * math.pi * i / max(1, n)
@@ -28,15 +123,15 @@ def from_programme(unit: Unit, prog: Programme) -> Diagram:
                 type=r.type,
                 name=r.name,
                 target_area=r.target_area,
-                needs_window=r.needs_window,
+                needs_window=prior_needs_window(r.type, r.needs_window),
                 optional=r.optional,
                 placed=True,
                 x=round(math.cos(a) * 140, 1),
                 y=round(math.sin(a) * 140, 1),
             )
         )
-    _spring_layout(rooms, prog.links, prog.entry)
-    return Diagram(unit_id=unit.id, rooms=rooms, links=list(prog.links), entry=prog.entry)
+    _spring_layout(rooms, links, prog.entry)
+    return Diagram(unit_id=unit.id, rooms=rooms, links=links, entry=prog.entry)
 
 
 def _spring_layout(rooms: list[DiagramRoom], links: list[tuple[str, str]], entry: str, iters: int = 200) -> None:

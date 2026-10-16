@@ -29,9 +29,18 @@ window_share:              # share of rooms with a window in ResPlan (informs ne
   kitchen: 0.94
   living: 0.91
   toilet: 0.93
-door_affinity:             # how rooms typically open onto each other (ResPlan via_door counts, normalised)
-  bedroom: [passage, living]
-  master: [passage, living]
-  toilet: [master, bedroom, passage, living]
-  balcony: [living, master, bedroom]
-  kitchen: [dining, living]
+door_affinity:             # how rooms typically open onto each other, most likely first (informational; not read by the solver)
+  # Mumbai approved plans (mumbai_topology_priors.json, room_links.<A>><B>.link, kept when p >= 0.35, n_projects >= 5);
+  # the ResPlan order is kept for balcony, whose doors the PDF extractor cannot see (bedroom>balcony link 0.02).
+  bedroom: [passage, toilet]     # was [passage, living]; Mumbai: passage 0.65, toilet 0.50, dining 0.30, living 0.13
+  master: [toilet, passage]      # was [passage, living]; Mumbai: toilet 0.82, passage 0.57, living 0.19
+  toilet: [master, bedroom, passage]  # was [master, bedroom, passage, living]; Mumbai: master 0.52, bedroom 0.41, passage 0.28, living 0.06
+  balcony: [living, master, bedroom]  # ResPlan (Mumbai: living 0.65, kitchen 0.67, n = 26-46 flats, 13 projects)
+  kitchen: [dining, passage, living]  # was [dining, living]; Mumbai: dining 0.68, passage 0.49, living 0.41
+topology:                  # how the engine uses mumbai_topology_priors.json (counted from approved-plan topology)
+  source: "tools/derive_topology_priors.py on tools/extract_pdf_topology.py output: 2,153 clean flats, 48 projects"
+  min_projects: 5          # a figure backed by fewer projects is never used (the deriver already drops them)
+  link_default_min: 0.6    # P(door arc or open gap between the two rooms) >= this: the pair is linked by default
+  facade_needs_window_min: 0.8  # P(room touches the façade) >= this: the room needs a window by default
+  # Strong means: pooled p >= threshold AND the median across projects >= threshold (one big project cannot carry it).
+  # Weak figures change nothing; the programme JSON default stays. Statutory window rules (living, kitchen) are never relaxed.

@@ -16,7 +16,7 @@
    "min_area": 2.5,
    "needs_window": false,
    "wet": false,
-   "optional": false
+   "optional": true
   },
   {
    "id": "living",
@@ -189,5 +189,5 @@
    "balcony"
   ]
  ],
- "note": "A starting point, not the answer. Source: target_area values calibrated to the p50 (p50-p75 for larger flats) of room areas in municipal-approved Mumbai plans, see planner_engine/data/mumbai_approved_stats.json (50 projects, 655 pages); min_area stays at the DCPR 2034 / office floors."
+ "note": "A starting point, not the answer. Source: target_area values calibrated to the p50 (p50-p75 for larger flats) of room areas in municipal-approved Mumbai plans, see planner_engine/data/mumbai_approved_stats.json (50 projects, 655 pages); min_area stays at the DCPR 2034 / office floors. Foyer is optional and the entry falls back to the living room: in approved Mumbai plans the front door opens straight into the living room in 73% of flats whose entrance room is named, and a named foyer is the entrance in 0.4% (mumbai_topology_priors.json, entrance.room_type; n=1,797 flats, 48 projects)."
 }
