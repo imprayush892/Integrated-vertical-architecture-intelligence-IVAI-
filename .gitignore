@@ -12,8 +12,6 @@ app/src-tauri/target/
 app/src-tauri/binaries/
 *.aptplan
 .DS_Store
-engine/planner_engine/web/*
-!engine/planner_engine/web/.gitkeep
 app/src-tauri/gen/
 engine/dist/
 engine/packaging/build/
