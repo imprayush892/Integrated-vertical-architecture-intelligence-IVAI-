@@ -1,0 +1,12708 @@
+{
+ "version": 1,
+ "n_projects": 50,
+ "projects": [
+  {
+   "num": 28,
+   "project": "Residential_28_MALABAR_HILL_2510686",
+   "page": 6,
+   "title": "17TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 17,
+   "outline_m2": 547.6,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "square",
+   "confidence": 0.6,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 24.4 x 24.0 m; best template none (fit IoU 0.93, margin 0.00 over none)",
+    "no notch pays off, aspect 1.02: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 543.4,
+    "raw_area_m2": 547.6,
+    "bbox_m": [
+     24.4,
+     24.0
+    ],
+    "aspect": 1.02,
+    "rectangularity": 0.929,
+    "convexity": 0.969,
+    "bbox_fill": 0.928,
+    "orthogonality": 0.998,
+    "compactness": 0.733,
+    "symmetry": 0.896,
+    "dir_families": [
+     [
+      90.0,
+      0.5
+     ],
+     [
+      0.0,
+      0.49
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 12,
+    "fit_iou": 0.928,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 24.4,
+     "width": 24.0
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     20.2,
+     25.6
+    ],
+    [
+     20.1,
+     22.2
+    ],
+    [
+     21.6,
+     22.2
+    ],
+    [
+     21.6,
+     19.7
+    ],
+    [
+     26.5,
+     19.8
+    ],
+    [
+     26.5,
+     2.9
+    ],
+    [
+     22.4,
+     2.9
+    ],
+    [
+     22.3,
+     1.9
+    ],
+    [
+     18.2,
+     1.9
+    ],
+    [
+     18.1,
+     1.7
+    ],
+    [
+     2.1,
+     1.7
+    ],
+    [
+     2.1,
+     25.7
+    ],
+    [
+     20.2,
+     25.6
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 2,
+   "topology_flats_ok": 0,
+   "flat_areas_m2": [],
+   "flat_bhk": [],
+   "cores": [
+    {
+     "xy": [
+      13.1,
+      18.5
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 3,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.69,
+     "v": 0.504
+    }
+   ]
+  },
+  {
+   "num": 29,
+   "project": "Residential_29_AMBIVALI_2448071",
+   "page": 7,
+   "title": "PLAN. 10TH FLOOR PLAN.",
+   "close_m": 0.5,
+   "floors_title": 10,
+   "outline_m2": 655.7,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.1,
+   "reasons": [
+    "rectilinear (orthogonality 0.82), bbox 43.0 x 17.9 m; best template none (fit IoU 0.80, margin 0.00 over none)",
+    "no notch pays off, aspect 2.40 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 614.3,
+    "raw_area_m2": 655.7,
+    "bbox_m": [
+     43.0,
+     17.9
+    ],
+    "aspect": 2.4,
+    "rectangularity": 0.797,
+    "convexity": 0.853,
+    "bbox_fill": 0.797,
+    "orthogonality": 0.825,
+    "compactness": 0.451,
+    "symmetry": 0.811,
+    "dir_families": [
+     [
+      2.0,
+      0.58
+     ],
+     [
+      92.0,
+      0.3
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 42,
+    "fit_iou": 0.797,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 43.0,
+     "width": 17.9
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     14.0,
+     10.1
+    ],
+    [
+     14.1,
+     14.1
+    ],
+    [
+     15.1,
+     15.1
+    ],
+    [
+     15.1,
+     20.6
+    ],
+    [
+     14.5,
+     21.1
+    ],
+    [
+     14.4,
+     25.8
+    ],
+    [
+     14.9,
+     25.8
+    ],
+    [
+     15.0,
+     27.1
+    ],
+    [
+     16.3,
+     27.7
+    ],
+    [
+     20.1,
+     24.9
+    ],
+    [
+     20.2,
+     23.6
+    ],
+    [
+     25.6,
+     23.7
+    ],
+    [
+     25.9,
+     24.9
+    ],
+    [
+     31.5,
+     24.9
+    ],
+    [
+     31.6,
+     24.3
+    ],
+    [
+     33.0,
+     24.3
+    ],
+    [
+     33.0,
+     24.2
+    ],
+    [
+     33.3,
+     23.9
+    ],
+    [
+     38.0,
+     24.7
+    ],
+    [
+     38.0,
+     27.2
+    ],
+    [
+     49.6,
+     27.2
+    ],
+    [
+     49.9,
+     24.7
+    ],
+    [
+     55.4,
+     24.6
+    ],
+    [
+     55.5,
+     23.5
+    ],
+    [
+     57.0,
+     23.5
+    ],
+    [
+     57.0,
+     13.4
+    ],
+    [
+     55.6,
+     11.7
+    ],
+    [
+     49.3,
+     11.2
+    ],
+    [
+     43.4,
+     11.2
+    ],
+    [
+     43.4,
+     10.2
+    ],
+    [
+     38.8,
+     10.2
+    ],
+    [
+     37.5,
+     11.2
+    ],
+    [
+     31.7,
+     11.2
+    ],
+    [
+     30.9,
+     9.8
+    ],
+    [
+     26.1,
+     9.8
+    ],
+    [
+     25.9,
+     10.0
+    ],
+    [
+     26.2,
+     11.7
+    ],
+    [
+     26.0,
+     11.9
+    ],
+    [
+     20.0,
+     12.0
+    ],
+    [
+     20.1,
+     9.9
+    ],
+    [
+     14.9,
+     9.8
+    ],
+    [
+     14.9,
+     10.1
+    ],
+    [
+     14.0,
+     10.1
+    ]
+   ],
+   "n_kitchen": 8,
+   "n_living": 8,
+   "flats_per_floor_est": 8,
+   "topology_flats_on_page": 10,
+   "topology_flats_ok": 7,
+   "flat_areas_m2": [
+    49.4,
+    34.0,
+    34.2,
+    50.7,
+    50.3,
+    51.6,
+    39.5
+   ],
+   "flat_bhk": [
+    2,
+    1,
+    1,
+    2,
+    2,
+    2,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      34.7,
+      18.1
+     ],
+     "n_lifts": 4,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.481,
+     "v": 0.463
+    }
+   ]
+  },
+  {
+   "num": 30,
+   "project": "Residential_30_KANJUR_W_2517064",
+   "page": 8,
+   "title": "22ND TO 27TH,29TH TO 34TH,36TH TO 40TH,43RD TO 49TH FLOOR PLAN 13TH,15TH TO 19TH",
+   "close_m": 0.5,
+   "floors_title": 49,
+   "outline_m2": 1014.5,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.25,
+   "reasons": [
+    "rectilinear (orthogonality 0.94), bbox 46.7 x 24.7 m; best template none (fit IoU 0.87, margin 0.00 over none)",
+    "no notch pays off, aspect 1.89: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 1009.4,
+    "raw_area_m2": 1014.5,
+    "bbox_m": [
+     46.7,
+     24.7
+    ],
+    "aspect": 1.89,
+    "rectangularity": 0.873,
+    "convexity": 0.887,
+    "bbox_fill": 0.873,
+    "orthogonality": 0.939,
+    "compactness": 0.457,
+    "symmetry": 0.936,
+    "dir_families": [
+     [
+      1.0,
+      0.65
+     ],
+     [
+      91.0,
+      0.32
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 54,
+    "fit_iou": 0.873,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 46.7,
+     "width": 24.7
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     4.3,
+     19.1
+    ],
+    [
+     4.2,
+     19.4
+    ],
+    [
+     2.5,
+     19.4
+    ],
+    [
+     2.4,
+     19.5
+    ],
+    [
+     2.4,
+     27.8
+    ],
+    [
+     4.1,
+     27.9
+    ],
+    [
+     4.2,
+     28.7
+    ],
+    [
+     11.0,
+     28.6
+    ],
+    [
+     11.1,
+     28.2
+    ],
+    [
+     14.0,
+     28.2
+    ],
+    [
+     14.1,
+     27.4
+    ],
+    [
+     20.8,
+     27.5
+    ],
+    [
+     20.9,
+     28.1
+    ],
+    [
+     27.5,
+     28.0
+    ],
+    [
+     27.6,
+     27.7
+    ],
+    [
+     30.1,
+     27.7
+    ],
+    [
+     30.2,
+     27.4
+    ],
+    [
+     37.5,
+     27.4
+    ],
+    [
+     37.5,
+     28.2
+    ],
+    [
+     40.4,
+     28.2
+    ],
+    [
+     40.4,
+     28.6
+    ],
+    [
+     47.3,
+     28.7
+    ],
+    [
+     47.4,
+     27.9
+    ],
+    [
+     49.1,
+     27.8
+    ],
+    [
+     49.1,
+     19.5
+    ],
+    [
+     49.0,
+     19.4
+    ],
+    [
+     41.9,
+     19.4
+    ],
+    [
+     41.9,
+     13.9
+    ],
+    [
+     49.1,
+     13.8
+    ],
+    [
+     49.1,
+     5.3
+    ],
+    [
+     48.6,
+     4.9
+    ],
+    [
+     45.4,
+     4.5
+    ],
+    [
+     41.0,
+     4.7
+    ],
+    [
+     40.6,
+     5.6
+    ],
+    [
+     37.3,
+     5.6
+    ],
+    [
+     37.3,
+     6.0
+    ],
+    [
+     30.4,
+     5.8
+    ],
+    [
+     30.4,
+     5.6
+    ],
+    [
+     27.5,
+     5.6
+    ],
+    [
+     27.5,
+     5.2
+    ],
+    [
+     21.0,
+     5.1
+    ],
+    [
+     20.8,
+     5.7
+    ],
+    [
+     17.2,
+     5.8
+    ],
+    [
+     14.7,
+     5.5
+    ],
+    [
+     10.6,
+     5.6
+    ],
+    [
+     10.3,
+     4.0
+    ],
+    [
+     10.2,
+     4.0
+    ],
+    [
+     8.0,
+     4.7
+    ],
+    [
+     4.2,
+     4.6
+    ],
+    [
+     4.1,
+     5.3
+    ],
+    [
+     2.4,
+     5.5
+    ],
+    [
+     2.4,
+     13.9
+    ],
+    [
+     5.0,
+     13.9
+    ],
+    [
+     5.0,
+     19.0
+    ],
+    [
+     4.3,
+     19.1
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 5,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    95.2,
+    86.0,
+    88.0
+   ],
+   "flat_bhk": [
+    3,
+    2,
+    3
+   ],
+   "cores": [
+    {
+     "xy": [
+      22.7,
+      15.6
+     ],
+     "n_lifts": 4,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.434,
+     "v": 0.471
+    }
+   ]
+  },
+  {
+   "num": 31,
+   "project": "Residential_31_KOLEKALYAN_H_E_2425449",
+   "page": 8,
+   "title": "7TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 7,
+   "outline_m2": 1307.5,
+   "extraction": "ok",
+   "label": "courtyard",
+   "subtype": "U",
+   "confidence": 0.78,
+   "reasons": [
+    "rectilinear (orthogonality 0.96), bbox 72.1 x 26.4 m; best template U:S (fit IoU 0.95, margin 0.07 over L:SE)",
+    "one deep mid-side notch (41.5 x 11.5 m) on side S: open courtyard (U)"
+   ],
+   "descriptors": {
+    "area_m2": 1360.9,
+    "raw_area_m2": 1307.5,
+    "bbox_m": [
+     72.1,
+     26.4
+    ],
+    "aspect": 2.73,
+    "rectangularity": 0.718,
+    "convexity": 0.724,
+    "bbox_fill": 0.716,
+    "orthogonality": 0.957,
+    "compactness": 0.339,
+    "symmetry": 0.969,
+    "dir_families": [
+     [
+      2.0,
+      0.61
+     ],
+     [
+      92.0,
+      0.35
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 45,
+    "fit_iou": 0.947,
+    "fit_name": "U:S",
+    "fit_margin": 0.069,
+    "fit_runner_up": "L:SE"
+   },
+   "wings": [],
+   "notches": [
+    {
+     "sides": "S",
+     "kind": "side",
+     "width": 41.5,
+     "depth": 11.5,
+     "area": 477.2
+    }
+   ],
+   "notch_rects": [
+    [
+     17.0,
+     2.4,
+     58.5,
+     13.9
+    ]
+   ],
+   "eye_label_first": "courtyard",
+   "eye_label": "courtyard",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.1,
+     5.8
+    ],
+    [
+     2.0,
+     22.9
+    ],
+    [
+     3.0,
+     22.8
+    ],
+    [
+     3.0,
+     28.8
+    ],
+    [
+     18.5,
+     28.8
+    ],
+    [
+     18.5,
+     28.5
+    ],
+    [
+     30.1,
+     28.4
+    ],
+    [
+     30.1,
+     28.6
+    ],
+    [
+     45.7,
+     28.6
+    ],
+    [
+     45.7,
+     28.4
+    ],
+    [
+     57.3,
+     28.4
+    ],
+    [
+     57.3,
+     28.8
+    ],
+    [
+     72.8,
+     28.7
+    ],
+    [
+     72.8,
+     22.7
+    ],
+    [
+     74.1,
+     22.7
+    ],
+    [
+     74.1,
+     17.0
+    ],
+    [
+     73.7,
+     16.9
+    ],
+    [
+     73.7,
+     5.7
+    ],
+    [
+     72.2,
+     5.7
+    ],
+    [
+     72.2,
+     2.5
+    ],
+    [
+     68.1,
+     2.4
+    ],
+    [
+     68.1,
+     2.9
+    ],
+    [
+     65.6,
+     3.8
+    ],
+    [
+     64.4,
+     2.4
+    ],
+    [
+     59.9,
+     2.5
+    ],
+    [
+     59.9,
+     5.7
+    ],
+    [
+     58.6,
+     5.8
+    ],
+    [
+     58.6,
+     14.0
+    ],
+    [
+     47.5,
+     14.1
+    ],
+    [
+     47.5,
+     13.6
+    ],
+    [
+     44.4,
+     13.8
+    ],
+    [
+     37.5,
+     13.6
+    ],
+    [
+     34.1,
+     13.8
+    ],
+    [
+     28.3,
+     13.6
+    ],
+    [
+     28.2,
+     14.5
+    ],
+    [
+     17.2,
+     14.6
+    ],
+    [
+     17.2,
+     5.8
+    ],
+    [
+     15.8,
+     5.8
+    ],
+    [
+     15.8,
+     2.6
+    ],
+    [
+     11.3,
+     2.5
+    ],
+    [
+     10.1,
+     3.9
+    ],
+    [
+     7.6,
+     3.0
+    ],
+    [
+     7.6,
+     2.5
+    ],
+    [
+     3.5,
+     2.6
+    ],
+    [
+     3.5,
+     5.8
+    ],
+    [
+     2.1,
+     5.8
+    ]
+   ],
+   "n_kitchen": 15,
+   "n_living": 15,
+   "flats_per_floor_est": 15,
+   "topology_flats_on_page": 20,
+   "topology_flats_ok": 11,
+   "flat_areas_m2": [
+    47.1,
+    65.1,
+    50.6,
+    67.5,
+    65.7,
+    40.5,
+    34.7,
+    41.7,
+    49.8,
+    52.5,
+    52.6
+   ],
+   "flat_bhk": [
+    2,
+    3,
+    2,
+    3,
+    3,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      9.6,
+      17.3
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.105,
+     "v": 0.566
+    },
+    {
+     "xy": [
+      65.8,
+      17.3
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.885,
+     "v": 0.562
+    },
+    {
+     "xy": [
+      28.2,
+      21.1
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.363,
+     "v": 0.709
+    },
+    {
+     "xy": [
+      47.2,
+      21.1
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.627,
+     "v": 0.708
+    }
+   ]
+  },
+  {
+   "num": 32,
+   "project": "Residential_32_MALABAR_HILL_2480558",
+   "page": 12,
+   "title": "26TH TO 30TH,33RD & 34TH TYPICAL FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 34,
+   "outline_m2": 562.2,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "square",
+   "confidence": 0.68,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 23.9 x 23.7 m; best template none (fit IoU 0.99, margin 0.00 over none)",
+    "no notch pays off, aspect 1.01: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 562.2,
+    "raw_area_m2": 562.2,
+    "bbox_m": [
+     23.9,
+     23.7
+    ],
+    "aspect": 1.01,
+    "rectangularity": 0.993,
+    "convexity": 0.999,
+    "bbox_fill": 0.992,
+    "orthogonality": 0.998,
+    "compactness": 0.784,
+    "symmetry": 0.993,
+    "dir_families": [
+     [
+      90.0,
+      0.5
+     ],
+     [
+      2.0,
+      0.49
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 6,
+    "fit_iou": 0.992,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 23.9,
+     "width": 23.7
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.0,
+     24.7
+    ],
+    [
+     24.9,
+     24.5
+    ],
+    [
+     25.0,
+     1.3
+    ],
+    [
+     16.8,
+     1.2
+    ],
+    [
+     16.8,
+     1.0
+    ],
+    [
+     1.0,
+     1.0
+    ],
+    [
+     1.0,
+     24.7
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 1,
+   "topology_flats_ok": 0,
+   "flat_areas_m2": [],
+   "flat_bhk": [],
+   "cores": [
+    {
+     "xy": [
+      13.2,
+      17.4
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 3,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.69,
+     "v": 0.49
+    }
+   ]
+  },
+  {
+   "num": 33,
+   "project": "Residential_33_CHEMBUR_W_2415517",
+   "page": 14,
+   "title": "TYPICAL FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": null,
+   "outline_m2": 572.9,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.1,
+   "reasons": [
+    "rectilinear (orthogonality 0.95), bbox 36.3 x 22.5 m; best template none (fit IoU 0.73, margin 0.00 over none)",
+    "no notch pays off, aspect 1.61: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 600.8,
+    "raw_area_m2": 572.9,
+    "bbox_m": [
+     36.3,
+     22.5
+    ],
+    "aspect": 1.61,
+    "rectangularity": 0.734,
+    "convexity": 0.861,
+    "bbox_fill": 0.734,
+    "orthogonality": 0.953,
+    "compactness": 0.481,
+    "symmetry": 0.68,
+    "dir_families": [
+     [
+      2.0,
+      0.59
+     ],
+     [
+      93.0,
+      0.38
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 42,
+    "fit_iou": 0.734,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 36.3,
+     "width": 22.5
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "other",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.2,
+     9.9
+    ],
+    [
+     2.1,
+     9.9
+    ],
+    [
+     2.1,
+     10.8
+    ],
+    [
+     2.3,
+     10.9
+    ],
+    [
+     2.3,
+     11.4
+    ],
+    [
+     2.7,
+     11.4
+    ],
+    [
+     2.7,
+     17.5
+    ],
+    [
+     1.2,
+     17.5
+    ],
+    [
+     1.3,
+     22.3
+    ],
+    [
+     7.5,
+     22.3
+    ],
+    [
+     7.6,
+     23.0
+    ],
+    [
+     13.8,
+     23.0
+    ],
+    [
+     13.8,
+     21.7
+    ],
+    [
+     18.7,
+     21.7
+    ],
+    [
+     18.7,
+     22.9
+    ],
+    [
+     19.0,
+     22.9
+    ],
+    [
+     19.0,
+     23.6
+    ],
+    [
+     23.1,
+     24.1
+    ],
+    [
+     23.3,
+     23.0
+    ],
+    [
+     29.3,
+     23.0
+    ],
+    [
+     29.3,
+     14.5
+    ],
+    [
+     33.7,
+     14.3
+    ],
+    [
+     33.7,
+     12.2
+    ],
+    [
+     37.5,
+     12.2
+    ],
+    [
+     37.5,
+     1.7
+    ],
+    [
+     29.1,
+     1.6
+    ],
+    [
+     29.1,
+     3.8
+    ],
+    [
+     28.6,
+     3.8
+    ],
+    [
+     28.4,
+     4.9
+    ],
+    [
+     23.0,
+     4.9
+    ],
+    [
+     22.4,
+     3.4
+    ],
+    [
+     19.1,
+     3.4
+    ],
+    [
+     19.0,
+     4.6
+    ],
+    [
+     13.8,
+     4.5
+    ],
+    [
+     13.5,
+     3.6
+    ],
+    [
+     10.6,
+     3.6
+    ],
+    [
+     10.3,
+     4.4
+    ],
+    [
+     7.5,
+     4.4
+    ],
+    [
+     7.4,
+     5.1
+    ],
+    [
+     4.3,
+     5.0
+    ],
+    [
+     4.3,
+     5.1
+    ],
+    [
+     1.2,
+     5.1
+    ],
+    [
+     1.2,
+     9.9
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 4,
+   "flat_areas_m2": [
+    58.2,
+    63.7,
+    70.0,
+    54.5
+   ],
+   "flat_bhk": [
+    2,
+    3,
+    3,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      15.6,
+      12.7
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.397,
+     "v": 0.495
+    }
+   ]
+  },
+  {
+   "num": 34,
+   "project": "Residential_34_CHINCHAVALI_P_S_2507687",
+   "page": 12,
+   "title": "24TH TO 28TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 28,
+   "outline_m2": 1033.8,
+   "extraction": "ok",
+   "label": "cruciform",
+   "subtype": "",
+   "confidence": 0.66,
+   "reasons": [
+    "rectilinear (orthogonality 0.94), bbox 52.9 x 29.2 m; best template cross:SWSENWNE (fit IoU 0.95, margin 0.04 over tri:SENWNE)",
+    "four corner notches (mean 7.5 x 15.5 m): cruciform, arms 29x22 and 53x14 m"
+   ],
+   "descriptors": {
+    "area_m2": 1048.6,
+    "raw_area_m2": 1033.8,
+    "bbox_m": [
+     52.9,
+     29.2
+    ],
+    "aspect": 1.81,
+    "rectangularity": 0.68,
+    "convexity": 0.826,
+    "bbox_fill": 0.68,
+    "orthogonality": 0.939,
+    "compactness": 0.466,
+    "symmetry": 0.958,
+    "dir_families": [
+     [
+      2.0,
+      0.59
+     ],
+     [
+      91.0,
+      0.36
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 44,
+    "fit_iou": 0.95,
+    "fit_name": "cross:SWSENWNE",
+    "fit_margin": 0.04,
+    "fit_runner_up": "tri:SENWNE"
+   },
+   "wings": [
+    {
+     "kind": "arm",
+     "length": 29.2,
+     "width": 21.9
+    },
+    {
+     "kind": "arm",
+     "length": 52.9,
+     "width": 14.2
+    }
+   ],
+   "notches": [
+    {
+     "sides": "SW",
+     "kind": "corner",
+     "width": 7.5,
+     "depth": 14.5,
+     "area": 108.8
+    },
+    {
+     "sides": "SE",
+     "kind": "corner",
+     "width": 8.0,
+     "depth": 14.5,
+     "area": 116.0
+    },
+    {
+     "sides": "NW",
+     "kind": "corner",
+     "width": 7.0,
+     "depth": 16.5,
+     "area": 115.5
+    },
+    {
+     "sides": "NE",
+     "kind": "corner",
+     "width": 7.5,
+     "depth": 16.5,
+     "area": 123.8
+    }
+   ],
+   "notch_rects": [
+    [
+     16.3,
+     -7.2,
+     23.8,
+     7.3
+    ],
+    [
+     37.4,
+     -7.2,
+     45.4,
+     7.3
+    ],
+    [
+     16.3,
+     29.2,
+     23.3,
+     45.7
+    ],
+    [
+     37.9,
+     29.2,
+     45.4,
+     45.7
+    ]
+   ],
+   "eye_label_first": "cruciform",
+   "eye_label": "cruciform",
+   "agrees": true,
+   "clean_outline": [
+    [
+     27.1,
+     45.7
+    ],
+    [
+     34.2,
+     45.7
+    ],
+    [
+     34.4,
+     44.4
+    ],
+    [
+     38.1,
+     44.3
+    ],
+    [
+     38.1,
+     35.2
+    ],
+    [
+     38.4,
+     35.2
+    ],
+    [
+     38.4,
+     29.2
+    ],
+    [
+     43.8,
+     29.3
+    ],
+    [
+     43.8,
+     27.6
+    ],
+    [
+     45.4,
+     27.6
+    ],
+    [
+     45.4,
+     23.9
+    ],
+    [
+     44.9,
+     23.7
+    ],
+    [
+     44.9,
+     20.4
+    ],
+    [
+     42.4,
+     18.3
+    ],
+    [
+     43.3,
+     15.8
+    ],
+    [
+     44.9,
+     15.8
+    ],
+    [
+     44.9,
+     12.6
+    ],
+    [
+     45.4,
+     12.4
+    ],
+    [
+     45.4,
+     8.6
+    ],
+    [
+     43.8,
+     8.6
+    ],
+    [
+     43.8,
+     7.0
+    ],
+    [
+     37.6,
+     7.1
+    ],
+    [
+     37.8,
+     -6.5
+    ],
+    [
+     34.1,
+     -6.5
+    ],
+    [
+     33.9,
+     -7.2
+    ],
+    [
+     23.9,
+     -7.2
+    ],
+    [
+     23.9,
+     -2.1
+    ],
+    [
+     23.7,
+     -2.1
+    ],
+    [
+     24.0,
+     7.1
+    ],
+    [
+     18.0,
+     7.1
+    ],
+    [
+     18.0,
+     8.7
+    ],
+    [
+     16.3,
+     8.7
+    ],
+    [
+     16.3,
+     14.8
+    ],
+    [
+     16.8,
+     15.0
+    ],
+    [
+     16.8,
+     21.2
+    ],
+    [
+     16.3,
+     21.4
+    ],
+    [
+     16.3,
+     27.3
+    ],
+    [
+     18.0,
+     27.5
+    ],
+    [
+     18.0,
+     29.1
+    ],
+    [
+     23.1,
+     29.2
+    ],
+    [
+     23.0,
+     35.2
+    ],
+    [
+     23.4,
+     35.2
+    ],
+    [
+     23.4,
+     44.4
+    ],
+    [
+     27.1,
+     44.4
+    ],
+    [
+     27.1,
+     45.7
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 13,
+   "topology_flats_ok": 11,
+   "flat_areas_m2": [
+    32.4,
+    21.8,
+    56.7,
+    64.4,
+    20.7,
+    20.8,
+    31.3,
+    31.4,
+    38.6,
+    38.4,
+    38.8
+   ],
+   "flat_bhk": [
+    1,
+    1,
+    1,
+    2,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      30.9,
+      19.3
+     ],
+     "n_lifts": 5,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.505,
+     "v": 0.492
+    }
+   ]
+  },
+  {
+   "num": 35,
+   "project": "Residential_35_MAGATHANE_R_C_2445666",
+   "page": 7,
+   "title": "10TH TO 13TH FLOOR PLAN (WING - A)",
+   "close_m": 1.5,
+   "floors_title": 13,
+   "outline_m2": 512.8,
+   "extraction": "outline partial (rotated wings)",
+   "label": "point_square",
+   "subtype": "square",
+   "confidence": 0.14,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 33.0 x 27.6 m; best template none (fit IoU 0.67, margin 0.00 over none)",
+    "no notch pays off, aspect 1.20: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 611.0,
+    "raw_area_m2": 512.8,
+    "bbox_m": [
+     33.0,
+     27.6
+    ],
+    "aspect": 1.2,
+    "rectangularity": 0.678,
+    "convexity": 0.79,
+    "bbox_fill": 0.671,
+    "orthogonality": 0.977,
+    "compactness": 0.415,
+    "symmetry": 0.726,
+    "dir_families": [
+     [
+      1.0,
+      0.5
+     ],
+     [
+      90.0,
+      0.48
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 57,
+    "fit_iou": 0.671,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 33.0,
+     "width": 27.6
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "other",
+   "eye_label": "other",
+   "agrees": null,
+   "clean_outline": [
+    [
+     21.1,
+     30.2
+    ],
+    [
+     21.1,
+     27.9
+    ],
+    [
+     23.6,
+     28.0
+    ],
+    [
+     23.6,
+     27.6
+    ],
+    [
+     30.3,
+     27.0
+    ],
+    [
+     30.3,
+     28.2
+    ],
+    [
+     33.0,
+     28.1
+    ],
+    [
+     33.1,
+     29.4
+    ],
+    [
+     33.4,
+     29.5
+    ],
+    [
+     33.7,
+     29.5
+    ],
+    [
+     33.6,
+     27.4
+    ],
+    [
+     38.3,
+     27.5
+    ],
+    [
+     38.6,
+     27.7
+    ],
+    [
+     43.8,
+     27.7
+    ],
+    [
+     44.0,
+     27.6
+    ],
+    [
+     44.0,
+     19.3
+    ],
+    [
+     45.1,
+     19.2
+    ],
+    [
+     45.2,
+     19.0
+    ],
+    [
+     45.2,
+     15.0
+    ],
+    [
+     46.3,
+     14.9
+    ],
+    [
+     46.3,
+     14.5
+    ],
+    [
+     43.0,
+     14.2
+    ],
+    [
+     42.8,
+     9.4
+    ],
+    [
+     43.3,
+     9.4
+    ],
+    [
+     43.3,
+     9.0
+    ],
+    [
+     37.0,
+     9.1
+    ],
+    [
+     37.0,
+     8.6
+    ],
+    [
+     34.6,
+     8.4
+    ],
+    [
+     34.6,
+     7.6
+    ],
+    [
+     34.1,
+     7.5
+    ],
+    [
+     34.1,
+     2.9
+    ],
+    [
+     34.3,
+     2.7
+    ],
+    [
+     34.2,
+     2.6
+    ],
+    [
+     33.6,
+     2.6
+    ],
+    [
+     33.5,
+     6.2
+    ],
+    [
+     30.2,
+     6.3
+    ],
+    [
+     29.4,
+     6.1
+    ],
+    [
+     29.4,
+     8.1
+    ],
+    [
+     27.3,
+     8.1
+    ],
+    [
+     27.2,
+     9.8
+    ],
+    [
+     27.0,
+     9.8
+    ],
+    [
+     26.9,
+     10.5
+    ],
+    [
+     21.2,
+     10.3
+    ],
+    [
+     21.2,
+     5.9
+    ],
+    [
+     14.7,
+     5.7
+    ],
+    [
+     14.4,
+     5.9
+    ],
+    [
+     14.4,
+     9.0
+    ],
+    [
+     13.4,
+     9.1
+    ],
+    [
+     13.4,
+     9.3
+    ],
+    [
+     13.9,
+     9.3
+    ],
+    [
+     14.0,
+     14.4
+    ],
+    [
+     13.8,
+     26.5
+    ],
+    [
+     13.3,
+     26.6
+    ],
+    [
+     13.3,
+     26.8
+    ],
+    [
+     14.4,
+     26.8
+    ],
+    [
+     14.4,
+     30.0
+    ],
+    [
+     14.6,
+     30.2
+    ],
+    [
+     21.1,
+     30.2
+    ]
+   ],
+   "n_kitchen": 3,
+   "n_living": 3,
+   "flats_per_floor_est": 3,
+   "topology_flats_on_page": 5,
+   "topology_flats_ok": 4,
+   "flat_areas_m2": [
+    26.1,
+    62.7,
+    63.6,
+    63.6
+   ],
+   "flat_bhk": [
+    1,
+    1,
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      30.0,
+      16.1
+     ],
+     "n_lifts": 5,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.397,
+     "v": 0.504
+    },
+    {
+     "xy": [
+      23.3,
+      25.1
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.671,
+     "v": 0.747
+    }
+   ]
+  },
+  {
+   "num": 36,
+   "project": "Residential_36_CHEMBUR_W_2415483",
+   "page": 14,
+   "title": "TYPICAL FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": null,
+   "outline_m2": 571.2,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.1,
+   "reasons": [
+    "rectilinear (orthogonality 0.93), bbox 36.2 x 22.4 m; best template none (fit IoU 0.73, margin 0.00 over none)",
+    "no notch pays off, aspect 1.62: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 592.0,
+    "raw_area_m2": 571.2,
+    "bbox_m": [
+     36.2,
+     22.4
+    ],
+    "aspect": 1.62,
+    "rectangularity": 0.731,
+    "convexity": 0.849,
+    "bbox_fill": 0.73,
+    "orthogonality": 0.928,
+    "compactness": 0.466,
+    "symmetry": 0.67,
+    "dir_families": [
+     [
+      2.0,
+      0.56
+     ],
+     [
+      92.0,
+      0.39
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 40,
+    "fit_iou": 0.73,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 36.2,
+     "width": 22.4
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "other",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.2,
+     10.2
+    ],
+    [
+     1.7,
+     10.2
+    ],
+    [
+     1.8,
+     10.8
+    ],
+    [
+     2.3,
+     10.9
+    ],
+    [
+     2.3,
+     11.4
+    ],
+    [
+     2.8,
+     11.4
+    ],
+    [
+     2.7,
+     17.5
+    ],
+    [
+     1.3,
+     17.5
+    ],
+    [
+     1.3,
+     22.2
+    ],
+    [
+     7.5,
+     22.2
+    ],
+    [
+     7.6,
+     22.9
+    ],
+    [
+     13.7,
+     22.9
+    ],
+    [
+     13.8,
+     20.9
+    ],
+    [
+     18.6,
+     21.0
+    ],
+    [
+     18.6,
+     22.8
+    ],
+    [
+     19.0,
+     22.8
+    ],
+    [
+     19.0,
+     23.5
+    ],
+    [
+     23.0,
+     24.0
+    ],
+    [
+     23.2,
+     22.9
+    ],
+    [
+     29.2,
+     22.9
+    ],
+    [
+     29.2,
+     14.4
+    ],
+    [
+     33.6,
+     14.3
+    ],
+    [
+     33.6,
+     12.1
+    ],
+    [
+     37.4,
+     12.1
+    ],
+    [
+     37.4,
+     1.6
+    ],
+    [
+     28.9,
+     1.6
+    ],
+    [
+     28.9,
+     3.8
+    ],
+    [
+     28.4,
+     3.8
+    ],
+    [
+     28.3,
+     4.8
+    ],
+    [
+     22.9,
+     4.9
+    ],
+    [
+     22.3,
+     3.4
+    ],
+    [
+     19.0,
+     3.4
+    ],
+    [
+     18.9,
+     4.6
+    ],
+    [
+     13.7,
+     4.5
+    ],
+    [
+     13.1,
+     3.0
+    ],
+    [
+     12.9,
+     2.9
+    ],
+    [
+     10.3,
+     4.4
+    ],
+    [
+     7.5,
+     4.4
+    ],
+    [
+     7.4,
+     5.1
+    ],
+    [
+     1.2,
+     5.2
+    ],
+    [
+     1.2,
+     10.2
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 4,
+   "flat_areas_m2": [
+    53.6,
+    71.6,
+    71.3,
+    50.2
+   ],
+   "flat_bhk": [
+    2,
+    3,
+    3,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      15.2,
+      12.7
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.387,
+     "v": 0.495
+    }
+   ]
+  },
+  {
+   "num": 37,
+   "project": "Residential_37_GHATKOPAR_2450932",
+   "page": 4,
+   "title": "(TOWER-1A & 1B) 6TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 6,
+   "outline_m2": 720.0,
+   "extraction": "ok",
+   "label": "L",
+   "subtype": "",
+   "confidence": 0.68,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 44.5 x 20.9 m; best template L:SW (fit IoU 0.89, margin 0.09 over none)",
+    "one corner notch (15.5 x 8.5 m) at SW: L, arms 44x12 and 21x29 m"
+   ],
+   "descriptors": {
+    "area_m2": 727.7,
+    "raw_area_m2": 720.0,
+    "bbox_m": [
+     44.5,
+     20.9
+    ],
+    "aspect": 2.13,
+    "rectangularity": 0.789,
+    "convexity": 0.926,
+    "bbox_fill": 0.785,
+    "orthogonality": 0.984,
+    "compactness": 0.525,
+    "symmetry": 0.665,
+    "dir_families": [
+     [
+      1.0,
+      0.66
+     ],
+     [
+      91.0,
+      0.33
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 29,
+    "fit_iou": 0.889,
+    "fit_name": "L:SW",
+    "fit_margin": 0.091,
+    "fit_runner_up": "none"
+   },
+   "wings": [
+    {
+     "kind": "arm",
+     "length": 44.5,
+     "width": 12.4
+    },
+    {
+     "kind": "arm",
+     "length": 20.9,
+     "width": 29.0
+    }
+   ],
+   "notches": [
+    {
+     "sides": "SW",
+     "kind": "corner",
+     "width": 15.5,
+     "depth": 8.5,
+     "area": 131.8
+    }
+   ],
+   "notch_rects": [
+    [
+     1.9,
+     2.3,
+     17.4,
+     10.8
+    ]
+   ],
+   "eye_label_first": "linear_slab",
+   "eye_label": "L",
+   "agrees": true,
+   "clean_outline": [
+    [
+     3.8,
+     13.5
+    ],
+    [
+     3.8,
+     13.9
+    ],
+    [
+     1.9,
+     14.1
+    ],
+    [
+     2.0,
+     23.2
+    ],
+    [
+     6.6,
+     23.0
+    ],
+    [
+     6.9,
+     23.2
+    ],
+    [
+     13.2,
+     23.2
+    ],
+    [
+     13.3,
+     22.3
+    ],
+    [
+     24.5,
+     22.2
+    ],
+    [
+     24.6,
+     23.1
+    ],
+    [
+     39.8,
+     23.1
+    ],
+    [
+     39.8,
+     22.9
+    ],
+    [
+     46.3,
+     23.1
+    ],
+    [
+     46.3,
+     2.3
+    ],
+    [
+     33.1,
+     2.4
+    ],
+    [
+     33.1,
+     2.9
+    ],
+    [
+     30.0,
+     2.9
+    ],
+    [
+     30.0,
+     5.8
+    ],
+    [
+     29.7,
+     5.9
+    ],
+    [
+     29.6,
+     6.2
+    ],
+    [
+     25.8,
+     6.4
+    ],
+    [
+     20.9,
+     6.2
+    ],
+    [
+     20.9,
+     5.9
+    ],
+    [
+     17.5,
+     5.9
+    ],
+    [
+     17.0,
+     7.0
+    ],
+    [
+     15.2,
+     7.0
+    ],
+    [
+     15.0,
+     10.6
+    ],
+    [
+     6.5,
+     10.6
+    ],
+    [
+     6.4,
+     13.5
+    ],
+    [
+     3.8,
+     13.5
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 9,
+   "topology_flats_ok": 5,
+   "flat_areas_m2": [
+    41.1,
+    50.9,
+    33.9,
+    61.5,
+    39.2
+   ],
+   "flat_bhk": [
+    2,
+    2,
+    1,
+    2,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      16.5,
+      12.8
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.328,
+     "v": 0.504
+    },
+    {
+     "xy": [
+      33.2,
+      12.7
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.704,
+     "v": 0.494
+    }
+   ]
+  },
+  {
+   "num": 38,
+   "project": "Residential_38_BORIVALI_R_N_2466206",
+   "page": 8,
+   "title": "15th & 16th FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 16,
+   "outline_m2": 804.1,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.1,
+   "reasons": [
+    "rectilinear (orthogonality 0.96), bbox 44.0 x 22.1 m; best template none (fit IoU 0.80, margin 0.00 over none)",
+    "no notch pays off, aspect 1.99 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 774.8,
+    "raw_area_m2": 804.1,
+    "bbox_m": [
+     44.0,
+     22.1
+    ],
+    "aspect": 1.99,
+    "rectangularity": 0.798,
+    "convexity": 0.805,
+    "bbox_fill": 0.797,
+    "orthogonality": 0.959,
+    "compactness": 0.396,
+    "symmetry": 0.985,
+    "dir_families": [
+     [
+      92.0,
+      0.61
+     ],
+     [
+      1.0,
+      0.35
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 47,
+    "fit_iou": 0.797,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 44.0,
+     "width": 22.1
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "H",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.1,
+     10.4
+    ],
+    [
+     2.1,
+     14.5
+    ],
+    [
+     4.4,
+     14.5
+    ],
+    [
+     4.4,
+     40.2
+    ],
+    [
+     2.1,
+     40.2
+    ],
+    [
+     2.1,
+     46.0
+    ],
+    [
+     2.9,
+     46.0
+    ],
+    [
+     2.9,
+     49.2
+    ],
+    [
+     8.1,
+     49.4
+    ],
+    [
+     8.1,
+     48.9
+    ],
+    [
+     10.3,
+     48.9
+    ],
+    [
+     10.4,
+     46.1
+    ],
+    [
+     15.7,
+     46.1
+    ],
+    [
+     15.7,
+     46.7
+    ],
+    [
+     16.0,
+     46.7
+    ],
+    [
+     16.0,
+     48.7
+    ],
+    [
+     18.1,
+     48.7
+    ],
+    [
+     18.2,
+     49.4
+    ],
+    [
+     23.4,
+     49.2
+    ],
+    [
+     23.5,
+     46.0
+    ],
+    [
+     24.1,
+     46.0
+    ],
+    [
+     24.1,
+     40.5
+    ],
+    [
+     21.2,
+     40.5
+    ],
+    [
+     21.2,
+     30.4
+    ],
+    [
+     19.6,
+     29.9
+    ],
+    [
+     19.6,
+     25.1
+    ],
+    [
+     20.2,
+     25.1
+    ],
+    [
+     20.2,
+     24.8
+    ],
+    [
+     21.5,
+     24.8
+    ],
+    [
+     21.5,
+     17.4
+    ],
+    [
+     20.7,
+     14.7
+    ],
+    [
+     21.2,
+     14.1
+    ],
+    [
+     24.1,
+     14.1
+    ],
+    [
+     24.1,
+     8.5
+    ],
+    [
+     23.4,
+     8.4
+    ],
+    [
+     23.4,
+     5.5
+    ],
+    [
+     18.1,
+     5.3
+    ],
+    [
+     18.1,
+     6.0
+    ],
+    [
+     15.8,
+     6.0
+    ],
+    [
+     15.7,
+     8.6
+    ],
+    [
+     10.4,
+     8.6
+    ],
+    [
+     10.3,
+     5.8
+    ],
+    [
+     8.4,
+     5.8
+    ],
+    [
+     8.0,
+     5.3
+    ],
+    [
+     2.8,
+     5.5
+    ],
+    [
+     2.8,
+     8.6
+    ],
+    [
+     2.2,
+     8.6
+    ],
+    [
+     2.1,
+     10.4
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 9,
+   "topology_flats_ok": 6,
+   "flat_areas_m2": [
+    76.5,
+    67.9,
+    50.7,
+    46.6,
+    40.7,
+    51.6
+   ],
+   "flat_bhk": [
+    3,
+    2,
+    2,
+    2,
+    1,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      8.7,
+      35.5
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.301,
+     "v": 0.685
+    }
+   ]
+  },
+  {
+   "num": 39,
+   "project": "Residential_39_DAHISAR_R_N_2472088",
+   "page": 13,
+   "title": "17TH TO 19TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 19,
+   "outline_m2": 859.6,
+   "extraction": "ok",
+   "label": "L",
+   "subtype": "",
+   "confidence": 0.41,
+   "reasons": [
+    "rectilinear (orthogonality 0.96), bbox 36.6 x 31.8 m; best template L:SE (fit IoU 0.88, margin 0.03 over U:E)",
+    "one corner notch (12.5 x 16.0 m) at SE: L, arms 37x16 and 32x24 m"
+   ],
+   "descriptors": {
+    "area_m2": 865.2,
+    "raw_area_m2": 859.6,
+    "bbox_m": [
+     36.6,
+     31.8
+    ],
+    "aspect": 1.15,
+    "rectangularity": 0.744,
+    "convexity": 0.894,
+    "bbox_fill": 0.744,
+    "orthogonality": 0.958,
+    "compactness": 0.583,
+    "symmetry": 0.639,
+    "dir_families": [
+     [
+      0.0,
+      0.53
+     ],
+     [
+      93.0,
+      0.45
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 26,
+    "fit_iou": 0.883,
+    "fit_name": "L:SE",
+    "fit_margin": 0.032,
+    "fit_runner_up": "U:E"
+   },
+   "wings": [
+    {
+     "kind": "arm",
+     "length": 36.6,
+     "width": 15.8
+    },
+    {
+     "kind": "arm",
+     "length": 31.8,
+     "width": 24.1
+    }
+   ],
+   "notches": [
+    {
+     "sides": "SE",
+     "kind": "corner",
+     "width": 12.5,
+     "depth": 16.0,
+     "area": 200.0
+    }
+   ],
+   "notch_rects": [
+    [
+     41.0,
+     10.3,
+     53.5,
+     26.3
+    ]
+   ],
+   "eye_label_first": "L",
+   "eye_label": "L",
+   "agrees": true,
+   "clean_outline": [
+    [
+     16.9,
+     34.6
+    ],
+    [
+     16.9,
+     42.1
+    ],
+    [
+     29.7,
+     42.1
+    ],
+    [
+     29.7,
+     41.5
+    ],
+    [
+     30.1,
+     41.4
+    ],
+    [
+     30.2,
+     40.7
+    ],
+    [
+     53.5,
+     40.6
+    ],
+    [
+     53.5,
+     30.7
+    ],
+    [
+     50.2,
+     30.7
+    ],
+    [
+     50.2,
+     26.2
+    ],
+    [
+     41.6,
+     26.2
+    ],
+    [
+     41.7,
+     14.5
+    ],
+    [
+     39.9,
+     14.5
+    ],
+    [
+     39.8,
+     14.2
+    ],
+    [
+     39.2,
+     14.1
+    ],
+    [
+     39.2,
+     11.3
+    ],
+    [
+     35.2,
+     11.3
+    ],
+    [
+     35.2,
+     10.3
+    ],
+    [
+     23.5,
+     10.3
+    ],
+    [
+     23.4,
+     11.3
+    ],
+    [
+     19.3,
+     11.3
+    ],
+    [
+     19.3,
+     14.1
+    ],
+    [
+     18.7,
+     14.1
+    ],
+    [
+     17.8,
+     18.0
+    ],
+    [
+     18.6,
+     19.2
+    ],
+    [
+     18.6,
+     34.6
+    ],
+    [
+     16.9,
+     34.6
+    ]
+   ],
+   "n_kitchen": 8,
+   "n_living": 8,
+   "flats_per_floor_est": 8,
+   "topology_flats_on_page": 7,
+   "topology_flats_ok": 6,
+   "flat_areas_m2": [
+    86.5,
+    59.5,
+    59.5,
+    53.9,
+    59.6,
+    54.7
+   ],
+   "flat_bhk": [
+    3,
+    2,
+    2,
+    2,
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      34.5,
+      26.9
+     ],
+     "n_lifts": 4,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.48,
+     "v": 0.523
+    }
+   ]
+  },
+  {
+   "num": 40,
+   "project": "Residential_40_PAHADI_GOREGAON_W_2473781",
+   "page": 0,
+   "title": "1ST, 2ND, 41H TO 9TH 11TH TO 16TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 16,
+   "outline_m2": 440.1,
+   "extraction": "ok",
+   "label": "courtyard",
+   "subtype": "U",
+   "confidence": 0.24,
+   "reasons": [
+    "rectilinear (orthogonality 0.86), bbox 26.4 x 22.5 m; best template U:E (fit IoU 0.83, margin 0.03 over L:NE)",
+    "one deep mid-side notch (7.5 x 11.0 m) on side E: open courtyard (U)"
+   ],
+   "descriptors": {
+    "area_m2": 432.3,
+    "raw_area_m2": 440.1,
+    "bbox_m": [
+     26.4,
+     22.5
+    ],
+    "aspect": 1.17,
+    "rectangularity": 0.726,
+    "convexity": 0.756,
+    "bbox_fill": 0.726,
+    "orthogonality": 0.857,
+    "compactness": 0.336,
+    "symmetry": 0.78,
+    "dir_families": [
+     [
+      92.0,
+      0.52
+     ],
+     [
+      179.0,
+      0.34
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 43,
+    "fit_iou": 0.827,
+    "fit_name": "U:E",
+    "fit_margin": 0.034,
+    "fit_runner_up": "L:NE"
+   },
+   "wings": [],
+   "notches": [
+    {
+     "sides": "E",
+     "kind": "side",
+     "width": 7.5,
+     "depth": 11.0,
+     "area": 82.5
+    }
+   ],
+   "notch_rects": [
+    [
+     19.2,
+     9.1,
+     26.7,
+     20.1
+    ]
+   ],
+   "eye_label_first": "H",
+   "eye_label": "courtyard",
+   "agrees": true,
+   "clean_outline": [
+    [
+     7.8,
+     26.7
+    ],
+    [
+     7.9,
+     26.4
+    ],
+    [
+     10.5,
+     26.4
+    ],
+    [
+     10.6,
+     26.0
+    ],
+    [
+     17.4,
+     26.0
+    ],
+    [
+     17.5,
+     25.6
+    ],
+    [
+     23.0,
+     25.6
+    ],
+    [
+     23.1,
+     24.7
+    ],
+    [
+     26.7,
+     24.7
+    ],
+    [
+     26.7,
+     20.6
+    ],
+    [
+     26.5,
+     20.6
+    ],
+    [
+     25.4,
+     19.7
+    ],
+    [
+     20.4,
+     20.7
+    ],
+    [
+     20.1,
+     20.4
+    ],
+    [
+     20.1,
+     18.9
+    ],
+    [
+     19.1,
+     18.9
+    ],
+    [
+     19.0,
+     10.4
+    ],
+    [
+     20.0,
+     10.4
+    ],
+    [
+     20.1,
+     9.2
+    ],
+    [
+     21.9,
+     8.4
+    ],
+    [
+     24.0,
+     10.1
+    ],
+    [
+     26.7,
+     8.8
+    ],
+    [
+     26.7,
+     4.5
+    ],
+    [
+     23.9,
+     4.5
+    ],
+    [
+     23.8,
+     4.1
+    ],
+    [
+     18.6,
+     4.1
+    ],
+    [
+     16.3,
+     4.3
+    ],
+    [
+     16.3,
+     4.9
+    ],
+    [
+     11.4,
+     4.9
+    ],
+    [
+     11.3,
+     4.1
+    ],
+    [
+     2.9,
+     4.1
+    ],
+    [
+     2.8,
+     4.5
+    ],
+    [
+     1.3,
+     4.5
+    ],
+    [
+     1.2,
+     8.7
+    ],
+    [
+     2.2,
+     8.8
+    ],
+    [
+     2.3,
+     10.4
+    ],
+    [
+     7.6,
+     10.4
+    ],
+    [
+     7.6,
+     16.4
+    ],
+    [
+     0.5,
+     16.4
+    ],
+    [
+     0.3,
+     16.7
+    ],
+    [
+     0.8,
+     19.6
+    ],
+    [
+     0.8,
+     26.6
+    ],
+    [
+     4.4,
+     26.4
+    ],
+    [
+     7.8,
+     26.7
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 3,
+   "topology_flats_ok": 1,
+   "flat_areas_m2": [
+    101.1
+   ],
+   "flat_bhk": [
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      10.2,
+      20.4
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.659,
+     "v": 0.616
+    }
+   ]
+  },
+  {
+   "num": 41,
+   "project": "Residential_41_MULUND_E_2520067",
+   "page": 2,
+   "title": "5TH FLOOR PLAN ( WING - A&B)",
+   "close_m": 0.5,
+   "floors_title": 5,
+   "outline_m2": 695.1,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.32,
+   "reasons": [
+    "rectilinear (orthogonality 0.92), bbox 54.1 x 15.1 m; best template none (fit IoU 0.84, margin 0.00 over none)",
+    "no notch pays off, aspect 3.57 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 685.7,
+    "raw_area_m2": 695.1,
+    "bbox_m": [
+     54.1,
+     15.1
+    ],
+    "aspect": 3.57,
+    "rectangularity": 0.853,
+    "convexity": 0.91,
+    "bbox_fill": 0.837,
+    "orthogonality": 0.917,
+    "compactness": 0.438,
+    "symmetry": 0.877,
+    "dir_families": [
+     [
+      2.0,
+      0.71
+     ],
+     [
+      90.0,
+      0.22
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 40,
+    "fit_iou": 0.837,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 54.1,
+     "width": 15.1
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     21.3,
+     36.3
+    ],
+    [
+     27.7,
+     36.3
+    ],
+    [
+     27.7,
+     35.8
+    ],
+    [
+     34.3,
+     35.7
+    ],
+    [
+     34.3,
+     31.9
+    ],
+    [
+     33.4,
+     27.6
+    ],
+    [
+     35.1,
+     25.5
+    ],
+    [
+     35.6,
+     25.5
+    ],
+    [
+     35.5,
+     20.2
+    ],
+    [
+     34.9,
+     20.2
+    ],
+    [
+     34.9,
+     10.7
+    ],
+    [
+     35.2,
+     10.5
+    ],
+    [
+     35.3,
+     -1.7
+    ],
+    [
+     36.0,
+     -1.8
+    ],
+    [
+     36.0,
+     -7.3
+    ],
+    [
+     35.3,
+     -7.3
+    ],
+    [
+     35.3,
+     -10.6
+    ],
+    [
+     31.3,
+     -10.5
+    ],
+    [
+     31.4,
+     -13.9
+    ],
+    [
+     30.6,
+     -14.0
+    ],
+    [
+     30.6,
+     -15.2
+    ],
+    [
+     30.1,
+     -15.2
+    ],
+    [
+     30.1,
+     -15.9
+    ],
+    [
+     29.8,
+     -16.0
+    ],
+    [
+     29.7,
+     -16.4
+    ],
+    [
+     28.7,
+     -16.4
+    ],
+    [
+     27.6,
+     -17.8
+    ],
+    [
+     22.1,
+     -17.8
+    ],
+    [
+     22.1,
+     -14.6
+    ],
+    [
+     21.3,
+     -14.4
+    ],
+    [
+     21.3,
+     -8.8
+    ],
+    [
+     22.0,
+     -8.8
+    ],
+    [
+     22.0,
+     6.2
+    ],
+    [
+     21.6,
+     6.3
+    ],
+    [
+     21.5,
+     10.3
+    ],
+    [
+     22.0,
+     10.3
+    ],
+    [
+     22.0,
+     23.3
+    ],
+    [
+     20.9,
+     23.3
+    ],
+    [
+     20.9,
+     29.8
+    ],
+    [
+     21.3,
+     29.8
+    ],
+    [
+     21.3,
+     36.3
+    ]
+   ],
+   "n_kitchen": 9,
+   "n_living": 7,
+   "flats_per_floor_est": 9,
+   "topology_flats_on_page": 7,
+   "topology_flats_ok": 7,
+   "flat_areas_m2": [
+    92.0,
+    38.5,
+    63.7,
+    46.2,
+    37.4,
+    56.2,
+    102.5
+   ],
+   "flat_bhk": [
+    3,
+    1,
+    2,
+    1,
+    1,
+    2,
+    3
+   ],
+   "cores": [
+    {
+     "xy": [
+      31.3,
+      10.7
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.52,
+     "v": 0.458
+    },
+    {
+     "xy": [
+      15.9,
+      12.9
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.662,
+     "v": 0.744
+    },
+    {
+     "xy": [
+      52.3,
+      10.7
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "end",
+     "u": 0.525,
+     "v": 0.071
+    }
+   ]
+  },
+  {
+   "num": 42,
+   "project": "Residential_42_MULUND_W_2431824",
+   "page": 2,
+   "title": "7TH & 8TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 8,
+   "outline_m2": 415.2,
+   "extraction": "ok",
+   "label": "T",
+   "subtype": "symmetric",
+   "confidence": 0.54,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 39.8 x 17.9 m; best template T:NWNE (fit IoU 0.83, margin 0.11 over H:WE)",
+    "two corner notches on side N: T, bar 40x8, stem 10x18 m"
+   ],
+   "descriptors": {
+    "area_m2": 421.6,
+    "raw_area_m2": 415.2,
+    "bbox_m": [
+     39.8,
+     17.9
+    ],
+    "aspect": 2.22,
+    "rectangularity": 0.591,
+    "convexity": 0.741,
+    "bbox_fill": 0.59,
+    "orthogonality": 0.999,
+    "compactness": 0.352,
+    "symmetry": 0.881,
+    "dir_families": [
+     [
+      2.0,
+      0.65
+     ],
+     [
+      91.0,
+      0.35
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 27,
+    "fit_iou": 0.827,
+    "fit_name": "T:NWNE",
+    "fit_margin": 0.107,
+    "fit_runner_up": "H:WE"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 39.8,
+     "width": 8.4
+    },
+    {
+     "kind": "stem",
+     "length": 9.5,
+     "width": 17.8
+    }
+   ],
+   "notches": [
+    {
+     "sides": "NW",
+     "kind": "corner",
+     "width": 11.0,
+     "depth": 9.5,
+     "area": 104.5
+    },
+    {
+     "sides": "NE",
+     "kind": "corner",
+     "width": 11.0,
+     "depth": 9.5,
+     "area": 104.5
+    }
+   ],
+   "notch_rects": [
+    [
+     2.0,
+     11.8,
+     13.0,
+     21.3
+    ],
+    [
+     30.8,
+     11.8,
+     41.8,
+     21.3
+    ]
+   ],
+   "eye_label_first": "T",
+   "eye_label": "T",
+   "agrees": true,
+   "clean_outline": [
+    [
+     6.7,
+     4.3
+    ],
+    [
+     6.7,
+     6.2
+    ],
+    [
+     2.0,
+     6.3
+    ],
+    [
+     2.0,
+     11.9
+    ],
+    [
+     13.0,
+     11.9
+    ],
+    [
+     13.0,
+     17.4
+    ],
+    [
+     13.7,
+     17.5
+    ],
+    [
+     13.7,
+     20.8
+    ],
+    [
+     18.5,
+     21.3
+    ],
+    [
+     18.6,
+     21.2
+    ],
+    [
+     18.7,
+     19.2
+    ],
+    [
+     25.1,
+     19.2
+    ],
+    [
+     25.2,
+     21.3
+    ],
+    [
+     30.0,
+     21.2
+    ],
+    [
+     30.0,
+     17.4
+    ],
+    [
+     30.8,
+     17.4
+    ],
+    [
+     30.8,
+     11.9
+    ],
+    [
+     41.7,
+     11.8
+    ],
+    [
+     41.8,
+     6.3
+    ],
+    [
+     37.0,
+     6.2
+    ],
+    [
+     37.0,
+     4.1
+    ],
+    [
+     29.3,
+     4.2
+    ],
+    [
+     29.2,
+     3.4
+    ],
+    [
+     21.1,
+     3.4
+    ],
+    [
+     21.0,
+     6.5
+    ],
+    [
+     13.5,
+     6.5
+    ],
+    [
+     13.5,
+     4.4
+    ],
+    [
+     6.7,
+     4.3
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 6,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    48.3,
+    58.6,
+    33.3
+   ],
+   "flat_bhk": [
+    2,
+    2,
+    0
+   ],
+   "cores": [
+    {
+     "xy": [
+      27.4,
+      6.4
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.638,
+     "v": 0.166
+    },
+    {
+     "xy": [
+      16.8,
+      7.6
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.372,
+     "v": 0.236
+    }
+   ]
+  },
+  {
+   "num": 43,
+   "project": "Residential_43_PAHADI_GOREGAON_E_2501459",
+   "page": 5,
+   "title": "9th & 10th FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 10,
+   "outline_m2": 708.2,
+   "extraction": "ok",
+   "label": "T",
+   "subtype": "symmetric",
+   "confidence": 0.42,
+   "reasons": [
+    "rectilinear (orthogonality 0.92), bbox 52.7 x 18.9 m; best template T:NWNE (fit IoU 0.85, margin 0.06 over L:NE)",
+    "two corner notches on side N: T, bar 53x10, stem 9x23 m"
+   ],
+   "descriptors": {
+    "area_m2": 680.1,
+    "raw_area_m2": 708.2,
+    "bbox_m": [
+     52.7,
+     18.9
+    ],
+    "aspect": 2.79,
+    "rectangularity": 0.684,
+    "convexity": 0.844,
+    "bbox_fill": 0.683,
+    "orthogonality": 0.921,
+    "compactness": 0.406,
+    "symmetry": 0.892,
+    "dir_families": [
+     [
+      2.0,
+      0.67
+     ],
+     [
+      92.0,
+      0.25
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 47,
+    "fit_iou": 0.846,
+    "fit_name": "T:NWNE",
+    "fit_margin": 0.063,
+    "fit_runner_up": "L:NE"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 52.7,
+     "width": 9.9
+    },
+    {
+     "kind": "stem",
+     "length": 9.0,
+     "width": 23.2
+    }
+   ],
+   "notches": [
+    {
+     "sides": "NW",
+     "kind": "corner",
+     "width": 16.0,
+     "depth": 6.5,
+     "area": 104.0
+    },
+    {
+     "sides": "NE",
+     "kind": "corner",
+     "width": 13.5,
+     "depth": 9.0,
+     "area": 121.5
+    }
+   ],
+   "notch_rects": [
+    [
+     2.1,
+     14.4,
+     18.1,
+     20.9
+    ],
+    [
+     41.3,
+     11.9,
+     54.8,
+     20.9
+    ]
+   ],
+   "eye_label_first": "T",
+   "eye_label": "T",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.2,
+     7.6
+    ],
+    [
+     3.1,
+     7.5
+    ],
+    [
+     3.1,
+     11.0
+    ],
+    [
+     4.6,
+     12.0
+    ],
+    [
+     7.3,
+     11.3
+    ],
+    [
+     7.9,
+     11.8
+    ],
+    [
+     7.8,
+     13.9
+    ],
+    [
+     9.7,
+     13.9
+    ],
+    [
+     9.7,
+     14.7
+    ],
+    [
+     14.8,
+     14.8
+    ],
+    [
+     14.8,
+     15.4
+    ],
+    [
+     18.1,
+     15.4
+    ],
+    [
+     18.1,
+     19.7
+    ],
+    [
+     23.3,
+     19.6
+    ],
+    [
+     23.4,
+     20.5
+    ],
+    [
+     31.3,
+     20.5
+    ],
+    [
+     31.3,
+     20.9
+    ],
+    [
+     37.4,
+     20.8
+    ],
+    [
+     38.1,
+     19.1
+    ],
+    [
+     41.3,
+     19.1
+    ],
+    [
+     41.7,
+     13.3
+    ],
+    [
+     48.1,
+     13.2
+    ],
+    [
+     48.1,
+     11.9
+    ],
+    [
+     50.2,
+     11.9
+    ],
+    [
+     50.3,
+     11.1
+    ],
+    [
+     53.8,
+     11.1
+    ],
+    [
+     53.8,
+     7.1
+    ],
+    [
+     54.8,
+     7.0
+    ],
+    [
+     54.8,
+     2.1
+    ],
+    [
+     52.7,
+     2.0
+    ],
+    [
+     50.1,
+     2.0
+    ],
+    [
+     49.5,
+     2.2
+    ],
+    [
+     44.1,
+     2.3
+    ],
+    [
+     44.1,
+     3.3
+    ],
+    [
+     36.8,
+     3.5
+    ],
+    [
+     34.4,
+     3.4
+    ],
+    [
+     31.2,
+     3.4
+    ],
+    [
+     31.2,
+     4.5
+    ],
+    [
+     28.2,
+     4.8
+    ],
+    [
+     24.8,
+     4.7
+    ],
+    [
+     23.1,
+     3.5
+    ],
+    [
+     19.0,
+     3.7
+    ],
+    [
+     12.0,
+     3.6
+    ],
+    [
+     11.7,
+     2.0
+    ],
+    [
+     5.6,
+     2.1
+    ],
+    [
+     5.6,
+     2.3
+    ],
+    [
+     2.1,
+     2.3
+    ],
+    [
+     2.2,
+     7.6
+    ]
+   ],
+   "n_kitchen": 7,
+   "n_living": 7,
+   "flats_per_floor_est": 7,
+   "topology_flats_on_page": 15,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    41.4,
+    25.8
+   ],
+   "flat_bhk": [
+    2,
+    0
+   ],
+   "cores": [
+    {
+     "xy": [
+      32.9,
+      11.9
+     ],
+     "n_lifts": 3,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.584,
+     "v": 0.52
+    },
+    {
+     "xy": [
+      16.4,
+      9.4
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.27,
+     "v": 0.396
+    }
+   ]
+  },
+  {
+   "num": 44,
+   "project": "Residential_44_MULUND_W_2483367",
+   "page": 2,
+   "title": "7TH & 8TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 8,
+   "outline_m2": 425.8,
+   "extraction": "ok",
+   "label": "T",
+   "subtype": "symmetric",
+   "confidence": 0.47,
+   "reasons": [
+    "rectilinear (orthogonality 0.99), bbox 40.3 x 18.1 m; best template T:NWNE (fit IoU 0.81, margin 0.11 over H:WE)",
+    "two corner notches on side N: T, bar 40x8, stem 10x18 m"
+   ],
+   "descriptors": {
+    "area_m2": 431.9,
+    "raw_area_m2": 425.8,
+    "bbox_m": [
+     40.3,
+     18.1
+    ],
+    "aspect": 2.23,
+    "rectangularity": 0.591,
+    "convexity": 0.737,
+    "bbox_fill": 0.591,
+    "orthogonality": 0.993,
+    "compactness": 0.349,
+    "symmetry": 0.887,
+    "dir_families": [
+     [
+      1.0,
+      0.64
+     ],
+     [
+      91.0,
+      0.36
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 26,
+    "fit_iou": 0.808,
+    "fit_name": "T:NWNE",
+    "fit_margin": 0.105,
+    "fit_runner_up": "H:WE"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 40.3,
+     "width": 8.1
+    },
+    {
+     "kind": "stem",
+     "length": 10.0,
+     "width": 17.8
+    }
+   ],
+   "notches": [
+    {
+     "sides": "NW",
+     "kind": "corner",
+     "width": 11.0,
+     "depth": 10.0,
+     "area": 110.0
+    },
+    {
+     "sides": "NE",
+     "kind": "corner",
+     "width": 11.5,
+     "depth": 10.0,
+     "area": 115.0
+    }
+   ],
+   "notch_rects": [
+    [
+     2.0,
+     11.5,
+     13.0,
+     21.5
+    ],
+    [
+     30.8,
+     11.5,
+     42.3,
+     21.5
+    ]
+   ],
+   "eye_label_first": "T",
+   "eye_label": "T",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.0,
+     6.3
+    ],
+    [
+     2.0,
+     12.0
+    ],
+    [
+     13.1,
+     12.0
+    ],
+    [
+     13.1,
+     17.4
+    ],
+    [
+     13.9,
+     17.6
+    ],
+    [
+     13.9,
+     21.5
+    ],
+    [
+     18.8,
+     21.5
+    ],
+    [
+     18.9,
+     19.4
+    ],
+    [
+     25.4,
+     19.4
+    ],
+    [
+     25.4,
+     21.5
+    ],
+    [
+     30.4,
+     21.4
+    ],
+    [
+     30.4,
+     17.6
+    ],
+    [
+     31.1,
+     17.5
+    ],
+    [
+     31.1,
+     12.0
+    ],
+    [
+     42.2,
+     12.0
+    ],
+    [
+     42.3,
+     6.3
+    ],
+    [
+     37.5,
+     6.3
+    ],
+    [
+     37.4,
+     4.2
+    ],
+    [
+     29.6,
+     4.2
+    ],
+    [
+     29.6,
+     3.4
+    ],
+    [
+     21.3,
+     3.4
+    ],
+    [
+     21.3,
+     6.6
+    ],
+    [
+     13.7,
+     6.5
+    ],
+    [
+     13.7,
+     4.4
+    ],
+    [
+     6.8,
+     4.4
+    ],
+    [
+     6.8,
+     6.3
+    ],
+    [
+     2.0,
+     6.3
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 5,
+   "topology_flats_ok": 4,
+   "flat_areas_m2": [
+    46.5,
+    57.1,
+    48.9,
+    32.0
+   ],
+   "flat_bhk": [
+    2,
+    2,
+    1,
+    0
+   ],
+   "cores": [
+    {
+     "xy": [
+      27.7,
+      6.4
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.638,
+     "v": 0.167
+    },
+    {
+     "xy": [
+      17.0,
+      7.7
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.372,
+     "v": 0.237
+    }
+   ]
+  },
+  {
+   "num": 45,
+   "project": "Residential_45_MATUNGA_2488676",
+   "page": 8,
+   "title": "31ST TO 34TH & 36TH TO 38TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 38,
+   "outline_m2": 317.7,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.44,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 21.3 x 16.5 m; best template none (fit IoU 0.90, margin 0.00 over none)",
+    "no notch pays off, aspect 1.29: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 315.9,
+    "raw_area_m2": 317.7,
+    "bbox_m": [
+     21.3,
+     16.5
+    ],
+    "aspect": 1.29,
+    "rectangularity": 0.897,
+    "convexity": 0.942,
+    "bbox_fill": 0.896,
+    "orthogonality": 0.977,
+    "compactness": 0.688,
+    "symmetry": 0.858,
+    "dir_families": [
+     [
+      90.0,
+      0.54
+     ],
+     [
+      1.0,
+      0.44
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 16,
+    "fit_iou": 0.896,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 21.3,
+     "width": 16.5
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     0.5,
+     2.9
+    ],
+    [
+     0.5,
+     23.4
+    ],
+    [
+     7.2,
+     23.4
+    ],
+    [
+     7.2,
+     21.7
+    ],
+    [
+     7.6,
+     21.6
+    ],
+    [
+     7.7,
+     21.0
+    ],
+    [
+     17.0,
+     21.0
+    ],
+    [
+     17.1,
+     15.1
+    ],
+    [
+     16.5,
+     15.1
+    ],
+    [
+     16.5,
+     8.9
+    ],
+    [
+     17.1,
+     8.9
+    ],
+    [
+     17.1,
+     2.6
+    ],
+    [
+     15.5,
+     2.6
+    ],
+    [
+     15.3,
+     2.1
+    ],
+    [
+     11.3,
+     2.1
+    ],
+    [
+     10.5,
+     2.9
+    ],
+    [
+     0.5,
+     2.9
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 2,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    80.5,
+    79.0
+   ],
+   "flat_bhk": [
+    3,
+    3
+   ],
+   "cores": [
+    {
+     "xy": [
+      7.8,
+      12.0
+     ],
+     "n_lifts": 3,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.44,
+     "v": 0.468
+    }
+   ]
+  },
+  {
+   "num": 46,
+   "project": "Residential_46_BANDRA_C_2491470",
+   "page": 10,
+   "title": "13TH & 15TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 15,
+   "outline_m2": 610.7,
+   "extraction": "ok",
+   "label": "courtyard",
+   "subtype": "U",
+   "confidence": 0.38,
+   "reasons": [
+    "rectilinear (orthogonality 0.93), bbox 28.7 x 27.1 m; best template U:E (fit IoU 0.85, margin 0.05 over none)",
+    "one deep mid-side notch (8.5 x 10.5 m) on side E: open courtyard (U)"
+   ],
+   "descriptors": {
+    "area_m2": 612.9,
+    "raw_area_m2": 610.7,
+    "bbox_m": [
+     28.7,
+     27.1
+    ],
+    "aspect": 1.06,
+    "rectangularity": 0.79,
+    "convexity": 0.857,
+    "bbox_fill": 0.789,
+    "orthogonality": 0.933,
+    "compactness": 0.511,
+    "symmetry": 0.773,
+    "dir_families": [
+     [
+      92.0,
+      0.52
+     ],
+     [
+      2.0,
+      0.41
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 38,
+    "fit_iou": 0.847,
+    "fit_name": "U:E",
+    "fit_margin": 0.053,
+    "fit_runner_up": "none"
+   },
+   "wings": [],
+   "notches": [
+    {
+     "sides": "E",
+     "kind": "side",
+     "width": 8.5,
+     "depth": 10.5,
+     "area": 89.2
+    }
+   ],
+   "notch_rects": [
+    [
+     27.5,
+     14.8,
+     36.0,
+     25.3
+    ]
+   ],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": false,
+   "clean_outline": [
+    [
+     18.9,
+     36.5
+    ],
+    [
+     26.6,
+     36.5
+    ],
+    [
+     26.7,
+     36.1
+    ],
+    [
+     29.4,
+     36.1
+    ],
+    [
+     29.5,
+     35.3
+    ],
+    [
+     35.2,
+     35.3
+    ],
+    [
+     35.3,
+     30.8
+    ],
+    [
+     36.0,
+     28.8
+    ],
+    [
+     36.0,
+     25.3
+    ],
+    [
+     31.3,
+     25.1
+    ],
+    [
+     31.2,
+     22.5
+    ],
+    [
+     28.1,
+     22.5
+    ],
+    [
+     28.1,
+     15.1
+    ],
+    [
+     30.1,
+     15.1
+    ],
+    [
+     30.2,
+     14.9
+    ],
+    [
+     33.0,
+     14.9
+    ],
+    [
+     33.0,
+     8.8
+    ],
+    [
+     25.7,
+     8.7
+    ],
+    [
+     25.0,
+     8.4
+    ],
+    [
+     17.6,
+     8.6
+    ],
+    [
+     17.6,
+     7.8
+    ],
+    [
+     12.7,
+     7.8
+    ],
+    [
+     12.4,
+     8.7
+    ],
+    [
+     9.6,
+     8.7
+    ],
+    [
+     9.6,
+     12.7
+    ],
+    [
+     10.4,
+     12.8
+    ],
+    [
+     10.4,
+     15.8
+    ],
+    [
+     11.0,
+     15.8
+    ],
+    [
+     10.2,
+     22.7
+    ],
+    [
+     11.5,
+     24.2
+    ],
+    [
+     10.7,
+     26.1
+    ],
+    [
+     8.9,
+     26.2
+    ],
+    [
+     8.9,
+     30.4
+    ],
+    [
+     10.1,
+     30.4
+    ],
+    [
+     10.2,
+     35.3
+    ],
+    [
+     16.1,
+     35.3
+    ],
+    [
+     16.1,
+     36.1
+    ],
+    [
+     18.9,
+     36.1
+    ],
+    [
+     18.9,
+     36.5
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    107.5,
+    105.5
+   ],
+   "flat_bhk": [
+    3,
+    3
+   ],
+   "cores": [
+    {
+     "xy": [
+      23.0,
+      25.6
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.571,
+     "v": 0.468
+    }
+   ]
+  },
+  {
+   "num": 47,
+   "project": "Residential_47_PAHADI_GOREGAON_W_2518985",
+   "page": 2,
+   "title": "TYPICAL 8TH TO 11TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 11,
+   "outline_m2": 875.5,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "square",
+   "confidence": 0.41,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 32.6 x 29.9 m; best template none (fit IoU 0.87, margin 0.00 over none)",
+    "no notch pays off, aspect 1.09: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 852.6,
+    "raw_area_m2": 875.5,
+    "bbox_m": [
+     32.6,
+     29.9
+    ],
+    "aspect": 1.09,
+    "rectangularity": 0.873,
+    "convexity": 0.925,
+    "bbox_fill": 0.873,
+    "orthogonality": 1.0,
+    "compactness": 0.653,
+    "symmetry": 0.933,
+    "dir_families": [
+     [
+      92.0,
+      0.51
+     ],
+     [
+      2.0,
+      0.49
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 30,
+    "fit_iou": 0.873,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 32.6,
+     "width": 29.9
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.1,
+     15.9
+    ],
+    [
+     2.1,
+     17.0
+    ],
+    [
+     1.7,
+     17.0
+    ],
+    [
+     1.7,
+     22.1
+    ],
+    [
+     2.8,
+     22.2
+    ],
+    [
+     2.8,
+     34.0
+    ],
+    [
+     9.4,
+     34.0
+    ],
+    [
+     9.4,
+     35.6
+    ],
+    [
+     22.7,
+     35.6
+    ],
+    [
+     22.7,
+     33.0
+    ],
+    [
+     30.7,
+     33.0
+    ],
+    [
+     30.7,
+     25.3
+    ],
+    [
+     29.8,
+     25.3
+    ],
+    [
+     29.8,
+     24.9
+    ],
+    [
+     29.1,
+     24.9
+    ],
+    [
+     28.9,
+     16.5
+    ],
+    [
+     29.0,
+     16.5
+    ],
+    [
+     29.0,
+     13.2
+    ],
+    [
+     30.1,
+     13.1
+    ],
+    [
+     30.1,
+     8.9
+    ],
+    [
+     31.7,
+     8.9
+    ],
+    [
+     31.7,
+     3.9
+    ],
+    [
+     22.0,
+     3.8
+    ],
+    [
+     22.0,
+     3.0
+    ],
+    [
+     11.7,
+     3.0
+    ],
+    [
+     11.6,
+     3.4
+    ],
+    [
+     7.8,
+     3.4
+    ],
+    [
+     7.7,
+     3.9
+    ],
+    [
+     2.8,
+     3.8
+    ],
+    [
+     2.8,
+     15.9
+    ],
+    [
+     2.1,
+     15.9
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 2,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 1,
+   "flat_areas_m2": [
+    130.0
+   ],
+   "flat_bhk": [
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      14.4,
+      20.3
+     ],
+     "n_lifts": 4,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.424,
+     "v": 0.532
+    }
+   ]
+  },
+  {
+   "num": 48,
+   "project": "Residential_48_GHATKOPAR_2522274",
+   "page": 5,
+   "title": "(TOWER-1A & 1B) 8TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 8,
+   "outline_m2": 727.3,
+   "extraction": "ok",
+   "label": "L",
+   "subtype": "",
+   "confidence": 0.64,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 44.5 x 21.0 m; best template L:SW (fit IoU 0.88, margin 0.09 over none)",
+    "one corner notch (15.0 x 8.5 m) at SW: L, arms 45x13 and 21x30 m"
+   ],
+   "descriptors": {
+    "area_m2": 726.7,
+    "raw_area_m2": 727.3,
+    "bbox_m": [
+     44.5,
+     21.0
+    ],
+    "aspect": 2.12,
+    "rectangularity": 0.785,
+    "convexity": 0.919,
+    "bbox_fill": 0.776,
+    "orthogonality": 0.998,
+    "compactness": 0.505,
+    "symmetry": 0.666,
+    "dir_families": [
+     [
+      2.0,
+      0.66
+     ],
+     [
+      92.0,
+      0.34
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 31,
+    "fit_iou": 0.882,
+    "fit_name": "L:SW",
+    "fit_margin": 0.087,
+    "fit_runner_up": "none"
+   },
+   "wings": [
+    {
+     "kind": "arm",
+     "length": 44.5,
+     "width": 12.5
+    },
+    {
+     "kind": "arm",
+     "length": 21.0,
+     "width": 29.5
+    }
+   ],
+   "notches": [
+    {
+     "sides": "SW",
+     "kind": "corner",
+     "width": 15.0,
+     "depth": 8.5,
+     "area": 127.5
+    }
+   ],
+   "notch_rects": [
+    [
+     1.9,
+     2.3,
+     16.9,
+     10.8
+    ]
+   ],
+   "eye_label_first": "linear_slab",
+   "eye_label": "L",
+   "agrees": true,
+   "clean_outline": [
+    [
+     3.7,
+     13.7
+    ],
+    [
+     3.7,
+     14.1
+    ],
+    [
+     1.9,
+     14.2
+    ],
+    [
+     1.9,
+     23.3
+    ],
+    [
+     13.3,
+     23.3
+    ],
+    [
+     13.3,
+     22.4
+    ],
+    [
+     24.5,
+     22.3
+    ],
+    [
+     24.6,
+     23.2
+    ],
+    [
+     28.7,
+     23.2
+    ],
+    [
+     28.7,
+     22.3
+    ],
+    [
+     33.7,
+     22.2
+    ],
+    [
+     33.7,
+     23.1
+    ],
+    [
+     40.0,
+     23.1
+    ],
+    [
+     40.0,
+     22.9
+    ],
+    [
+     46.4,
+     23.1
+    ],
+    [
+     46.3,
+     2.3
+    ],
+    [
+     33.2,
+     2.3
+    ],
+    [
+     33.1,
+     2.8
+    ],
+    [
+     30.0,
+     2.9
+    ],
+    [
+     30.0,
+     5.9
+    ],
+    [
+     29.7,
+     5.9
+    ],
+    [
+     29.7,
+     6.2
+    ],
+    [
+     25.2,
+     6.4
+    ],
+    [
+     21.1,
+     6.2
+    ],
+    [
+     21.1,
+     6.0
+    ],
+    [
+     17.0,
+     5.9
+    ],
+    [
+     17.0,
+     7.0
+    ],
+    [
+     15.0,
+     7.1
+    ],
+    [
+     15.0,
+     10.7
+    ],
+    [
+     6.5,
+     10.8
+    ],
+    [
+     6.4,
+     13.6
+    ],
+    [
+     3.7,
+     13.7
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 6,
+   "topology_flats_ok": 5,
+   "flat_areas_m2": [
+    50.8,
+    33.3,
+    61.0,
+    54.2,
+    78.7
+   ],
+   "flat_bhk": [
+    2,
+    1,
+    2,
+    2,
+    3
+   ],
+   "cores": [
+    {
+     "xy": [
+      16.5,
+      12.8
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.328,
+     "v": 0.505
+    },
+    {
+     "xy": [
+      33.2,
+      12.7
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.704,
+     "v": 0.494
+    }
+   ]
+  },
+  {
+   "num": 49,
+   "project": "Residential_49_MATUNGA_2479330",
+   "page": 7,
+   "title": "22ND TO 26TH. 30TH FLOOR PLAN",
+   "close_m": 2.5,
+   "floors_title": 30,
+   "outline_m2": 698.5,
+   "extraction": "outline broken (hatched walls, closing 2.5 m)",
+   "label": "L",
+   "subtype": "",
+   "confidence": 0.1,
+   "reasons": [
+    "rectilinear (orthogonality 0.95), bbox 37.9 x 36.4 m; best template L:NW (fit IoU 0.71, margin 0.01 over U:W)",
+    "one corner notch (26.5 x 25.0 m) at NW: L, arms 36x13 and 38x10 m"
+   ],
+   "descriptors": {
+    "area_m2": 673.2,
+    "raw_area_m2": 698.5,
+    "bbox_m": [
+     37.9,
+     36.4
+    ],
+    "aspect": 1.04,
+    "rectangularity": 0.488,
+    "convexity": 0.612,
+    "bbox_fill": 0.488,
+    "orthogonality": 0.954,
+    "compactness": 0.262,
+    "symmetry": 0.318,
+    "dir_families": [
+     [
+      1.0,
+      0.54
+     ],
+     [
+      91.0,
+      0.44
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 39,
+    "fit_iou": 0.707,
+    "fit_name": "L:NW",
+    "fit_margin": 0.011,
+    "fit_runner_up": "U:W"
+   },
+   "wings": [
+    {
+     "kind": "arm",
+     "length": 36.4,
+     "width": 12.9
+    },
+    {
+     "kind": "arm",
+     "length": 37.9,
+     "width": 9.9
+    }
+   ],
+   "notches": [
+    {
+     "sides": "NW",
+     "kind": "corner",
+     "width": 26.5,
+     "depth": 25.0,
+     "area": 662.5
+    }
+   ],
+   "notch_rects": [
+    [
+     4.6,
+     14.2,
+     31.1,
+     39.2
+    ]
+   ],
+   "eye_label_first": "other",
+   "eye_label": "other",
+   "agrees": null,
+   "clean_outline": [
+    [
+     4.6,
+     5.4
+    ],
+    [
+     4.6,
+     11.2
+    ],
+    [
+     7.1,
+     11.2
+    ],
+    [
+     7.2,
+     15.6
+    ],
+    [
+     17.9,
+     15.6
+    ],
+    [
+     17.9,
+     14.1
+    ],
+    [
+     20.4,
+     14.1
+    ],
+    [
+     20.4,
+     12.9
+    ],
+    [
+     30.9,
+     12.9
+    ],
+    [
+     30.9,
+     21.4
+    ],
+    [
+     33.0,
+     21.4
+    ],
+    [
+     33.0,
+     31.8
+    ],
+    [
+     19.8,
+     31.8
+    ],
+    [
+     19.8,
+     35.6
+    ],
+    [
+     20.3,
+     35.8
+    ],
+    [
+     20.3,
+     39.2
+    ],
+    [
+     40.1,
+     39.1
+    ],
+    [
+     40.1,
+     36.7
+    ],
+    [
+     40.5,
+     36.7
+    ],
+    [
+     40.5,
+     24.9
+    ],
+    [
+     40.9,
+     24.8
+    ],
+    [
+     40.8,
+     21.0
+    ],
+    [
+     40.7,
+     21.0
+    ],
+    [
+     40.5,
+     13.5
+    ],
+    [
+     40.1,
+     13.5
+    ],
+    [
+     40.1,
+     9.9
+    ],
+    [
+     36.6,
+     9.8
+    ],
+    [
+     36.1,
+     8.6
+    ],
+    [
+     31.3,
+     9.5
+    ],
+    [
+     30.9,
+     9.2
+    ],
+    [
+     30.9,
+     5.3
+    ],
+    [
+     30.5,
+     5.1
+    ],
+    [
+     30.4,
+     1.4
+    ],
+    [
+     27.5,
+     1.4
+    ],
+    [
+     27.5,
+     1.2
+    ],
+    [
+     18.5,
+     1.2
+    ],
+    [
+     18.5,
+     1.4
+    ],
+    [
+     5.1,
+     1.2
+    ],
+    [
+     5.0,
+     5.4
+    ],
+    [
+     4.6,
+     5.4
+    ]
+   ],
+   "n_kitchen": 3,
+   "n_living": 0,
+   "flats_per_floor_est": 3,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    110.1,
+    69.8
+   ],
+   "flat_bhk": [
+    3,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      24.6,
+      14.4
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.551,
+     "v": 0.347
+    },
+    {
+     "xy": [
+      26.4,
+      28.9
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "outside",
+     "u": 0.601,
+     "v": 0.73
+    }
+   ]
+  },
+  {
+   "num": 50,
+   "project": "Residential_50_DAHISAR_R_N_2486114",
+   "page": 12,
+   "title": "17TH & 19TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 19,
+   "outline_m2": 425.8,
+   "extraction": "ok",
+   "label": "H",
+   "subtype": "",
+   "confidence": 0.73,
+   "reasons": [
+    "rectilinear (orthogonality 0.89), bbox 28.9 x 21.3 m; best template H:WE (fit IoU 0.88, margin 0.11 over U:W)",
+    "two facing mid-side notches (W/E): H, bars 21x4, link 20x11 m"
+   ],
+   "descriptors": {
+    "area_m2": 419.6,
+    "raw_area_m2": 425.8,
+    "bbox_m": [
+     28.9,
+     21.3
+    ],
+    "aspect": 1.35,
+    "rectangularity": 0.682,
+    "convexity": 0.741,
+    "bbox_fill": 0.681,
+    "orthogonality": 0.89,
+    "compactness": 0.405,
+    "symmetry": 0.824,
+    "dir_families": [
+     [
+      92.0,
+      0.48
+     ],
+     [
+      2.0,
+      0.41
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 39,
+    "fit_iou": 0.877,
+    "fit_name": "H:WE",
+    "fit_margin": 0.114,
+    "fit_runner_up": "U:W"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 21.3,
+     "width": 4.4
+    },
+    {
+     "kind": "bar",
+     "length": 21.3,
+     "width": 4.4
+    },
+    {
+     "kind": "link",
+     "length": 20.0,
+     "width": 10.8
+    }
+   ],
+   "notches": [
+    {
+     "sides": "W",
+     "kind": "side",
+     "width": 5.5,
+     "depth": 14.5,
+     "area": 79.8
+    },
+    {
+     "sides": "E",
+     "kind": "side",
+     "width": 5.0,
+     "depth": 20.0,
+     "area": 100.0
+    }
+   ],
+   "notch_rects": [
+    [
+     1.6,
+     10.9,
+     7.1,
+     25.4
+    ],
+    [
+     17.9,
+     9.9,
+     22.9,
+     29.9
+    ]
+   ],
+   "eye_label_first": "H",
+   "eye_label": "H",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.6,
+     10.1
+    ],
+    [
+     2.6,
+     10.1
+    ],
+    [
+     2.8,
+     10.8
+    ],
+    [
+     4.4,
+     10.8
+    ],
+    [
+     4.4,
+     12.7
+    ],
+    [
+     6.9,
+     12.7
+    ],
+    [
+     6.9,
+     23.6
+    ],
+    [
+     4.4,
+     23.6
+    ],
+    [
+     4.4,
+     25.6
+    ],
+    [
+     2.9,
+     25.6
+    ],
+    [
+     2.7,
+     26.3
+    ],
+    [
+     1.6,
+     26.3
+    ],
+    [
+     1.7,
+     32.1
+    ],
+    [
+     6.5,
+     32.1
+    ],
+    [
+     9.0,
+     31.3
+    ],
+    [
+     9.5,
+     31.7
+    ],
+    [
+     9.5,
+     32.2
+    ],
+    [
+     15.5,
+     32.2
+    ],
+    [
+     15.6,
+     31.4
+    ],
+    [
+     19.6,
+     31.3
+    ],
+    [
+     19.6,
+     26.3
+    ],
+    [
+     18.1,
+     26.3
+    ],
+    [
+     18.0,
+     26.0
+    ],
+    [
+     17.7,
+     25.9
+    ],
+    [
+     17.5,
+     21.4
+    ],
+    [
+     17.9,
+     21.3
+    ],
+    [
+     17.9,
+     15.4
+    ],
+    [
+     18.1,
+     15.4
+    ],
+    [
+     18.3,
+     10.1
+    ],
+    [
+     22.9,
+     10.0
+    ],
+    [
+     22.9,
+     4.3
+    ],
+    [
+     19.9,
+     4.3
+    ],
+    [
+     19.8,
+     3.8
+    ],
+    [
+     14.3,
+     3.8
+    ],
+    [
+     13.6,
+     4.8
+    ],
+    [
+     8.2,
+     4.8
+    ],
+    [
+     5.2,
+     3.4
+    ],
+    [
+     3.5,
+     4.2
+    ],
+    [
+     1.6,
+     4.2
+    ],
+    [
+     1.6,
+     10.1
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 6,
+   "topology_flats_ok": 6,
+   "flat_areas_m2": [
+    52.0,
+    34.8,
+    35.2,
+    34.8,
+    52.5,
+    52.2
+   ],
+   "flat_bhk": [
+    2,
+    1,
+    1,
+    1,
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      9.1,
+      18.2
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.351,
+     "v": 0.513
+    }
+   ]
+  },
+  {
+   "num": 51,
+   "project": "Residential_51_BANDRA_EAST_2449614",
+   "page": 2,
+   "title": "3RD TO 5TH FLOOR PLAN IRD TO 6TH & 8TH, 9TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 9,
+   "outline_m2": 1530.9,
+   "extraction": "ok",
+   "label": "other",
+   "subtype": "comb",
+   "confidence": 0.1,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 75.6 x 30.5 m; best template comb:S (fit IoU 0.80, margin 0.02 over L:SE)",
+    "2 separate notches on side S: comb / E plan (a slab with projecting wings)"
+   ],
+   "descriptors": {
+    "area_m2": 1576.2,
+    "raw_area_m2": 1530.9,
+    "bbox_m": [
+     75.6,
+     30.5
+    ],
+    "aspect": 2.48,
+    "rectangularity": 0.687,
+    "convexity": 0.743,
+    "bbox_fill": 0.683,
+    "orthogonality": 0.981,
+    "compactness": 0.269,
+    "symmetry": 0.985,
+    "dir_families": [
+     [
+      91.0,
+      0.55
+     ],
+     [
+      1.0,
+      0.44
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 70,
+    "fit_iou": 0.803,
+    "fit_name": "comb:S",
+    "fit_margin": 0.015,
+    "fit_runner_up": "L:SE"
+   },
+   "wings": [],
+   "notches": [
+    {
+     "sides": "S",
+     "kind": "side",
+     "width": 13.0,
+     "depth": 14.0,
+     "area": 182.0
+    },
+    {
+     "sides": "S",
+     "kind": "side",
+     "width": 13.0,
+     "depth": 14.0,
+     "area": 182.0
+    }
+   ],
+   "notch_rects": [
+    [
+     9.0,
+     30.1,
+     22.0,
+     44.1
+    ],
+    [
+     32.5,
+     30.1,
+     45.5,
+     44.1
+    ]
+   ],
+   "eye_label_first": "linear_slab",
+   "eye_label": "other",
+   "agrees": true,
+   "clean_outline": [
+    [
+     -0.5,
+     60.5
+    ],
+    [
+     8.1,
+     60.5
+    ],
+    [
+     8.1,
+     59.0
+    ],
+    [
+     23.1,
+     59.0
+    ],
+    [
+     23.1,
+     60.6
+    ],
+    [
+     31.6,
+     60.6
+    ],
+    [
+     31.6,
+     59.0
+    ],
+    [
+     46.6,
+     59.1
+    ],
+    [
+     46.6,
+     60.6
+    ],
+    [
+     55.1,
+     60.7
+    ],
+    [
+     55.1,
+     59.3
+    ],
+    [
+     55.5,
+     59.3
+    ],
+    [
+     55.5,
+     59.0
+    ],
+    [
+     65.1,
+     59.0
+    ],
+    [
+     65.1,
+     43.6
+    ],
+    [
+     56.4,
+     43.6
+    ],
+    [
+     56.4,
+     42.4
+    ],
+    [
+     56.1,
+     42.4
+    ],
+    [
+     56.1,
+     33.2
+    ],
+    [
+     53.7,
+     33.3
+    ],
+    [
+     53.7,
+     30.8
+    ],
+    [
+     53.2,
+     30.8
+    ],
+    [
+     53.1,
+     30.5
+    ],
+    [
+     52.8,
+     30.4
+    ],
+    [
+     52.8,
+     30.3
+    ],
+    [
+     48.9,
+     30.3
+    ],
+    [
+     48.8,
+     30.4
+    ],
+    [
+     48.2,
+     30.4
+    ],
+    [
+     48.2,
+     30.8
+    ],
+    [
+     47.8,
+     30.8
+    ],
+    [
+     47.8,
+     33.3
+    ],
+    [
+     45.5,
+     33.4
+    ],
+    [
+     45.5,
+     41.4
+    ],
+    [
+     45.4,
+     41.4
+    ],
+    [
+     45.4,
+     44.0
+    ],
+    [
+     32.9,
+     44.0
+    ],
+    [
+     32.9,
+     41.1
+    ],
+    [
+     32.6,
+     41.1
+    ],
+    [
+     32.7,
+     33.1
+    ],
+    [
+     30.3,
+     33.2
+    ],
+    [
+     30.3,
+     31.7
+    ],
+    [
+     29.5,
+     30.2
+    ],
+    [
+     25.3,
+     30.2
+    ],
+    [
+     24.5,
+     31.7
+    ],
+    [
+     24.4,
+     31.7
+    ],
+    [
+     24.3,
+     33.2
+    ],
+    [
+     22.0,
+     33.3
+    ],
+    [
+     22.0,
+     43.9
+    ],
+    [
+     9.4,
+     44.0
+    ],
+    [
+     9.4,
+     41.2
+    ],
+    [
+     9.2,
+     41.2
+    ],
+    [
+     9.2,
+     33.2
+    ],
+    [
+     6.9,
+     33.1
+    ],
+    [
+     6.9,
+     30.7
+    ],
+    [
+     6.3,
+     30.6
+    ],
+    [
+     6.2,
+     30.3
+    ],
+    [
+     5.9,
+     30.3
+    ],
+    [
+     5.9,
+     30.1
+    ],
+    [
+     3.8,
+     30.1
+    ],
+    [
+     1.6,
+     30.3
+    ],
+    [
+     1.5,
+     30.6
+    ],
+    [
+     1.0,
+     30.7
+    ],
+    [
+     1.0,
+     33.1
+    ],
+    [
+     -1.4,
+     33.2
+    ],
+    [
+     -1.3,
+     42.2
+    ],
+    [
+     -1.8,
+     42.2
+    ],
+    [
+     -1.8,
+     43.5
+    ],
+    [
+     -10.4,
+     43.3
+    ],
+    [
+     -10.5,
+     58.7
+    ],
+    [
+     -0.5,
+     58.8
+    ],
+    [
+     -0.5,
+     60.5
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 8,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    98.6,
+    98.5
+   ],
+   "flat_bhk": [
+    3,
+    3
+   ],
+   "cores": [
+    {
+     "xy": [
+      25.7,
+      70.9
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.801,
+     "v": 0.648
+    },
+    {
+     "xy": [
+      25.8,
+      49.0
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.51,
+     "v": 0.644
+    },
+    {
+     "xy": [
+      25.7,
+      25.4
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.199,
+     "v": 0.642
+    },
+    {
+     "xy": [
+      43.2,
+      72.7
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.825,
+     "v": 0.074
+    },
+    {
+     "xy": [
+      43.0,
+      47.1
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.486,
+     "v": 0.077
+    },
+    {
+     "xy": [
+      43.0,
+      26.1
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.209,
+     "v": 0.075
+    }
+   ]
+  },
+  {
+   "num": 52,
+   "project": "Residential_52_BORIVALI_R_N_2490559",
+   "page": 8,
+   "title": "15th & 16th FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 16,
+   "outline_m2": 804.1,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.1,
+   "reasons": [
+    "rectilinear (orthogonality 0.96), bbox 44.0 x 22.1 m; best template none (fit IoU 0.80, margin 0.00 over none)",
+    "no notch pays off, aspect 1.99 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 774.8,
+    "raw_area_m2": 804.1,
+    "bbox_m": [
+     44.0,
+     22.1
+    ],
+    "aspect": 1.99,
+    "rectangularity": 0.798,
+    "convexity": 0.805,
+    "bbox_fill": 0.797,
+    "orthogonality": 0.959,
+    "compactness": 0.396,
+    "symmetry": 0.985,
+    "dir_families": [
+     [
+      92.0,
+      0.61
+     ],
+     [
+      1.0,
+      0.35
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 47,
+    "fit_iou": 0.797,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 44.0,
+     "width": 22.1
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "H",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.1,
+     10.4
+    ],
+    [
+     2.1,
+     14.5
+    ],
+    [
+     4.4,
+     14.5
+    ],
+    [
+     4.4,
+     40.2
+    ],
+    [
+     2.1,
+     40.2
+    ],
+    [
+     2.1,
+     46.0
+    ],
+    [
+     2.9,
+     46.0
+    ],
+    [
+     2.9,
+     49.2
+    ],
+    [
+     8.1,
+     49.4
+    ],
+    [
+     8.1,
+     48.9
+    ],
+    [
+     10.3,
+     48.9
+    ],
+    [
+     10.4,
+     46.1
+    ],
+    [
+     15.7,
+     46.1
+    ],
+    [
+     15.7,
+     46.7
+    ],
+    [
+     16.0,
+     46.7
+    ],
+    [
+     16.0,
+     48.7
+    ],
+    [
+     18.1,
+     48.7
+    ],
+    [
+     18.2,
+     49.4
+    ],
+    [
+     23.4,
+     49.2
+    ],
+    [
+     23.5,
+     46.0
+    ],
+    [
+     24.1,
+     46.0
+    ],
+    [
+     24.1,
+     40.5
+    ],
+    [
+     21.2,
+     40.5
+    ],
+    [
+     21.2,
+     30.4
+    ],
+    [
+     19.6,
+     29.9
+    ],
+    [
+     19.6,
+     25.1
+    ],
+    [
+     20.2,
+     25.1
+    ],
+    [
+     20.2,
+     24.8
+    ],
+    [
+     21.5,
+     24.8
+    ],
+    [
+     21.5,
+     17.4
+    ],
+    [
+     20.7,
+     14.7
+    ],
+    [
+     21.2,
+     14.1
+    ],
+    [
+     24.1,
+     14.1
+    ],
+    [
+     24.1,
+     8.5
+    ],
+    [
+     23.4,
+     8.4
+    ],
+    [
+     23.4,
+     5.5
+    ],
+    [
+     18.1,
+     5.3
+    ],
+    [
+     18.1,
+     6.0
+    ],
+    [
+     15.8,
+     6.0
+    ],
+    [
+     15.7,
+     8.6
+    ],
+    [
+     10.4,
+     8.6
+    ],
+    [
+     10.3,
+     5.8
+    ],
+    [
+     8.4,
+     5.8
+    ],
+    [
+     8.0,
+     5.3
+    ],
+    [
+     2.8,
+     5.5
+    ],
+    [
+     2.8,
+     8.6
+    ],
+    [
+     2.2,
+     8.6
+    ],
+    [
+     2.1,
+     10.4
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 9,
+   "topology_flats_ok": 6,
+   "flat_areas_m2": [
+    76.5,
+    67.9,
+    50.7,
+    46.6,
+    40.7,
+    51.6
+   ],
+   "flat_bhk": [
+    3,
+    2,
+    2,
+    2,
+    1,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      8.7,
+      35.5
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.301,
+     "v": 0.685
+    }
+   ]
+  },
+  {
+   "num": 53,
+   "project": "Residential_53_PAHADI_GOREGAON_W_2504545",
+   "page": 8,
+   "title": "28TH TO 30TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 30,
+   "outline_m2": 460.3,
+   "extraction": "ok",
+   "label": "H",
+   "subtype": "",
+   "confidence": 0.19,
+   "reasons": [
+    "rectilinear (orthogonality 0.84), bbox 26.1 x 25.8 m; best template H:SN (fit IoU 0.79, margin 0.04 over U:N)",
+    "two facing mid-side notches (S/N): H, bars 26x8, link 11x11 m"
+   ],
+   "descriptors": {
+    "area_m2": 438.5,
+    "raw_area_m2": 460.3,
+    "bbox_m": [
+     26.1,
+     25.8
+    ],
+    "aspect": 1.01,
+    "rectangularity": 0.652,
+    "convexity": 0.721,
+    "bbox_fill": 0.651,
+    "orthogonality": 0.839,
+    "compactness": 0.314,
+    "symmetry": 0.827,
+    "dir_families": [
+     [
+      94.0,
+      0.54
+     ],
+     [
+      1.0,
+      0.39
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 50,
+    "fit_iou": 0.79,
+    "fit_name": "H:SN",
+    "fit_margin": 0.045,
+    "fit_runner_up": "U:N"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 25.8,
+     "width": 7.5
+    },
+    {
+     "kind": "bar",
+     "length": 25.8,
+     "width": 7.5
+    },
+    {
+     "kind": "link",
+     "length": 11.0,
+     "width": 10.8
+    }
+   ],
+   "notches": [
+    {
+     "sides": "S",
+     "kind": "side",
+     "width": 8.0,
+     "depth": 7.0,
+     "area": 56.0
+    },
+    {
+     "sides": "N",
+     "kind": "side",
+     "width": 11.0,
+     "depth": 8.0,
+     "area": 88.0
+    }
+   ],
+   "notch_rects": [
+    [
+     10.7,
+     4.8,
+     18.7,
+     11.8
+    ],
+    [
+     8.7,
+     22.6,
+     19.7,
+     30.6
+    ]
+   ],
+   "eye_label_first": "H",
+   "eye_label": "H",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.2,
+     8.6
+    ],
+    [
+     2.4,
+     8.8
+    ],
+    [
+     2.4,
+     12.0
+    ],
+    [
+     2.6,
+     12.0
+    ],
+    [
+     2.6,
+     18.1
+    ],
+    [
+     4.2,
+     18.1
+    ],
+    [
+     4.4,
+     18.3
+    ],
+    [
+     3.8,
+     22.7
+    ],
+    [
+     3.8,
+     27.0
+    ],
+    [
+     4.3,
+     27.1
+    ],
+    [
+     4.3,
+     30.6
+    ],
+    [
+     8.4,
+     30.6
+    ],
+    [
+     8.5,
+     29.5
+    ],
+    [
+     9.2,
+     29.4
+    ],
+    [
+     8.3,
+     24.4
+    ],
+    [
+     8.5,
+     24.1
+    ],
+    [
+     10.0,
+     24.1
+    ],
+    [
+     10.0,
+     22.9
+    ],
+    [
+     18.6,
+     23.0
+    ],
+    [
+     18.6,
+     24.0
+    ],
+    [
+     19.9,
+     24.0
+    ],
+    [
+     20.2,
+     24.3
+    ],
+    [
+     19.3,
+     29.3
+    ],
+    [
+     20.1,
+     30.3
+    ],
+    [
+     20.1,
+     30.6
+    ],
+    [
+     24.3,
+     30.6
+    ],
+    [
+     24.3,
+     27.0
+    ],
+    [
+     25.2,
+     27.0
+    ],
+    [
+     25.2,
+     21.4
+    ],
+    [
+     27.1,
+     21.4
+    ],
+    [
+     27.1,
+     17.4
+    ],
+    [
+     27.3,
+     17.4
+    ],
+    [
+     27.3,
+     13.8
+    ],
+    [
+     25.2,
+     13.7
+    ],
+    [
+     25.2,
+     8.7
+    ],
+    [
+     24.3,
+     7.9
+    ],
+    [
+     24.3,
+     5.0
+    ],
+    [
+     20.1,
+     5.0
+    ],
+    [
+     20.1,
+     6.2
+    ],
+    [
+     18.7,
+     6.2
+    ],
+    [
+     18.7,
+     11.2
+    ],
+    [
+     16.5,
+     11.3
+    ],
+    [
+     16.5,
+     11.6
+    ],
+    [
+     10.8,
+     11.6
+    ],
+    [
+     10.6,
+     11.3
+    ],
+    [
+     11.3,
+     6.4
+    ],
+    [
+     11.2,
+     6.3
+    ],
+    [
+     7.9,
+     6.2
+    ],
+    [
+     7.9,
+     4.8
+    ],
+    [
+     1.4,
+     4.9
+    ],
+    [
+     1.2,
+     8.6
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    102.7,
+    61.3,
+    62.6
+   ],
+   "flat_bhk": [
+    3,
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      10.9,
+      21.6
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.373,
+     "v": 0.652
+    }
+   ]
+  },
+  {
+   "num": 54,
+   "project": "Residential_54_BHULESHWAR_2488638",
+   "page": 10,
+   "title": "17TH. FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 17,
+   "outline_m2": 440.3,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "single-loaded",
+   "confidence": 0.59,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 37.3 x 12.8 m; best template none (fit IoU 0.92, margin 0.00 over none)",
+    "no notch pays off, aspect 2.91 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 437.7,
+    "raw_area_m2": 440.3,
+    "bbox_m": [
+     37.3,
+     12.8
+    ],
+    "aspect": 2.91,
+    "rectangularity": 0.923,
+    "convexity": 0.962,
+    "bbox_fill": 0.916,
+    "orthogonality": 0.985,
+    "compactness": 0.554,
+    "symmetry": 0.904,
+    "dir_families": [
+     [
+      2.0,
+      0.74
+     ],
+     [
+      93.0,
+      0.24
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 16,
+    "fit_iou": 0.916,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 37.3,
+     "width": 12.8
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     26.4,
+     28.4
+    ],
+    [
+     26.4,
+     24.8
+    ],
+    [
+     27.2,
+     24.6
+    ],
+    [
+     27.2,
+     5.8
+    ],
+    [
+     27.4,
+     5.8
+    ],
+    [
+     27.4,
+     -8.9
+    ],
+    [
+     14.9,
+     -8.9
+    ],
+    [
+     14.9,
+     14.0
+    ],
+    [
+     14.6,
+     14.1
+    ],
+    [
+     14.6,
+     20.6
+    ],
+    [
+     14.9,
+     20.6
+    ],
+    [
+     14.9,
+     24.8
+    ],
+    [
+     18.7,
+     24.8
+    ],
+    [
+     18.7,
+     25.7
+    ],
+    [
+     21.9,
+     25.7
+    ],
+    [
+     21.9,
+     28.4
+    ],
+    [
+     26.4,
+     28.4
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 5,
+   "flats_per_floor_est": 5,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    30.8,
+    75.7,
+    37.1
+   ],
+   "flat_bhk": [
+    1,
+    2,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      20.2,
+      8.6
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.502,
+     "v": 0.499
+    }
+   ]
+  },
+  {
+   "num": 55,
+   "project": "Residential_55_MUMBAI_2496369",
+   "page": 2,
+   "title": "21st Floor Plan",
+   "close_m": 0.5,
+   "floors_title": 21,
+   "outline_m2": 685.8,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.49,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 52.4 x 14.3 m; best template none (fit IoU 0.89, margin 0.00 over none)",
+    "no notch pays off, aspect 3.66 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 663.5,
+    "raw_area_m2": 685.8,
+    "bbox_m": [
+     52.4,
+     14.3
+    ],
+    "aspect": 3.66,
+    "rectangularity": 0.89,
+    "convexity": 0.929,
+    "bbox_fill": 0.887,
+    "orthogonality": 1.0,
+    "compactness": 0.45,
+    "symmetry": 0.993,
+    "dir_families": [
+     [
+      2.0,
+      0.77
+     ],
+     [
+      92.0,
+      0.23
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 24,
+    "fit_iou": 0.887,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 52.4,
+     "width": 14.3
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     31.0,
+     36.3
+    ],
+    [
+     31.1,
+     35.0
+    ],
+    [
+     33.3,
+     34.8
+    ],
+    [
+     33.3,
+     26.9
+    ],
+    [
+     35.5,
+     26.9
+    ],
+    [
+     35.5,
+     22.0
+    ],
+    [
+     34.7,
+     22.0
+    ],
+    [
+     34.7,
+     -1.7
+    ],
+    [
+     35.6,
+     -1.7
+    ],
+    [
+     35.6,
+     -6.5
+    ],
+    [
+     33.4,
+     -6.5
+    ],
+    [
+     33.4,
+     -14.5
+    ],
+    [
+     31.1,
+     -14.5
+    ],
+    [
+     31.1,
+     -16.0
+    ],
+    [
+     22.2,
+     -16.1
+    ],
+    [
+     22.3,
+     -11.3
+    ],
+    [
+     21.3,
+     -11.3
+    ],
+    [
+     21.3,
+     7.0
+    ],
+    [
+     22.2,
+     7.1
+    ],
+    [
+     22.1,
+     13.2
+    ],
+    [
+     21.3,
+     13.2
+    ],
+    [
+     21.3,
+     31.6
+    ],
+    [
+     22.2,
+     31.7
+    ],
+    [
+     22.3,
+     36.3
+    ],
+    [
+     31.0,
+     36.3
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 8,
+   "topology_flats_ok": 6,
+   "flat_areas_m2": [
+    46.0,
+    46.2,
+    67.8,
+    67.1,
+    61.5,
+    60.9
+   ],
+   "flat_bhk": [
+    1,
+    1,
+    2,
+    2,
+    1,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      42.9,
+      10.5
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.494,
+     "v": 0.214
+    },
+    {
+     "xy": [
+      11.8,
+      9.4
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "end",
+     "u": 0.418,
+     "v": 0.809
+    }
+   ]
+  },
+  {
+   "num": 56,
+   "project": "Residential_56_AMBIVALI_2460650",
+   "page": 3,
+   "title": "9TH TO 11TH FLOOR PLAN 9TH TO 11TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 11,
+   "outline_m2": 1516.2,
+   "extraction": "ok",
+   "label": "H",
+   "subtype": "",
+   "confidence": 0.47,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 60.4 x 36.0 m; best template H:SN (fit IoU 0.86, margin 0.06 over U:N)",
+    "two facing mid-side notches (S/N): H, bars 36x17, link 27x14 m"
+   ],
+   "descriptors": {
+    "area_m2": 1536.4,
+    "raw_area_m2": 1516.2,
+    "bbox_m": [
+     60.4,
+     36.0
+    ],
+    "aspect": 1.68,
+    "rectangularity": 0.707,
+    "convexity": 0.746,
+    "bbox_fill": 0.707,
+    "orthogonality": 0.981,
+    "compactness": 0.342,
+    "symmetry": 0.974,
+    "dir_families": [
+     [
+      2.0,
+      0.5
+     ],
+     [
+      92.0,
+      0.48
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 43,
+    "fit_iou": 0.864,
+    "fit_name": "H:SN",
+    "fit_margin": 0.062,
+    "fit_runner_up": "U:N"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 36.0,
+     "width": 16.7
+    },
+    {
+     "kind": "bar",
+     "length": 36.0,
+     "width": 16.7
+    },
+    {
+     "kind": "link",
+     "length": 27.0,
+     "width": 14.5
+    }
+   ],
+   "notches": [
+    {
+     "sides": "S",
+     "kind": "side",
+     "width": 19.0,
+     "depth": 10.5,
+     "area": 199.5
+    },
+    {
+     "sides": "N",
+     "kind": "side",
+     "width": 27.0,
+     "depth": 11.0,
+     "area": 297.0
+    }
+   ],
+   "notch_rects": [
+    [
+     36.0,
+     12.5,
+     55.0,
+     23.0
+    ],
+    [
+     29.0,
+     37.5,
+     56.0,
+     48.5
+    ]
+   ],
+   "eye_label_first": "H",
+   "eye_label": "H",
+   "agrees": true,
+   "clean_outline": [
+    [
+     17.0,
+     48.5
+    ],
+    [
+     28.0,
+     48.5
+    ],
+    [
+     27.9,
+     43.5
+    ],
+    [
+     29.1,
+     43.5
+    ],
+    [
+     29.1,
+     43.3
+    ],
+    [
+     35.9,
+     43.3
+    ],
+    [
+     35.9,
+     36.5
+    ],
+    [
+     38.6,
+     36.5
+    ],
+    [
+     38.6,
+     36.3
+    ],
+    [
+     43.7,
+     36.3
+    ],
+    [
+     44.5,
+     37.7
+    ],
+    [
+     50.8,
+     37.7
+    ],
+    [
+     50.8,
+     38.1
+    ],
+    [
+     55.8,
+     38.2
+    ],
+    [
+     55.9,
+     46.3
+    ],
+    [
+     63.4,
+     46.3
+    ],
+    [
+     63.4,
+     44.6
+    ],
+    [
+     69.1,
+     44.5
+    ],
+    [
+     69.1,
+     46.3
+    ],
+    [
+     77.3,
+     46.3
+    ],
+    [
+     77.2,
+     40.2
+    ],
+    [
+     77.0,
+     40.2
+    ],
+    [
+     77.3,
+     32.5
+    ],
+    [
+     77.3,
+     25.6
+    ],
+    [
+     77.1,
+     25.3
+    ],
+    [
+     77.1,
+     20.9
+    ],
+    [
+     77.2,
+     20.9
+    ],
+    [
+     77.2,
+     14.7
+    ],
+    [
+     70.3,
+     14.7
+    ],
+    [
+     69.2,
+     16.5
+    ],
+    [
+     63.8,
+     16.5
+    ],
+    [
+     63.8,
+     14.8
+    ],
+    [
+     54.9,
+     14.8
+    ],
+    [
+     54.9,
+     22.9
+    ],
+    [
+     43.8,
+     22.9
+    ],
+    [
+     43.8,
+     24.3
+    ],
+    [
+     36.0,
+     24.3
+    ],
+    [
+     36.0,
+     17.7
+    ],
+    [
+     29.1,
+     17.8
+    ],
+    [
+     29.0,
+     17.5
+    ],
+    [
+     28.2,
+     17.5
+    ],
+    [
+     28.1,
+     12.6
+    ],
+    [
+     17.0,
+     12.5
+    ],
+    [
+     17.0,
+     48.5
+    ]
+   ],
+   "n_kitchen": 9,
+   "n_living": 7,
+   "flats_per_floor_est": 9,
+   "topology_flats_on_page": 13,
+   "topology_flats_ok": 5,
+   "flat_areas_m2": [
+    42.1,
+    67.2,
+    52.9,
+    67.0,
+    58.7
+   ],
+   "flat_bhk": [
+    2,
+    3,
+    1,
+    3,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      28.1,
+      31.1
+     ],
+     "n_lifts": 3,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.184,
+     "v": 0.518
+    },
+    {
+     "xy": [
+      66.3,
+      29.6
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.817,
+     "v": 0.474
+    }
+   ]
+  },
+  {
+   "num": 57,
+   "project": "Residential_57_MATUNGA_2488701",
+   "page": 11,
+   "title": "18TH & 19TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 19,
+   "outline_m2": 383.5,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.38,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 29.4 x 14.4 m; best template none (fit IoU 0.91, margin 0.00 over none)",
+    "no notch pays off, aspect 2.04 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 383.1,
+    "raw_area_m2": 383.5,
+    "bbox_m": [
+     29.4,
+     14.4
+    ],
+    "aspect": 2.04,
+    "rectangularity": 0.919,
+    "convexity": 0.957,
+    "bbox_fill": 0.906,
+    "orthogonality": 0.976,
+    "compactness": 0.618,
+    "symmetry": 0.888,
+    "dir_families": [
+     [
+      180.0,
+      0.65
+     ],
+     [
+      92.0,
+      0.33
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 22,
+    "fit_iou": 0.906,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 29.4,
+     "width": 14.4
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     19.9,
+     24.5
+    ],
+    [
+     19.9,
+     24.1
+    ],
+    [
+     23.8,
+     24.1
+    ],
+    [
+     23.9,
+     24.0
+    ],
+    [
+     23.8,
+     23.0
+    ],
+    [
+     23.7,
+     17.2
+    ],
+    [
+     23.3,
+     17.1
+    ],
+    [
+     23.3,
+     5.1
+    ],
+    [
+     22.6,
+     5.1
+    ],
+    [
+     22.6,
+     -4.8
+    ],
+    [
+     9.7,
+     -4.9
+    ],
+    [
+     9.6,
+     -2.5
+    ],
+    [
+     9.6,
+     4.2
+    ],
+    [
+     10.8,
+     5.3
+    ],
+    [
+     10.9,
+     7.6
+    ],
+    [
+     10.9,
+     10.6
+    ],
+    [
+     9.9,
+     10.6
+    ],
+    [
+     9.8,
+     11.3
+    ],
+    [
+     9.5,
+     11.3
+    ],
+    [
+     9.7,
+     19.2
+    ],
+    [
+     10.6,
+     19.3
+    ],
+    [
+     10.6,
+     24.3
+    ],
+    [
+     19.9,
+     24.5
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    101.0,
+    90.7
+   ],
+   "flat_bhk": [
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      19.9,
+      12.9
+     ],
+     "n_lifts": 3,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.703,
+     "v": 0.389
+    }
+   ]
+  },
+  {
+   "num": 58,
+   "project": "Residential_58_AMBIVALI_2498225",
+   "page": 11,
+   "title": "16TH TO 18TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 18,
+   "outline_m2": 909.8,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.51,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 42.0 x 22.7 m; best template none (fit IoU 0.96, margin 0.00 over none)",
+    "no notch pays off, aspect 1.85: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 912.6,
+    "raw_area_m2": 909.8,
+    "bbox_m": [
+     42.0,
+     22.7
+    ],
+    "aspect": 1.85,
+    "rectangularity": 0.96,
+    "convexity": 0.965,
+    "bbox_fill": 0.956,
+    "orthogonality": 0.999,
+    "compactness": 0.624,
+    "symmetry": 0.99,
+    "dir_families": [
+     [
+      2.0,
+      0.64
+     ],
+     [
+      91.0,
+      0.36
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 24,
+    "fit_iou": 0.956,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 42.0,
+     "width": 22.7
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.1,
+     7.4
+    ],
+    [
+     2.1,
+     12.6
+    ],
+    [
+     3.1,
+     12.6
+    ],
+    [
+     2.7,
+     20.0
+    ],
+    [
+     2.1,
+     20.0
+    ],
+    [
+     2.1,
+     25.3
+    ],
+    [
+     9.9,
+     25.5
+    ],
+    [
+     18.7,
+     25.4
+    ],
+    [
+     18.7,
+     23.3
+    ],
+    [
+     27.5,
+     23.3
+    ],
+    [
+     27.6,
+     25.3
+    ],
+    [
+     30.3,
+     25.3
+    ],
+    [
+     30.4,
+     25.4
+    ],
+    [
+     31.4,
+     25.4
+    ],
+    [
+     44.1,
+     25.4
+    ],
+    [
+     44.0,
+     19.9
+    ],
+    [
+     43.6,
+     19.9
+    ],
+    [
+     43.3,
+     12.5
+    ],
+    [
+     44.0,
+     12.5
+    ],
+    [
+     44.0,
+     7.6
+    ],
+    [
+     43.5,
+     7.6
+    ],
+    [
+     43.5,
+     2.8
+    ],
+    [
+     2.7,
+     2.9
+    ],
+    [
+     2.7,
+     7.3
+    ],
+    [
+     2.1,
+     7.4
+    ]
+   ],
+   "n_kitchen": 8,
+   "n_living": 8,
+   "flats_per_floor_est": 8,
+   "topology_flats_on_page": 7,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    94.5,
+    46.2,
+    56.1
+   ],
+   "flat_bhk": [
+    2,
+    1,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      11.7,
+      13.8
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.229,
+     "v": 0.485
+    },
+    {
+     "xy": [
+      34.3,
+      13.8
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.769,
+     "v": 0.484
+    }
+   ]
+  },
+  {
+   "num": 59,
+   "project": "Residential_59_MATUNGA_2450067",
+   "page": 11,
+   "title": "14TH & 15TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 15,
+   "outline_m2": 388.1,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.4,
+   "reasons": [
+    "rectilinear (orthogonality 0.96), bbox 29.6 x 14.5 m; best template none (fit IoU 0.91, margin 0.00 over none)",
+    "no notch pays off, aspect 2.04 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 390.3,
+    "raw_area_m2": 388.1,
+    "bbox_m": [
+     29.6,
+     14.5
+    ],
+    "aspect": 2.04,
+    "rectangularity": 0.921,
+    "convexity": 0.941,
+    "bbox_fill": 0.911,
+    "orthogonality": 0.96,
+    "compactness": 0.599,
+    "symmetry": 0.908,
+    "dir_families": [
+     [
+      0.0,
+      0.63
+     ],
+     [
+      91.0,
+      0.34
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 26,
+    "fit_iou": 0.911,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 29.6,
+     "width": 14.5
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.9,
+     10.8
+    ],
+    [
+     2.2,
+     10.8
+    ],
+    [
+     2.3,
+     17.1
+    ],
+    [
+     2.5,
+     17.2
+    ],
+    [
+     3.5,
+     17.1
+    ],
+    [
+     9.3,
+     17.1
+    ],
+    [
+     9.4,
+     16.6
+    ],
+    [
+     21.4,
+     16.5
+    ],
+    [
+     21.4,
+     15.9
+    ],
+    [
+     27.6,
+     15.9
+    ],
+    [
+     27.7,
+     16.9
+    ],
+    [
+     31.3,
+     16.8
+    ],
+    [
+     31.5,
+     2.9
+    ],
+    [
+     22.3,
+     2.8
+    ],
+    [
+     21.1,
+     4.1
+    ],
+    [
+     19.3,
+     4.1
+    ],
+    [
+     15.8,
+     4.1
+    ],
+    [
+     15.8,
+     3.2
+    ],
+    [
+     15.2,
+     3.1
+    ],
+    [
+     15.2,
+     2.8
+    ],
+    [
+     9.6,
+     2.9
+    ],
+    [
+     7.2,
+     3.0
+    ],
+    [
+     7.2,
+     3.6
+    ],
+    [
+     2.2,
+     3.6
+    ],
+    [
+     2.3,
+     6.1
+    ],
+    [
+     1.9,
+     7.1
+    ],
+    [
+     1.9,
+     10.8
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 1,
+   "flat_areas_m2": [
+    90.8
+   ],
+   "flat_bhk": [
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      19.9,
+      13.0
+     ],
+     "n_lifts": 3,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.609,
+     "v": 0.704
+    }
+   ]
+  },
+  {
+   "num": 60,
+   "project": "Residential_60_MUMBAI_2514980",
+   "page": 2,
+   "title": "1st & 2nd Floor Plan With Built up Area Diagram with Calculation Under Inclusive",
+   "close_m": 0.5,
+   "floors_title": 2,
+   "outline_m2": 632.3,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.29,
+   "reasons": [
+    "rectilinear (orthogonality 0.95), bbox 53.1 x 14.1 m; best template none (fit IoU 0.83, margin 0.00 over none)",
+    "no notch pays off, aspect 3.77 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 616.0,
+    "raw_area_m2": 632.3,
+    "bbox_m": [
+     53.1,
+     14.1
+    ],
+    "aspect": 3.77,
+    "rectangularity": 0.828,
+    "convexity": 0.928,
+    "bbox_fill": 0.826,
+    "orthogonality": 0.946,
+    "compactness": 0.422,
+    "symmetry": 0.952,
+    "dir_families": [
+     [
+      2.0,
+      0.75
+     ],
+     [
+      91.0,
+      0.2
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 31,
+    "fit_iou": 0.826,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 53.1,
+     "width": 14.1
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.5,
+     13.2
+    ],
+    [
+     2.8,
+     13.3
+    ],
+    [
+     2.9,
+     14.4
+    ],
+    [
+     10.9,
+     14.4
+    ],
+    [
+     10.9,
+     15.7
+    ],
+    [
+     15.4,
+     15.7
+    ],
+    [
+     16.4,
+     17.5
+    ],
+    [
+     20.0,
+     16.2
+    ],
+    [
+     24.5,
+     16.2
+    ],
+    [
+     24.6,
+     15.2
+    ],
+    [
+     30.7,
+     15.2
+    ],
+    [
+     30.7,
+     16.2
+    ],
+    [
+     39.5,
+     16.2
+    ],
+    [
+     39.8,
+     15.7
+    ],
+    [
+     44.3,
+     15.7
+    ],
+    [
+     44.3,
+     14.4
+    ],
+    [
+     52.2,
+     14.4
+    ],
+    [
+     52.3,
+     13.2
+    ],
+    [
+     53.8,
+     13.2
+    ],
+    [
+     53.7,
+     8.2
+    ],
+    [
+     54.5,
+     8.1
+    ],
+    [
+     54.5,
+     3.6
+    ],
+    [
+     39.4,
+     3.4
+    ],
+    [
+     30.6,
+     3.4
+    ],
+    [
+     30.6,
+     4.3
+    ],
+    [
+     24.5,
+     4.3
+    ],
+    [
+     24.6,
+     3.4
+    ],
+    [
+     15.8,
+     3.4
+    ],
+    [
+     6.1,
+     3.6
+    ],
+    [
+     6.0,
+     4.4
+    ],
+    [
+     1.5,
+     4.3
+    ],
+    [
+     1.5,
+     13.2
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 2,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    93.8,
+    62.6
+   ],
+   "flat_bhk": [
+    4,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      12.6,
+      9.4
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.21,
+     "v": 0.427
+    },
+    {
+     "xy": [
+      43.6,
+      9.4
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.794,
+     "v": 0.424
+    }
+   ]
+  },
+  {
+   "num": 61,
+   "project": "Residential_61_DADAR_NAIGAON_F_S_2495129",
+   "page": 2,
+   "title": "38RD & 4TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 38,
+   "outline_m2": 316.9,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.19,
+   "reasons": [
+    "rectilinear (orthogonality 0.99), bbox 26.4 x 14.1 m; best template none (fit IoU 0.86, margin 0.00 over none)",
+    "no notch pays off, aspect 1.87: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 318.8,
+    "raw_area_m2": 316.9,
+    "bbox_m": [
+     26.4,
+     14.1
+    ],
+    "aspect": 1.87,
+    "rectangularity": 0.864,
+    "convexity": 0.924,
+    "bbox_fill": 0.855,
+    "orthogonality": 0.986,
+    "compactness": 0.6,
+    "symmetry": 0.875,
+    "dir_families": [
+     [
+      93.0,
+      0.64
+     ],
+     [
+      1.0,
+      0.36
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 18,
+    "fit_iou": 0.855,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 26.4,
+     "width": 14.1
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "other",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     0.5,
+     11.2
+    ],
+    [
+     1.4,
+     11.2
+    ],
+    [
+     1.4,
+     19.1
+    ],
+    [
+     1.6,
+     19.1
+    ],
+    [
+     1.6,
+     27.3
+    ],
+    [
+     7.5,
+     27.3
+    ],
+    [
+     7.5,
+     29.2
+    ],
+    [
+     13.9,
+     29.2
+    ],
+    [
+     13.9,
+     26.0
+    ],
+    [
+     14.6,
+     25.9
+    ],
+    [
+     14.6,
+     18.7
+    ],
+    [
+     13.5,
+     18.7
+    ],
+    [
+     13.5,
+     13.6
+    ],
+    [
+     14.2,
+     13.6
+    ],
+    [
+     14.3,
+     3.2
+    ],
+    [
+     11.0,
+     2.8
+    ],
+    [
+     10.7,
+     3.9
+    ],
+    [
+     0.5,
+     3.9
+    ],
+    [
+     0.5,
+     11.2
+    ]
+   ],
+   "n_kitchen": 3,
+   "n_living": 3,
+   "flats_per_floor_est": 3,
+   "topology_flats_on_page": 2,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    44.2,
+    104.1
+   ],
+   "flat_bhk": [
+    1,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      10.8,
+      16.4
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.729,
+     "v": 0.512
+    }
+   ]
+  },
+  {
+   "num": 62,
+   "project": "Residential_62_BANDRA_C_2492874",
+   "page": 10,
+   "title": "13TH & 15TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 15,
+   "outline_m2": 305.9,
+   "extraction": "ok",
+   "label": "L",
+   "subtype": "",
+   "confidence": 0.18,
+   "reasons": [
+    "rectilinear (orthogonality 0.96), bbox 23.8 x 17.9 m; best template L:NE (fit IoU 0.81, margin 0.03 over U:E)",
+    "one corner notch (6.5 x 10.5 m) at NE: L, arms 24x7 and 18x17 m"
+   ],
+   "descriptors": {
+    "area_m2": 300.8,
+    "raw_area_m2": 305.9,
+    "bbox_m": [
+     23.8,
+     17.9
+    ],
+    "aspect": 1.33,
+    "rectangularity": 0.708,
+    "convexity": 0.847,
+    "bbox_fill": 0.706,
+    "orthogonality": 0.965,
+    "compactness": 0.558,
+    "symmetry": 0.66,
+    "dir_families": [
+     [
+      91.0,
+      0.56
+     ],
+     [
+      180.0,
+      0.41
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 24,
+    "fit_iou": 0.815,
+    "fit_name": "L:NE",
+    "fit_margin": 0.03,
+    "fit_runner_up": "U:E"
+   },
+   "wings": [
+    {
+     "kind": "arm",
+     "length": 23.8,
+     "width": 7.4
+    },
+    {
+     "kind": "arm",
+     "length": 17.9,
+     "width": 17.3
+    }
+   ],
+   "notches": [
+    {
+     "sides": "NE",
+     "kind": "corner",
+     "width": 6.5,
+     "depth": 10.5,
+     "area": 68.2
+    }
+   ],
+   "notch_rects": [
+    [
+     31.0,
+     21.1,
+     37.5,
+     31.6
+    ]
+   ],
+   "eye_label_first": "other",
+   "eye_label": "L",
+   "agrees": true,
+   "clean_outline": [
+    [
+     25.2,
+     29.8
+    ],
+    [
+     25.6,
+     29.8
+    ],
+    [
+     25.6,
+     31.6
+    ],
+    [
+     31.0,
+     31.5
+    ],
+    [
+     31.1,
+     24.6
+    ],
+    [
+     32.5,
+     24.6
+    ],
+    [
+     32.4,
+     21.2
+    ],
+    [
+     34.5,
+     21.1
+    ],
+    [
+     34.6,
+     20.9
+    ],
+    [
+     37.5,
+     20.9
+    ],
+    [
+     37.3,
+     14.8
+    ],
+    [
+     30.1,
+     14.7
+    ],
+    [
+     29.5,
+     14.5
+    ],
+    [
+     22.8,
+     14.5
+    ],
+    [
+     22.2,
+     13.8
+    ],
+    [
+     17.1,
+     13.7
+    ],
+    [
+     17.0,
+     14.6
+    ],
+    [
+     13.8,
+     14.6
+    ],
+    [
+     13.8,
+     18.6
+    ],
+    [
+     14.8,
+     18.6
+    ],
+    [
+     14.8,
+     23.7
+    ],
+    [
+     14.4,
+     24.1
+    ],
+    [
+     14.7,
+     28.7
+    ],
+    [
+     25.2,
+     28.8
+    ],
+    [
+     25.2,
+     29.8
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 2,
+   "topology_flats_ok": 0,
+   "flat_areas_m2": [],
+   "flat_bhk": [],
+   "cores": [
+    {
+     "xy": [
+      18.9,
+      25.6
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.628,
+     "v": 0.755
+    }
+   ]
+  },
+  {
+   "num": 63,
+   "project": "Residential_63_PAHADI_GOREGAON_E_2462100",
+   "page": 5,
+   "title": "9th & 10th FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 10,
+   "outline_m2": 705.0,
+   "extraction": "ok",
+   "label": "T",
+   "subtype": "symmetric",
+   "confidence": 0.42,
+   "reasons": [
+    "rectilinear (orthogonality 0.94), bbox 52.2 x 19.2 m; best template T:SENE (fit IoU 0.84, margin 0.07 over L:NE)",
+    "two corner notches on side E: T, bar 52x11, stem 8x23 m"
+   ],
+   "descriptors": {
+    "area_m2": 670.9,
+    "raw_area_m2": 705.0,
+    "bbox_m": [
+     52.2,
+     19.2
+    ],
+    "aspect": 2.72,
+    "rectangularity": 0.683,
+    "convexity": 0.842,
+    "bbox_fill": 0.67,
+    "orthogonality": 0.935,
+    "compactness": 0.404,
+    "symmetry": 0.9,
+    "dir_families": [
+     [
+      2.0,
+      0.67
+     ],
+     [
+      91.0,
+      0.27
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 48,
+    "fit_iou": 0.836,
+    "fit_name": "T:SENE",
+    "fit_margin": 0.072,
+    "fit_runner_up": "L:NE"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 52.2,
+     "width": 11.2
+    },
+    {
+     "kind": "stem",
+     "length": 8.0,
+     "width": 23.2
+    }
+   ],
+   "notches": [
+    {
+     "sides": "SE",
+     "kind": "corner",
+     "width": 8.0,
+     "depth": 13.0,
+     "area": 104.0
+    },
+    {
+     "sides": "NE",
+     "kind": "corner",
+     "width": 8.0,
+     "depth": 16.0,
+     "area": 128.0
+    }
+   ],
+   "notch_rects": [
+    [
+     31.7,
+     -15.8,
+     39.7,
+     -2.8
+    ],
+    [
+     31.7,
+     20.4,
+     39.7,
+     36.4
+    ]
+   ],
+   "eye_label_first": "T",
+   "eye_label": "linear_slab",
+   "agrees": false,
+   "clean_outline": [
+    [
+     25.8,
+     36.4
+    ],
+    [
+     25.9,
+     35.4
+    ],
+    [
+     29.5,
+     35.3
+    ],
+    [
+     30.4,
+     34.0
+    ],
+    [
+     29.7,
+     31.2
+    ],
+    [
+     30.1,
+     30.7
+    ],
+    [
+     31.9,
+     30.7
+    ],
+    [
+     31.9,
+     27.0
+    ],
+    [
+     32.1,
+     27.0
+    ],
+    [
+     32.2,
+     25.5
+    ],
+    [
+     33.2,
+     25.5
+    ],
+    [
+     33.3,
+     23.8
+    ],
+    [
+     33.9,
+     23.8
+    ],
+    [
+     33.9,
+     20.6
+    ],
+    [
+     38.3,
+     20.6
+    ],
+    [
+     38.1,
+     17.8
+    ],
+    [
+     38.3,
+     15.4
+    ],
+    [
+     39.2,
+     15.4
+    ],
+    [
+     39.2,
+     7.4
+    ],
+    [
+     39.7,
+     7.4
+    ],
+    [
+     39.7,
+     0.8
+    ],
+    [
+     37.9,
+     0.8
+    ],
+    [
+     37.8,
+     -2.6
+    ],
+    [
+     32.0,
+     -3.0
+    ],
+    [
+     32.1,
+     -9.4
+    ],
+    [
+     30.9,
+     -9.5
+    ],
+    [
+     31.0,
+     -11.6
+    ],
+    [
+     30.0,
+     -11.6
+    ],
+    [
+     30.0,
+     -15.2
+    ],
+    [
+     26.1,
+     -15.2
+    ],
+    [
+     26.1,
+     -15.7
+    ],
+    [
+     21.2,
+     -15.8
+    ],
+    [
+     21.2,
+     -5.4
+    ],
+    [
+     21.8,
+     -5.3
+    ],
+    [
+     21.8,
+     -2.6
+    ],
+    [
+     22.3,
+     -2.6
+    ],
+    [
+     22.3,
+     7.3
+    ],
+    [
+     23.3,
+     7.3
+    ],
+    [
+     23.5,
+     10.9
+    ],
+    [
+     23.3,
+     13.7
+    ],
+    [
+     22.2,
+     15.2
+    ],
+    [
+     22.2,
+     23.7
+    ],
+    [
+     21.7,
+     23.8
+    ],
+    [
+     21.7,
+     26.5
+    ],
+    [
+     20.5,
+     26.9
+    ],
+    [
+     20.5,
+     32.6
+    ],
+    [
+     20.9,
+     32.9
+    ],
+    [
+     20.9,
+     36.4
+    ],
+    [
+     25.8,
+     36.4
+    ]
+   ],
+   "n_kitchen": 7,
+   "n_living": 7,
+   "flats_per_floor_est": 7,
+   "topology_flats_on_page": 14,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    33.8,
+    26.0
+   ],
+   "flat_bhk": [
+    1,
+    0
+   ],
+   "cores": [
+    {
+     "xy": [
+      33.3,
+      11.9
+     ],
+     "n_lifts": 4,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.526,
+     "v": 0.412
+    },
+    {
+     "xy": [
+      16.8,
+      9.3
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.389,
+     "v": 0.729
+    }
+   ]
+  },
+  {
+   "num": 64,
+   "project": "Residential_64_AMBIVALI_2488333",
+   "page": 3,
+   "title": "9TH TO 11TH FLOOR PLAN 9TH TO 11TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 11,
+   "outline_m2": 1518.2,
+   "extraction": "ok",
+   "label": "H",
+   "subtype": "",
+   "confidence": 0.42,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 60.3 x 36.0 m; best template H:WE (fit IoU 0.85, margin 0.06 over U:E)",
+    "two facing mid-side notches (W/E): H, bars 36x17, link 26x14 m"
+   ],
+   "descriptors": {
+    "area_m2": 1501.3,
+    "raw_area_m2": 1518.2,
+    "bbox_m": [
+     60.3,
+     36.0
+    ],
+    "aspect": 1.68,
+    "rectangularity": 0.693,
+    "convexity": 0.731,
+    "bbox_fill": 0.693,
+    "orthogonality": 0.983,
+    "compactness": 0.29,
+    "symmetry": 0.93,
+    "dir_families": [
+     [
+      2.0,
+      0.5
+     ],
+     [
+      91.0,
+      0.48
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 48,
+    "fit_iou": 0.849,
+    "fit_name": "H:WE",
+    "fit_margin": 0.061,
+    "fit_runner_up": "U:E"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 36.0,
+     "width": 17.4
+    },
+    {
+     "kind": "bar",
+     "length": 36.0,
+     "width": 17.4
+    },
+    {
+     "kind": "link",
+     "length": 25.5,
+     "width": 14.5
+    }
+   ],
+   "notches": [
+    {
+     "sides": "W",
+     "kind": "side",
+     "width": 10.5,
+     "depth": 25.5,
+     "area": 267.8
+    },
+    {
+     "sides": "E",
+     "kind": "side",
+     "width": 11.0,
+     "depth": 20.0,
+     "area": 220.0
+    }
+   ],
+   "notch_rects": [
+    [
+     28.8,
+     22.2,
+     39.3,
+     47.7
+    ],
+    [
+     53.7,
+     21.2,
+     64.7,
+     41.2
+    ]
+   ],
+   "eye_label_first": "H",
+   "eye_label": "H",
+   "agrees": true,
+   "clean_outline": [
+    [
+     64.7,
+     60.0
+    ],
+    [
+     64.7,
+     49.0
+    ],
+    [
+     59.8,
+     49.0
+    ],
+    [
+     59.8,
+     47.9
+    ],
+    [
+     59.5,
+     47.8
+    ],
+    [
+     59.6,
+     41.1
+    ],
+    [
+     52.7,
+     41.1
+    ],
+    [
+     52.8,
+     38.4
+    ],
+    [
+     52.6,
+     38.4
+    ],
+    [
+     52.6,
+     33.2
+    ],
+    [
+     54.0,
+     33.2
+    ],
+    [
+     54.0,
+     26.2
+    ],
+    [
+     54.4,
+     26.2
+    ],
+    [
+     54.4,
+     21.8
+    ],
+    [
+     49.8,
+     21.7
+    ],
+    [
+     49.8,
+     16.8
+    ],
+    [
+     55.9,
+     16.7
+    ],
+    [
+     56.0,
+     21.1
+    ],
+    [
+     62.6,
+     21.1
+    ],
+    [
+     62.7,
+     13.6
+    ],
+    [
+     60.9,
+     13.6
+    ],
+    [
+     60.9,
+     7.9
+    ],
+    [
+     62.7,
+     7.9
+    ],
+    [
+     62.7,
+     -0.2
+    ],
+    [
+     56.6,
+     -0.2
+    ],
+    [
+     56.6,
+     -0.0
+    ],
+    [
+     48.5,
+     -0.3
+    ],
+    [
+     37.3,
+     -0.1
+    ],
+    [
+     37.3,
+     -0.3
+    ],
+    [
+     31.2,
+     -0.2
+    ],
+    [
+     31.2,
+     6.7
+    ],
+    [
+     32.9,
+     7.7
+    ],
+    [
+     32.9,
+     13.1
+    ],
+    [
+     31.2,
+     13.1
+    ],
+    [
+     31.2,
+     22.1
+    ],
+    [
+     35.3,
+     22.1
+    ],
+    [
+     39.1,
+     21.7
+    ],
+    [
+     39.2,
+     21.8
+    ],
+    [
+     39.2,
+     33.1
+    ],
+    [
+     40.6,
+     33.1
+    ],
+    [
+     40.6,
+     40.9
+    ],
+    [
+     34.0,
+     40.9
+    ],
+    [
+     34.0,
+     47.8
+    ],
+    [
+     33.8,
+     47.9
+    ],
+    [
+     33.8,
+     48.7
+    ],
+    [
+     30.4,
+     48.8
+    ],
+    [
+     28.8,
+     49.4
+    ],
+    [
+     28.8,
+     59.9
+    ],
+    [
+     64.7,
+     60.0
+    ]
+   ],
+   "n_kitchen": 9,
+   "n_living": 8,
+   "flats_per_floor_est": 9,
+   "topology_flats_on_page": 14,
+   "topology_flats_ok": 6,
+   "flat_areas_m2": [
+    60.3,
+    99.1,
+    67.0,
+    52.7,
+    76.7,
+    56.3
+   ],
+   "flat_bhk": [
+    2,
+    1,
+    3,
+    1,
+    3,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      28.0,
+      31.1
+     ],
+     "n_lifts": 3,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.519,
+     "v": 0.816
+    },
+    {
+     "xy": [
+      66.2,
+      29.6
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.478,
+     "v": 0.183
+    }
+   ]
+  },
+  {
+   "num": 65,
+   "project": "Residential_65_DAHISAR_R_N_2454455",
+   "page": 5,
+   "title": "15TH & 16TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 16,
+   "outline_m2": 593.4,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.51,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 37.8 x 17.3 m; best template none (fit IoU 0.94, margin 0.00 over none)",
+    "no notch pays off, aspect 2.18 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 614.2,
+    "raw_area_m2": 593.4,
+    "bbox_m": [
+     37.8,
+     17.3
+    ],
+    "aspect": 2.18,
+    "rectangularity": 0.941,
+    "convexity": 0.95,
+    "bbox_fill": 0.937,
+    "orthogonality": 0.996,
+    "compactness": 0.617,
+    "symmetry": 0.986,
+    "dir_families": [
+     [
+      93.0,
+      0.67
+     ],
+     [
+      178.0,
+      0.33
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 14,
+    "fit_iou": 0.937,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 37.8,
+     "width": 17.3
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     -2.9,
+     30.7
+    ],
+    [
+     -2.8,
+     29.7
+    ],
+    [
+     25.2,
+     29.8
+    ],
+    [
+     25.3,
+     30.8
+    ],
+    [
+     30.1,
+     30.8
+    ],
+    [
+     30.1,
+     23.2
+    ],
+    [
+     29.9,
+     23.2
+    ],
+    [
+     29.7,
+     16.9
+    ],
+    [
+     29.5,
+     16.9
+    ],
+    [
+     29.5,
+     13.5
+    ],
+    [
+     -7.1,
+     13.5
+    ],
+    [
+     -7.1,
+     23.1
+    ],
+    [
+     -7.7,
+     23.1
+    ],
+    [
+     -7.7,
+     30.7
+    ],
+    [
+     -2.9,
+     30.7
+    ]
+   ],
+   "n_kitchen": 7,
+   "n_living": 7,
+   "flats_per_floor_est": 7,
+   "topology_flats_on_page": 9,
+   "topology_flats_ok": 7,
+   "flat_areas_m2": [
+    76.2,
+    48.8,
+    30.8,
+    57.1,
+    35.2,
+    56.5,
+    49.4
+   ],
+   "flat_bhk": [
+    3,
+    2,
+    1,
+    2,
+    1,
+    1,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      12.2,
+      14.2
+     ],
+     "n_lifts": 3,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.301,
+     "v": 0.426
+    },
+    {
+     "xy": [
+      11.9,
+      32.9
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.793,
+     "v": 0.448
+    }
+   ]
+  },
+  {
+   "num": 66,
+   "project": "Residential_66_DADAR_NAIGAON_F_S_2518470",
+   "page": 2,
+   "title": "& 4TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 4,
+   "outline_m2": 313.8,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.18,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 26.4 x 14.0 m; best template none (fit IoU 0.85, margin 0.00 over none)",
+    "no notch pays off, aspect 1.88: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 315.8,
+    "raw_area_m2": 313.8,
+    "bbox_m": [
+     26.4,
+     14.0
+    ],
+    "aspect": 1.88,
+    "rectangularity": 0.86,
+    "convexity": 0.923,
+    "bbox_fill": 0.853,
+    "orthogonality": 0.984,
+    "compactness": 0.598,
+    "symmetry": 0.882,
+    "dir_families": [
+     [
+      92.0,
+      0.64
+     ],
+     [
+      1.0,
+      0.36
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 19,
+    "fit_iou": 0.853,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 26.4,
+     "width": 14.0
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "other",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     3.3,
+     23.0
+    ],
+    [
+     3.3,
+     22.1
+    ],
+    [
+     11.2,
+     22.1
+    ],
+    [
+     11.2,
+     21.9
+    ],
+    [
+     19.2,
+     21.9
+    ],
+    [
+     19.2,
+     16.1
+    ],
+    [
+     21.2,
+     16.1
+    ],
+    [
+     21.2,
+     9.7
+    ],
+    [
+     18.0,
+     9.7
+    ],
+    [
+     18.0,
+     9.0
+    ],
+    [
+     10.7,
+     9.0
+    ],
+    [
+     10.8,
+     10.1
+    ],
+    [
+     5.7,
+     10.0
+    ],
+    [
+     5.7,
+     9.3
+    ],
+    [
+     3.1,
+     9.1
+    ],
+    [
+     -4.8,
+     9.3
+    ],
+    [
+     -5.2,
+     12.5
+    ],
+    [
+     -3.9,
+     12.8
+    ],
+    [
+     -3.9,
+     22.9
+    ],
+    [
+     3.3,
+     23.0
+    ]
+   ],
+   "n_kitchen": 3,
+   "n_living": 3,
+   "flats_per_floor_est": 3,
+   "topology_flats_on_page": 2,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    43.4,
+    104.7
+   ],
+   "flat_bhk": [
+    1,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      10.7,
+      16.2
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.516,
+     "v": 0.27
+    }
+   ]
+  },
+  {
+   "num": 67,
+   "project": "Residential_67_CHINCHAVALI_P_S_2451944",
+   "page": 11,
+   "title": "20TH & 21ST FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 21,
+   "outline_m2": 1707.0,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.51,
+   "reasons": [
+    "rectilinear (orthogonality 0.84), bbox 90.5 x 20.8 m; best template none (fit IoU 0.89, margin 0.00 over none)",
+    "no notch pays off, aspect 4.34 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 1684.8,
+    "raw_area_m2": 1707.0,
+    "bbox_m": [
+     90.5,
+     20.8
+    ],
+    "aspect": 4.34,
+    "rectangularity": 0.897,
+    "convexity": 0.933,
+    "bbox_fill": 0.894,
+    "orthogonality": 0.845,
+    "compactness": 0.385,
+    "symmetry": 0.909,
+    "dir_families": [
+     [
+      90.0,
+      0.69
+     ],
+     [
+      3.0,
+      0.18
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 78,
+    "fit_iou": 0.894,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 90.5,
+     "width": 20.8
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     4.0,
+     88.3
+    ],
+    [
+     3.9,
+     92.2
+    ],
+    [
+     8.1,
+     92.1
+    ],
+    [
+     8.2,
+     93.3
+    ],
+    [
+     12.4,
+     93.6
+    ],
+    [
+     14.4,
+     91.8
+    ],
+    [
+     16.5,
+     92.7
+    ],
+    [
+     16.5,
+     93.4
+    ],
+    [
+     22.0,
+     93.4
+    ],
+    [
+     22.0,
+     92.8
+    ],
+    [
+     24.2,
+     92.8
+    ],
+    [
+     24.1,
+     88.7
+    ],
+    [
+     24.3,
+     88.6
+    ],
+    [
+     24.2,
+     86.9
+    ],
+    [
+     24.6,
+     85.1
+    ],
+    [
+     24.1,
+     84.3
+    ],
+    [
+     24.0,
+     80.9
+    ],
+    [
+     24.3,
+     80.8
+    ],
+    [
+     24.0,
+     76.8
+    ],
+    [
+     24.2,
+     72.9
+    ],
+    [
+     22.4,
+     72.7
+    ],
+    [
+     22.2,
+     68.7
+    ],
+    [
+     23.5,
+     68.5
+    ],
+    [
+     23.5,
+     68.1
+    ],
+    [
+     24.2,
+     68.1
+    ],
+    [
+     23.9,
+     64.9
+    ],
+    [
+     24.0,
+     62.6
+    ],
+    [
+     24.3,
+     61.7
+    ],
+    [
+     22.8,
+     59.6
+    ],
+    [
+     24.3,
+     57.2
+    ],
+    [
+     24.0,
+     56.5
+    ],
+    [
+     23.8,
+     54.0
+    ],
+    [
+     24.0,
+     50.5
+    ],
+    [
+     23.5,
+     50.5
+    ],
+    [
+     23.7,
+     45.8
+    ],
+    [
+     23.9,
+     45.7
+    ],
+    [
+     23.7,
+     41.6
+    ],
+    [
+     24.0,
+     38.7
+    ],
+    [
+     22.5,
+     36.9
+    ],
+    [
+     23.2,
+     35.2
+    ],
+    [
+     24.0,
+     35.1
+    ],
+    [
+     23.6,
+     32.2
+    ],
+    [
+     23.8,
+     27.6
+    ],
+    [
+     23.7,
+     27.6
+    ],
+    [
+     23.4,
+     6.0
+    ],
+    [
+     18.3,
+     6.1
+    ],
+    [
+     18.3,
+     5.9
+    ],
+    [
+     10.9,
+     5.7
+    ],
+    [
+     10.6,
+     5.3
+    ],
+    [
+     11.0,
+     3.5
+    ],
+    [
+     10.7,
+     3.1
+    ],
+    [
+     4.8,
+     3.2
+    ],
+    [
+     4.9,
+     5.1
+    ],
+    [
+     4.2,
+     5.2
+    ],
+    [
+     4.2,
+     6.0
+    ],
+    [
+     4.0,
+     6.1
+    ],
+    [
+     4.2,
+     9.1
+    ],
+    [
+     3.8,
+     14.7
+    ],
+    [
+     4.3,
+     20.0
+    ],
+    [
+     4.1,
+     23.9
+    ],
+    [
+     4.2,
+     23.9
+    ],
+    [
+     4.4,
+     38.9
+    ],
+    [
+     4.1,
+     38.9
+    ],
+    [
+     4.5,
+     41.8
+    ],
+    [
+     4.4,
+     46.0
+    ],
+    [
+     4.5,
+     46.0
+    ],
+    [
+     4.6,
+     57.8
+    ],
+    [
+     5.3,
+     57.9
+    ],
+    [
+     6.0,
+     59.5
+    ],
+    [
+     4.3,
+     61.5
+    ],
+    [
+     4.7,
+     64.3
+    ],
+    [
+     4.5,
+     71.0
+    ],
+    [
+     4.9,
+     77.0
+    ],
+    [
+     4.7,
+     79.9
+    ],
+    [
+     6.3,
+     80.2
+    ],
+    [
+     6.4,
+     86.1
+    ],
+    [
+     4.8,
+     86.1
+    ],
+    [
+     4.9,
+     88.1
+    ],
+    [
+     4.0,
+     88.3
+    ]
+   ],
+   "n_kitchen": 16,
+   "n_living": 16,
+   "flats_per_floor_est": 16,
+   "topology_flats_on_page": 16,
+   "topology_flats_ok": 16,
+   "flat_areas_m2": [
+    60.5,
+    61.1,
+    61.4,
+    62.0,
+    58.0,
+    57.5,
+    58.0,
+    58.0,
+    57.2,
+    58.1,
+    58.0,
+    58.2,
+    58.0,
+    58.2,
+    52.0,
+    57.1
+   ],
+   "flat_bhk": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      14.1,
+      87.1
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "end",
+     "u": 0.509,
+     "v": 0.929
+    },
+    {
+     "xy": [
+      14.1,
+      56.2
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.495,
+     "v": 0.587
+    }
+   ]
+  },
+  {
+   "num": 68,
+   "project": "Residential_68_MALABAR_HILL_2486775",
+   "page": 6,
+   "title": "24TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 24,
+   "outline_m2": 670.0,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "double-loaded",
+   "confidence": 0.44,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 47.6 x 16.2 m; best template none (fit IoU 0.87, margin 0.00 over none)",
+    "no notch pays off, aspect 2.95 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 670.9,
+    "raw_area_m2": 670.0,
+    "bbox_m": [
+     47.6,
+     16.2
+    ],
+    "aspect": 2.95,
+    "rectangularity": 0.885,
+    "convexity": 0.932,
+    "bbox_fill": 0.872,
+    "orthogonality": 0.98,
+    "compactness": 0.514,
+    "symmetry": 0.857,
+    "dir_families": [
+     [
+      0.0,
+      0.74
+     ],
+     [
+      91.0,
+      0.25
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 31,
+    "fit_iou": 0.872,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 47.6,
+     "width": 16.2
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     1.4,
+     19.1
+    ],
+    [
+     5.0,
+     19.3
+    ],
+    [
+     10.3,
+     18.8
+    ],
+    [
+     10.4,
+     19.3
+    ],
+    [
+     14.9,
+     19.2
+    ],
+    [
+     14.9,
+     18.8
+    ],
+    [
+     15.2,
+     18.7
+    ],
+    [
+     15.2,
+     18.1
+    ],
+    [
+     19.3,
+     18.1
+    ],
+    [
+     19.4,
+     17.4
+    ],
+    [
+     21.8,
+     17.4
+    ],
+    [
+     21.8,
+     17.1
+    ],
+    [
+     25.3,
+     17.1
+    ],
+    [
+     25.4,
+     16.6
+    ],
+    [
+     41.5,
+     16.4
+    ],
+    [
+     41.6,
+     16.8
+    ],
+    [
+     49.0,
+     17.0
+    ],
+    [
+     49.0,
+     3.1
+    ],
+    [
+     41.8,
+     3.4
+    ],
+    [
+     41.7,
+     3.2
+    ],
+    [
+     36.0,
+     3.5
+    ],
+    [
+     33.1,
+     3.5
+    ],
+    [
+     32.7,
+     3.2
+    ],
+    [
+     20.8,
+     3.5
+    ],
+    [
+     20.8,
+     3.6
+    ],
+    [
+     12.8,
+     3.3
+    ],
+    [
+     8.3,
+     3.4
+    ],
+    [
+     8.2,
+     3.7
+    ],
+    [
+     1.6,
+     3.7
+    ],
+    [
+     1.4,
+     6.2
+    ],
+    [
+     1.7,
+     11.5
+    ],
+    [
+     1.4,
+     19.1
+    ]
+   ],
+   "n_kitchen": 1,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 1,
+   "topology_flats_ok": 0,
+   "flat_areas_m2": [],
+   "flat_bhk": [],
+   "cores": [
+    {
+     "xy": [
+      23.7,
+      14.6
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.468,
+     "v": 0.713
+    }
+   ]
+  },
+  {
+   "num": 69,
+   "project": "Residential_69_MATUNGA_2445227",
+   "page": 1,
+   "title": "10TH FLOOR PLAN",
+   "close_m": 2.5,
+   "floors_title": 10,
+   "outline_m2": 334.4,
+   "extraction": "outline broken (single-line walls, closing 2.5 m)",
+   "label": "T",
+   "subtype": "symmetric",
+   "confidence": 0.42,
+   "reasons": [
+    "rectilinear (orthogonality 0.97), bbox 21.6 x 19.3 m; best template T:SWNW (fit IoU 0.87, margin 0.04 over L:SW)",
+    "two corner notches on side W: T, bar 19x10, stem 12x9 m"
+   ],
+   "descriptors": {
+    "area_m2": 310.3,
+    "raw_area_m2": 334.4,
+    "bbox_m": [
+     21.6,
+     19.3
+    ],
+    "aspect": 1.12,
+    "rectangularity": 0.744,
+    "convexity": 0.878,
+    "bbox_fill": 0.744,
+    "orthogonality": 0.97,
+    "compactness": 0.554,
+    "symmetry": 0.772,
+    "dir_families": [
+     [
+      1.0,
+      0.53
+     ],
+     [
+      91.0,
+      0.44
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 21,
+    "fit_iou": 0.875,
+    "fit_name": "T:SWNW",
+    "fit_margin": 0.042,
+    "fit_runner_up": "L:SW"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 19.3,
+     "width": 10.1
+    },
+    {
+     "kind": "stem",
+     "length": 11.5,
+     "width": 8.8
+    }
+   ],
+   "notches": [
+    {
+     "sides": "SW",
+     "kind": "corner",
+     "width": 6.5,
+     "depth": 6.5,
+     "area": 42.2
+    },
+    {
+     "sides": "NW",
+     "kind": "corner",
+     "width": 11.5,
+     "depth": 4.0,
+     "area": 46.0
+    }
+   ],
+   "notch_rects": [
+    [
+     1.4,
+     2.0,
+     7.9,
+     8.5
+    ],
+    [
+     1.4,
+     17.3,
+     12.9,
+     21.3
+    ]
+   ],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": null,
+   "clean_outline": [
+    [
+     1.4,
+     12.7
+    ],
+    [
+     1.4,
+     16.4
+    ],
+    [
+     2.9,
+     16.6
+    ],
+    [
+     2.9,
+     18.2
+    ],
+    [
+     7.9,
+     18.1
+    ],
+    [
+     8.0,
+     18.7
+    ],
+    [
+     13.0,
+     18.8
+    ],
+    [
+     13.0,
+     21.3
+    ],
+    [
+     22.9,
+     21.3
+    ],
+    [
+     23.0,
+     15.7
+    ],
+    [
+     21.3,
+     15.7
+    ],
+    [
+     21.3,
+     10.4
+    ],
+    [
+     22.8,
+     10.4
+    ],
+    [
+     22.8,
+     2.0
+    ],
+    [
+     18.0,
+     2.0
+    ],
+    [
+     17.9,
+     3.2
+    ],
+    [
+     9.6,
+     3.2
+    ],
+    [
+     7.7,
+     3.6
+    ],
+    [
+     7.7,
+     8.5
+    ],
+    [
+     2.9,
+     8.5
+    ],
+    [
+     2.9,
+     12.6
+    ],
+    [
+     1.4,
+     12.7
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 2,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    84.6,
+    67.8
+   ],
+   "flat_bhk": [
+    3,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      11.4,
+      7.5
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.462,
+     "v": 0.285
+    }
+   ]
+  },
+  {
+   "num": 70,
+   "project": "Residential_70_OSHIWARA_2492780",
+   "page": 1,
+   "title": "2ND TO 5TH FLOOR PLAN ( TOWER -3}",
+   "close_m": 0.5,
+   "floors_title": 5,
+   "outline_m2": 614.2,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "square",
+   "confidence": 0.16,
+   "reasons": [
+    "rectilinear (orthogonality 0.95), bbox 30.3 x 27.8 m; best template none (fit IoU 0.73, margin 0.00 over none)",
+    "no notch pays off, aspect 1.09: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 619.8,
+    "raw_area_m2": 614.2,
+    "bbox_m": [
+     30.3,
+     27.8
+    ],
+    "aspect": 1.09,
+    "rectangularity": 0.738,
+    "convexity": 0.812,
+    "bbox_fill": 0.735,
+    "orthogonality": 0.951,
+    "compactness": 0.455,
+    "symmetry": 0.835,
+    "dir_families": [
+     [
+      3.0,
+      0.53
+     ],
+     [
+      91.0,
+      0.44
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 26,
+    "fit_iou": 0.735,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 30.3,
+     "width": 27.8
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "H",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     2.3,
+     22.9
+    ],
+    [
+     2.3,
+     31.2
+    ],
+    [
+     6.4,
+     31.4
+    ],
+    [
+     6.5,
+     31.3
+    ],
+    [
+     16.7,
+     31.2
+    ],
+    [
+     18.4,
+     29.0
+    ],
+    [
+     21.1,
+     29.5
+    ],
+    [
+     21.2,
+     29.7
+    ],
+    [
+     32.4,
+     29.7
+    ],
+    [
+     32.6,
+     22.9
+    ],
+    [
+     26.8,
+     22.9
+    ],
+    [
+     26.7,
+     10.0
+    ],
+    [
+     30.0,
+     10.2
+    ],
+    [
+     30.0,
+     3.6
+    ],
+    [
+     21.4,
+     3.6
+    ],
+    [
+     21.4,
+     5.4
+    ],
+    [
+     15.2,
+     5.4
+    ],
+    [
+     15.2,
+     4.3
+    ],
+    [
+     14.8,
+     4.2
+    ],
+    [
+     14.8,
+     3.6
+    ],
+    [
+     6.0,
+     3.7
+    ],
+    [
+     6.0,
+     3.8
+    ],
+    [
+     6.1,
+     17.1
+    ],
+    [
+     8.7,
+     17.1
+    ],
+    [
+     9.1,
+     19.9
+    ],
+    [
+     8.8,
+     22.9
+    ],
+    [
+     2.3,
+     22.9
+    ]
+   ],
+   "n_kitchen": 4,
+   "n_living": 4,
+   "flats_per_floor_est": 4,
+   "topology_flats_on_page": 4,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    81.0,
+    62.0,
+    60.2
+   ],
+   "flat_bhk": [
+    3,
+    2,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      18.7,
+      18.0
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.541,
+     "v": 0.518
+    }
+   ]
+  },
+  {
+   "num": 71,
+   "project": "Residential_71_PAHADI_GOREGAON_W_2513703",
+   "page": 9,
+   "title": "26TH TO 28TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 28,
+   "outline_m2": 262.8,
+   "extraction": "ok",
+   "label": "T",
+   "subtype": "symmetric",
+   "confidence": 0.54,
+   "reasons": [
+    "rectilinear (orthogonality 0.93), bbox 25.5 x 15.2 m; best template T:SWNW (fit IoU 0.87, margin 0.07 over H:SN)",
+    "two corner notches on side W: T, bar 26x6, stem 10x14 m"
+   ],
+   "descriptors": {
+    "area_m2": 258.8,
+    "raw_area_m2": 262.8,
+    "bbox_m": [
+     25.5,
+     15.2
+    ],
+    "aspect": 1.68,
+    "rectangularity": 0.667,
+    "convexity": 0.847,
+    "bbox_fill": 0.667,
+    "orthogonality": 0.929,
+    "compactness": 0.5,
+    "symmetry": 0.731,
+    "dir_families": [
+     [
+      92.0,
+      0.57
+     ],
+     [
+      1.0,
+      0.36
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 26,
+    "fit_iou": 0.874,
+    "fit_name": "T:SWNW",
+    "fit_margin": 0.071,
+    "fit_runner_up": "H:SN"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 25.5,
+     "width": 5.7
+    },
+    {
+     "kind": "stem",
+     "length": 9.5,
+     "width": 14.0
+    }
+   ],
+   "notches": [
+    {
+     "sides": "SW",
+     "kind": "corner",
+     "width": 9.0,
+     "depth": 6.5,
+     "area": 58.5
+    },
+    {
+     "sides": "NW",
+     "kind": "corner",
+     "width": 9.5,
+     "depth": 5.0,
+     "area": 47.5
+    }
+   ],
+   "notch_rects": [
+    [
+     9.5,
+     3.8,
+     18.5,
+     10.3
+    ],
+    [
+     9.5,
+     24.3,
+     19.0,
+     29.3
+    ]
+   ],
+   "eye_label_first": "L",
+   "eye_label": "T",
+   "agrees": true,
+   "clean_outline": [
+    [
+     11.2,
+     24.3
+    ],
+    [
+     11.9,
+     25.0
+    ],
+    [
+     18.2,
+     25.0
+    ],
+    [
+     20.0,
+     29.3
+    ],
+    [
+     24.3,
+     29.3
+    ],
+    [
+     24.3,
+     26.5
+    ],
+    [
+     24.7,
+     26.5
+    ],
+    [
+     24.7,
+     19.5
+    ],
+    [
+     24.6,
+     19.5
+    ],
+    [
+     24.6,
+     18.9
+    ],
+    [
+     23.9,
+     18.9
+    ],
+    [
+     23.9,
+     14.0
+    ],
+    [
+     24.7,
+     13.9
+    ],
+    [
+     24.7,
+     6.5
+    ],
+    [
+     24.3,
+     6.5
+    ],
+    [
+     24.3,
+     3.9
+    ],
+    [
+     20.1,
+     3.8
+    ],
+    [
+     20.1,
+     4.8
+    ],
+    [
+     18.5,
+     4.9
+    ],
+    [
+     18.4,
+     10.2
+    ],
+    [
+     14.2,
+     10.3
+    ],
+    [
+     14.2,
+     14.0
+    ],
+    [
+     13.6,
+     14.0
+    ],
+    [
+     13.5,
+     14.6
+    ],
+    [
+     9.5,
+     14.6
+    ],
+    [
+     9.5,
+     24.2
+    ],
+    [
+     11.2,
+     24.3
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 3,
+   "topology_flats_ok": 1,
+   "flat_areas_m2": [
+    72.3
+   ],
+   "flat_bhk": [
+    0
+   ],
+   "cores": [
+    {
+     "xy": [
+      12.0,
+      21.1
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.164,
+     "v": 0.68
+    }
+   ]
+  },
+  {
+   "num": 72,
+   "project": "Residential_72_MAGATHANE_R_C_2476688",
+   "page": 5,
+   "title": "9TH TO 11TH TYPICAL FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 11,
+   "outline_m2": 832.3,
+   "extraction": "ok",
+   "label": "H",
+   "subtype": "",
+   "confidence": 0.54,
+   "reasons": [
+    "rectilinear (orthogonality 0.92), bbox 45.8 x 28.5 m; best template H:WE (fit IoU 0.87, margin 0.08 over T:NWNE)",
+    "two facing mid-side notches (W/E): H, bars 29x8, link 30x11 m"
+   ],
+   "descriptors": {
+    "area_m2": 739.7,
+    "raw_area_m2": 832.3,
+    "bbox_m": [
+     45.8,
+     28.5
+    ],
+    "aspect": 1.61,
+    "rectangularity": 0.567,
+    "convexity": 0.569,
+    "bbox_fill": 0.565,
+    "orthogonality": 0.922,
+    "compactness": 0.232,
+    "symmetry": 0.946,
+    "dir_families": [
+     [
+      2.0,
+      0.48
+     ],
+     [
+      92.0,
+      0.47
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 63,
+    "fit_iou": 0.868,
+    "fit_name": "H:WE",
+    "fit_margin": 0.075,
+    "fit_runner_up": "T:NWNE"
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 28.5,
+     "width": 7.9
+    },
+    {
+     "kind": "bar",
+     "length": 28.5,
+     "width": 7.9
+    },
+    {
+     "kind": "link",
+     "length": 30.0,
+     "width": 10.5
+    }
+   ],
+   "notches": [
+    {
+     "sides": "W",
+     "kind": "side",
+     "width": 10.5,
+     "depth": 30.0,
+     "area": 315.0
+    },
+    {
+     "sides": "E",
+     "kind": "side",
+     "width": 7.5,
+     "depth": 28.0,
+     "area": 210.0
+    }
+   ],
+   "notch_rects": [
+    [
+     9.5,
+     3.1,
+     20.0,
+     33.1
+    ],
+    [
+     30.5,
+     4.1,
+     38.0,
+     32.1
+    ]
+   ],
+   "eye_label_first": "courtyard",
+   "eye_label": "H",
+   "agrees": true,
+   "clean_outline": [
+    [
+     36.8,
+     40.9
+    ],
+    [
+     36.9,
+     39.3
+    ],
+    [
+     38.0,
+     39.3
+    ],
+    [
+     38.0,
+     31.9
+    ],
+    [
+     29.6,
+     31.9
+    ],
+    [
+     28.8,
+     28.9
+    ],
+    [
+     31.5,
+     27.2
+    ],
+    [
+     31.5,
+     19.0
+    ],
+    [
+     30.9,
+     19.0
+    ],
+    [
+     30.9,
+     14.1
+    ],
+    [
+     31.5,
+     13.9
+    ],
+    [
+     31.5,
+     9.9
+    ],
+    [
+     30.8,
+     9.9
+    ],
+    [
+     30.9,
+     3.8
+    ],
+    [
+     38.0,
+     3.8
+    ],
+    [
+     38.0,
+     -0.4
+    ],
+    [
+     37.6,
+     -0.4
+    ],
+    [
+     37.6,
+     -4.9
+    ],
+    [
+     32.9,
+     -4.9
+    ],
+    [
+     32.8,
+     -4.0
+    ],
+    [
+     28.9,
+     -4.0
+    ],
+    [
+     28.8,
+     -3.5
+    ],
+    [
+     22.9,
+     -3.5
+    ],
+    [
+     22.8,
+     -2.8
+    ],
+    [
+     18.0,
+     -2.8
+    ],
+    [
+     17.9,
+     -3.4
+    ],
+    [
+     14.4,
+     -3.4
+    ],
+    [
+     14.4,
+     -4.9
+    ],
+    [
+     10.4,
+     -4.9
+    ],
+    [
+     10.3,
+     -3.5
+    ],
+    [
+     9.5,
+     -3.5
+    ],
+    [
+     9.5,
+     3.7
+    ],
+    [
+     13.4,
+     3.7
+    ],
+    [
+     15.1,
+     2.6
+    ],
+    [
+     19.1,
+     2.6
+    ],
+    [
+     19.1,
+     2.9
+    ],
+    [
+     20.0,
+     2.9
+    ],
+    [
+     19.9,
+     14.8
+    ],
+    [
+     19.2,
+     14.8
+    ],
+    [
+     19.2,
+     16.2
+    ],
+    [
+     18.7,
+     16.9
+    ],
+    [
+     18.9,
+     19.5
+    ],
+    [
+     19.2,
+     19.5
+    ],
+    [
+     19.2,
+     21.0
+    ],
+    [
+     19.9,
+     21.0
+    ],
+    [
+     19.9,
+     33.1
+    ],
+    [
+     14.7,
+     33.2
+    ],
+    [
+     14.5,
+     32.1
+    ],
+    [
+     9.5,
+     32.2
+    ],
+    [
+     9.5,
+     39.3
+    ],
+    [
+     10.2,
+     39.3
+    ],
+    [
+     10.3,
+     40.6
+    ],
+    [
+     14.3,
+     40.8
+    ],
+    [
+     14.4,
+     40.7
+    ],
+    [
+     14.3,
+     39.2
+    ],
+    [
+     17.9,
+     39.2
+    ],
+    [
+     17.9,
+     38.6
+    ],
+    [
+     22.8,
+     38.6
+    ],
+    [
+     22.9,
+     39.3
+    ],
+    [
+     28.9,
+     39.3
+    ],
+    [
+     29.0,
+     39.7
+    ],
+    [
+     32.3,
+     40.5
+    ],
+    [
+     32.3,
+     40.6
+    ],
+    [
+     36.8,
+     40.9
+    ]
+   ],
+   "n_kitchen": 7,
+   "n_living": 7,
+   "flats_per_floor_est": 7,
+   "topology_flats_on_page": 6,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    66.9,
+    67.2,
+    56.4
+   ],
+   "flat_bhk": [
+    3,
+    3,
+    2
+   ],
+   "cores": [
+    {
+     "xy": [
+      24.6,
+      17.9
+     ],
+     "n_lifts": 5,
+     "n_fire_lifts": 2,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.534,
+     "v": 0.5
+    }
+   ]
+  },
+  {
+   "num": 73,
+   "project": "Residential_73_MAHIM_2516532",
+   "page": 2,
+   "title": "4TH TO 6TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 6,
+   "outline_m2": 201.9,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "square",
+   "confidence": 0.49,
+   "reasons": [
+    "rectilinear (orthogonality 0.88), bbox 15.5 x 14.1 m; best template none (fit IoU 0.90, margin 0.00 over none)",
+    "no notch pays off, aspect 1.10: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 196.1,
+    "raw_area_m2": 201.9,
+    "bbox_m": [
+     15.5,
+     14.1
+    ],
+    "aspect": 1.1,
+    "rectangularity": 0.914,
+    "convexity": 0.962,
+    "bbox_fill": 0.898,
+    "orthogonality": 0.88,
+    "compactness": 0.755,
+    "symmetry": 0.898,
+    "dir_families": [
+     [
+      92.0,
+      0.51
+     ],
+     [
+      3.0,
+      0.46
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 13,
+    "fit_iou": 0.898,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 15.5,
+     "width": 14.1
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     0.3,
+     15.5
+    ],
+    [
+     0.5,
+     15.9
+    ],
+    [
+     8.8,
+     15.8
+    ],
+    [
+     11.7,
+     16.5
+    ],
+    [
+     12.6,
+     15.8
+    ],
+    [
+     13.8,
+     15.8
+    ],
+    [
+     14.0,
+     9.5
+    ],
+    [
+     14.4,
+     9.5
+    ],
+    [
+     14.3,
+     1.0
+    ],
+    [
+     1.4,
+     1.1
+    ],
+    [
+     1.4,
+     7.8
+    ],
+    [
+     0.7,
+     7.9
+    ],
+    [
+     0.8,
+     13.3
+    ],
+    [
+     0.3,
+     15.5
+    ]
+   ],
+   "n_kitchen": 1,
+   "n_living": 1,
+   "flats_per_floor_est": 1,
+   "topology_flats_on_page": 3,
+   "topology_flats_ok": 3,
+   "flat_areas_m2": [
+    29.7,
+    17.4,
+    23.6
+   ],
+   "flat_bhk": [
+    2,
+    1,
+    0
+   ],
+   "cores": [
+    {
+     "xy": [
+      12.9,
+      7.4
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "side",
+     "u": 0.892,
+     "v": 0.409
+    }
+   ]
+  },
+  {
+   "num": 74,
+   "project": "Residential_74_BANDRA_B_2498297",
+   "page": 10,
+   "title": "16TH TO 18TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 18,
+   "outline_m2": 616.8,
+   "extraction": "ok",
+   "label": "point_square",
+   "subtype": "squat-rect",
+   "confidence": 0.33,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 31.0 x 22.9 m; best template none (fit IoU 0.87, margin 0.00 over none)",
+    "no notch pays off, aspect 1.35: compact point tower"
+   ],
+   "descriptors": {
+    "area_m2": 614.2,
+    "raw_area_m2": 616.8,
+    "bbox_m": [
+     31.0,
+     22.9
+    ],
+    "aspect": 1.35,
+    "rectangularity": 0.866,
+    "convexity": 0.936,
+    "bbox_fill": 0.866,
+    "orthogonality": 0.977,
+    "compactness": 0.678,
+    "symmetry": 0.839,
+    "dir_families": [
+     [
+      93.0,
+      0.56
+     ],
+     [
+      1.0,
+      0.42
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 14,
+    "fit_iou": 0.866,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 31.0,
+     "width": 22.9
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "point_square",
+   "eye_label": "point_square",
+   "agrees": true,
+   "clean_outline": [
+    [
+     17.3,
+     25.1
+    ],
+    [
+     17.3,
+     44.6
+    ],
+    [
+     24.3,
+     44.6
+    ],
+    [
+     25.0,
+     46.0
+    ],
+    [
+     27.2,
+     45.8
+    ],
+    [
+     27.4,
+     45.0
+    ],
+    [
+     30.4,
+     45.0
+    ],
+    [
+     30.4,
+     44.6
+    ],
+    [
+     37.2,
+     44.5
+    ],
+    [
+     37.3,
+     23.9
+    ],
+    [
+     40.2,
+     23.9
+    ],
+    [
+     40.2,
+     15.1
+    ],
+    [
+     17.8,
+     15.1
+    ],
+    [
+     17.8,
+     25.1
+    ],
+    [
+     17.3,
+     25.1
+    ]
+   ],
+   "n_kitchen": 3,
+   "n_living": 3,
+   "flats_per_floor_est": 3,
+   "topology_flats_on_page": 3,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    100.7,
+    149.5
+   ],
+   "flat_bhk": [
+    3,
+    4
+   ],
+   "cores": [
+    {
+     "xy": [
+      26.7,
+      32.7
+     ],
+     "n_lifts": 4,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.409,
+     "v": 0.57
+    }
+   ]
+  },
+  {
+   "num": 75,
+   "project": "Residential_75_BANDRA_B_2471483",
+   "page": 11,
+   "title": "TYPICAL FLOOR PLAN ( 15TH & 16TH FLOOR)",
+   "close_m": 0.5,
+   "floors_title": 16,
+   "outline_m2": 317.8,
+   "extraction": "ok",
+   "label": "L",
+   "subtype": "",
+   "confidence": 0.15,
+   "reasons": [
+    "rectilinear (orthogonality 1.00), bbox 24.8 x 19.3 m; best template L:NE (fit IoU 0.77, margin 0.03 over U:E)",
+    "one corner notch (8.5 x 9.0 m) at NE: L, arms 19x16 and 25x11 m"
+   ],
+   "descriptors": {
+    "area_m2": 312.1,
+    "raw_area_m2": 317.8,
+    "bbox_m": [
+     24.8,
+     19.3
+    ],
+    "aspect": 1.29,
+    "rectangularity": 0.657,
+    "convexity": 0.82,
+    "bbox_fill": 0.654,
+    "orthogonality": 0.997,
+    "compactness": 0.516,
+    "symmetry": 0.75,
+    "dir_families": [
+     [
+      0.0,
+      0.56
+     ],
+     [
+      91.0,
+      0.43
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 18,
+    "fit_iou": 0.772,
+    "fit_name": "L:NE",
+    "fit_margin": 0.035,
+    "fit_runner_up": "U:E"
+   },
+   "wings": [
+    {
+     "kind": "arm",
+     "length": 19.3,
+     "width": 15.8
+    },
+    {
+     "kind": "arm",
+     "length": 24.8,
+     "width": 10.8
+    }
+   ],
+   "notches": [
+    {
+     "sides": "NE",
+     "kind": "corner",
+     "width": 8.5,
+     "depth": 9.0,
+     "area": 76.5
+    }
+   ],
+   "notch_rects": [
+    [
+     24.1,
+     18.5,
+     32.6,
+     27.5
+    ]
+   ],
+   "eye_label_first": "L",
+   "eye_label": "L",
+   "agrees": true,
+   "clean_outline": [
+    [
+     19.2,
+     22.2
+    ],
+    [
+     19.2,
+     27.5
+    ],
+    [
+     24.2,
+     27.5
+    ],
+    [
+     24.2,
+     18.5
+    ],
+    [
+     30.7,
+     18.5
+    ],
+    [
+     30.8,
+     11.6
+    ],
+    [
+     31.3,
+     11.6
+    ],
+    [
+     31.3,
+     10.9
+    ],
+    [
+     32.6,
+     10.8
+    ],
+    [
+     32.4,
+     2.8
+    ],
+    [
+     28.6,
+     2.8
+    ],
+    [
+     28.5,
+     4.4
+    ],
+    [
+     13.4,
+     4.3
+    ],
+    [
+     13.3,
+     10.7
+    ],
+    [
+     14.7,
+     10.8
+    ],
+    [
+     14.8,
+     11.4
+    ],
+    [
+     15.0,
+     11.4
+    ],
+    [
+     15.0,
+     22.1
+    ],
+    [
+     19.2,
+     22.2
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 3,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    72.7,
+    67.0
+   ],
+   "flat_bhk": [
+    2,
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      19.1,
+      11.1
+     ],
+     "n_lifts": 1,
+     "n_fire_lifts": 0,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.377,
+     "v": 0.56
+    }
+   ]
+  },
+  {
+   "num": 76,
+   "project": "Residential_76_BHULESHWAR_2477747",
+   "page": 2,
+   "title": "2ND & 3RD FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 3,
+   "outline_m2": 174.9,
+   "extraction": "ok",
+   "label": "linear_slab",
+   "subtype": "single-loaded",
+   "confidence": 0.61,
+   "reasons": [
+    "rectilinear (orthogonality 0.97), bbox 21.6 x 8.5 m; best template none (fit IoU 0.94, margin 0.00 over none)",
+    "no notch pays off, aspect 2.56 >= 1.9: slab"
+   ],
+   "descriptors": {
+    "area_m2": 172.8,
+    "raw_area_m2": 174.9,
+    "bbox_m": [
+     21.6,
+     8.5
+    ],
+    "aspect": 2.56,
+    "rectangularity": 0.944,
+    "convexity": 0.952,
+    "bbox_fill": 0.942,
+    "orthogonality": 0.969,
+    "compactness": 0.577,
+    "symmetry": 0.965,
+    "dir_families": [
+     [
+      2.0,
+      0.69
+     ],
+     [
+      92.0,
+      0.29
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 17,
+    "fit_iou": 0.942,
+    "fit_name": "none",
+    "fit_margin": 0.0,
+    "fit_runner_up": ""
+   },
+   "wings": [
+    {
+     "kind": "bar",
+     "length": 21.6,
+     "width": 8.5
+    }
+   ],
+   "notches": [],
+   "notch_rects": [],
+   "eye_label_first": "linear_slab",
+   "eye_label": "linear_slab",
+   "agrees": true,
+   "clean_outline": [
+    [
+     0.2,
+     8.7
+    ],
+    [
+     4.8,
+     8.7
+    ],
+    [
+     4.9,
+     8.3
+    ],
+    [
+     7.4,
+     8.3
+    ],
+    [
+     7.4,
+     7.9
+    ],
+    [
+     14.0,
+     7.9
+    ],
+    [
+     14.4,
+     8.3
+    ],
+    [
+     17.1,
+     8.3
+    ],
+    [
+     17.1,
+     8.7
+    ],
+    [
+     21.5,
+     8.7
+    ],
+    [
+     21.5,
+     7.7
+    ],
+    [
+     21.9,
+     7.6
+    ],
+    [
+     21.9,
+     1.1
+    ],
+    [
+     21.5,
+     0.7
+    ],
+    [
+     17.9,
+     0.9
+    ],
+    [
+     17.9,
+     0.2
+    ],
+    [
+     0.2,
+     0.2
+    ],
+    [
+     0.2,
+     8.7
+    ]
+   ],
+   "n_kitchen": 2,
+   "n_living": 2,
+   "flats_per_floor_est": 2,
+   "topology_flats_on_page": 1,
+   "topology_flats_ok": 1,
+   "flat_areas_m2": [
+    32.9
+   ],
+   "flat_bhk": [
+    1
+   ],
+   "cores": [
+    {
+     "xy": [
+      12.9,
+      4.1
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 3,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.585,
+     "v": 0.452
+    }
+   ]
+  },
+  {
+   "num": 77,
+   "project": "Residential_77_BANDRA_EAST_2513819",
+   "page": 7,
+   "title": "9TH TO 13TH FLOOR PLAN",
+   "close_m": 0.5,
+   "floors_title": 13,
+   "outline_m2": 1692.8,
+   "extraction": "ok",
+   "label": "other",
+   "subtype": "comb",
+   "confidence": 0.16,
+   "reasons": [
+    "rectilinear (orthogonality 0.98), bbox 78.5 x 30.3 m; best template comb:E (fit IoU 0.83, margin 0.01 over L:SE)",
+    "2 separate notches on side E: comb / E plan (a slab with projecting wings)"
+   ],
+   "descriptors": {
+    "area_m2": 1721.3,
+    "raw_area_m2": 1692.8,
+    "bbox_m": [
+     78.5,
+     30.3
+    ],
+    "aspect": 2.59,
+    "rectangularity": 0.726,
+    "convexity": 0.782,
+    "bbox_fill": 0.724,
+    "orthogonality": 0.982,
+    "compactness": 0.287,
+    "symmetry": 0.982,
+    "dir_families": [
+     [
+      92.0,
+      0.56
+     ],
+     [
+      2.0,
+      0.43
+     ]
+    ],
+    "holes_m2": [],
+    "vertices": 73,
+    "fit_iou": 0.83,
+    "fit_name": "comb:E",
+    "fit_margin": 0.014,
+    "fit_runner_up": "L:SE"
+   },
+   "wings": [],
+   "notches": [
+    {
+     "sides": "E",
+     "kind": "side",
+     "width": 12.5,
+     "depth": 13.0,
+     "area": 162.5
+    },
+    {
+     "sides": "E",
+     "kind": "side",
+     "width": 12.5,
+     "depth": 13.0,
+     "area": 162.5
+    }
+   ],
+   "notch_rects": [
+    [
+     23.9,
+     23.8,
+     36.4,
+     36.8
+    ],
+    [
+     23.9,
+     47.3,
+     36.4,
+     60.3
+    ]
+   ],
+   "eye_label_first": "linear_slab",
+   "eye_label": "other",
+   "agrees": true,
+   "clean_outline": [
+    [
+     6.1,
+     14.3
+    ],
+    [
+     6.1,
+     21.8
+    ],
+    [
+     7.6,
+     22.6
+    ],
+    [
+     7.7,
+     28.5
+    ],
+    [
+     6.5,
+     28.6
+    ],
+    [
+     6.5,
+     32.1
+    ],
+    [
+     7.7,
+     32.2
+    ],
+    [
+     7.7,
+     38.1
+    ],
+    [
+     6.1,
+     38.1
+    ],
+    [
+     6.1,
+     46.2
+    ],
+    [
+     6.5,
+     46.6
+    ],
+    [
+     7.7,
+     46.8
+    ],
+    [
+     7.7,
+     52.2
+    ],
+    [
+     6.6,
+     52.3
+    ],
+    [
+     6.6,
+     55.8
+    ],
+    [
+     7.7,
+     55.9
+    ],
+    [
+     7.7,
+     61.8
+    ],
+    [
+     6.2,
+     61.9
+    ],
+    [
+     6.2,
+     70.1
+    ],
+    [
+     6.5,
+     70.1
+    ],
+    [
+     6.4,
+     73.3
+    ],
+    [
+     6.9,
+     73.3
+    ],
+    [
+     6.9,
+     80.3
+    ],
+    [
+     10.3,
+     80.3
+    ],
+    [
+     10.3,
+     81.3
+    ],
+    [
+     21.6,
+     81.3
+    ],
+    [
+     21.5,
+     80.3
+    ],
+    [
+     24.7,
+     80.3
+    ],
+    [
+     24.7,
+     73.1
+    ],
+    [
+     25.2,
+     72.8
+    ],
+    [
+     25.2,
+     71.6
+    ],
+    [
+     25.7,
+     71.6
+    ],
+    [
+     25.7,
+     71.1
+    ],
+    [
+     35.0,
+     71.1
+    ],
+    [
+     35.0,
+     68.4
+    ],
+    [
+     36.4,
+     68.4
+    ],
+    [
+     36.4,
+     63.1
+    ],
+    [
+     35.0,
+     63.0
+    ],
+    [
+     35.1,
+     60.5
+    ],
+    [
+     24.1,
+     60.2
+    ],
+    [
+     24.0,
+     47.7
+    ],
+    [
+     26.7,
+     47.7
+    ],
+    [
+     27.0,
+     47.4
+    ],
+    [
+     30.0,
+     47.5
+    ],
+    [
+     30.0,
+     47.4
+    ],
+    [
+     34.9,
+     47.4
+    ],
+    [
+     34.9,
+     44.8
+    ],
+    [
+     36.3,
+     44.7
+    ],
+    [
+     36.3,
+     39.5
+    ],
+    [
+     34.9,
+     39.3
+    ],
+    [
+     34.9,
+     36.7
+    ],
+    [
+     24.1,
+     36.6
+    ],
+    [
+     24.1,
+     23.9
+    ],
+    [
+     26.9,
+     23.9
+    ],
+    [
+     26.9,
+     23.8
+    ],
+    [
+     34.9,
+     23.8
+    ],
+    [
+     34.9,
+     21.1
+    ],
+    [
+     36.3,
+     21.0
+    ],
+    [
+     36.3,
+     15.8
+    ],
+    [
+     34.9,
+     15.7
+    ],
+    [
+     34.9,
+     13.0
+    ],
+    [
+     25.8,
+     13.0
+    ],
+    [
+     25.8,
+     12.7
+    ],
+    [
+     23.9,
+     12.7
+    ],
+    [
+     23.9,
+     4.0
+    ],
+    [
+     21.4,
+     4.0
+    ],
+    [
+     21.4,
+     2.9
+    ],
+    [
+     10.2,
+     2.8
+    ],
+    [
+     10.1,
+     4.0
+    ],
+    [
+     6.8,
+     4.0
+    ],
+    [
+     6.8,
+     10.7
+    ],
+    [
+     6.3,
+     10.7
+    ],
+    [
+     6.4,
+     14.2
+    ],
+    [
+     6.1,
+     14.3
+    ]
+   ],
+   "n_kitchen": 6,
+   "n_living": 6,
+   "flats_per_floor_est": 6,
+   "topology_flats_on_page": 6,
+   "topology_flats_ok": 2,
+   "flat_areas_m2": [
+    126.4,
+    157.6
+   ],
+   "flat_bhk": [
+    3,
+    4
+   ],
+   "cores": [
+    {
+     "xy": [
+      17.2,
+      65.2
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.367,
+     "v": 0.795
+    },
+    {
+     "xy": [
+      17.1,
+      43.1
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "central",
+     "u": 0.364,
+     "v": 0.512
+    },
+    {
+     "xy": [
+      17.1,
+      19.2
+     ],
+     "n_lifts": 2,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.363,
+     "v": 0.208
+    },
+    {
+     "xy": [
+      34.7,
+      67.0
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.945,
+     "v": 0.817
+    },
+    {
+     "xy": [
+      34.8,
+      43.4
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.948,
+     "v": 0.516
+    },
+    {
+     "xy": [
+      34.7,
+      19.6
+     ],
+     "n_lifts": 0,
+     "n_fire_lifts": 1,
+     "n_stairs": 0,
+     "position": "reentrant",
+     "u": 0.943,
+     "v": 0.213
+    }
+   ]
+  }
+ ]
+}
