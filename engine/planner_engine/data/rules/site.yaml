@@ -15,3 +15,42 @@ tower_gap:
 coverage:
   clause: "DCPR 2034 Reg 30 / project design limit - maximum ground coverage"
   max: 0.45
+# ---------------------------------------------------------------------------------------------------- placement v2
+# The tables below were added for tower placement v2. They encode DCPR 2034 / NBC 2016 / Mumbai CFO practice as the
+# author understands it. NONE of them is verified against the gazetted text: the consultant must confirm each one.
+fsi:
+  clause: "DCPR 2034 Reg 30 Table 12 - permissible FSI, suburbs residential (zonal 1.0 + premium + TDR by road width)"
+  verified: false
+  # [max road width m, permissible FSI incl. premium FSI and TDR, before fungible]
+  by_road_width: [[8.99, 1.0], [11.99, 2.0], [17.99, 2.2], [26.99, 2.4], [9999.0, 2.5]]
+  fungible_factor: 1.35     # DCPR 2034 Reg 31(3) fungible compensatory area (35 % residential)
+  note: "Island city and special schemes (33(7), 33(9), SRA) differ; set the plot's FSI explicitly when known."
+fire_access:
+  clause: "NBC 2016 Part 4 cl. 3.4 / Mumbai CFO - motorable fire-tender access (6 m clear, 9 m turning radius)"
+  verified: false
+  driveway_width: 6.0
+  turning_radius: 9.0
+  # the near edge of the drive (or of the public road) must lie within this distance of the face it serves
+  max_offset: 9.0
+  # [max building height m, number of tower faces the drive or road must reach]; 4 = all round
+  faces_by_height: [[15.0, 0], [24.0, 1], [45.0, 2], [9999.0, 4]]
+entry:
+  clause: "DCPR 2034 Reg 37 / traffic practice - vehicular gate on a road edge, clear of the road junction"
+  verified: false
+  gate_width: 6.0
+  junction_clearance: 9.0   # gate centre at least this far from a corner where two road edges meet
+parking_ramp:
+  clause: "DCPR 2034 Reg 44 - parking ramp (gradient 1:8; 3.0 m one-way, 6.0 m two-way)"
+  verified: false
+  min_plot_area: 1000.0     # below this, stilt parking or car lifts are assumed and no ramp is reserved
+  # [max plot area m2, ramp width m]
+  width_by_plot: [[4000.0, 3.5], [1.0e+12, 6.0]]
+  length: 30.0              # one basement (3.6 m) at 1:8 plus two transitions
+  # fallback when no ramp fits: a bay for two car lifts (DCPR 2034 permits mechanised parking); [width, length] m
+  car_lift_bay: [6.0, 7.5]
+recreational_open_space:
+  clause: "DCPR 2034 Reg 27 - layout recreational open space (RG); part may be on the podium"
+  verified: false
+  # [max plot area m2, RG fraction of plot]
+  by_plot_area: [[1000.0, 0.0], [2500.0, 0.15], [10000.0, 0.20], [1.0e+12, 0.25]]
+  min_dimension: 7.5

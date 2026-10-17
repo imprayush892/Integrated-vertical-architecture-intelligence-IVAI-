@@ -156,6 +156,15 @@ class PlacementOption(Model):
     drivers: str
     runners_up: list[dict[str, Any]] = Field(default_factory=list)
     passes: dict[str, bool] = Field(default_factory=dict)
+    # placement v2 (all optional; older projects load unchanged)
+    rank: int = 0  # 1 = recommended (highest score); options stay ordered by tower count
+    recommended: bool = False
+    concept: str = ""  # e.g. "slab", "point"
+    arrangement: str = ""  # e.g. "single", "end-to-end row", "parallel slabs", "staggered"
+    typology_hint: str = ""  # plate typology the envelope suggests (stage 5 starts from it)
+    reasons: list[dict[str, Any]] = Field(default_factory=list)  # ranked; {key, kind, text, value, impact}
+    metrics: dict[str, float] = Field(default_factory=dict)  # the numbers the reasons quote
+    site_elements: dict[str, Any] = Field(default_factory=dict)  # gate, ramp, fire drive, garden (site frame)
 
 
 class Placement(Model):

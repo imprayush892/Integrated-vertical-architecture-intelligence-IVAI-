@@ -10,11 +10,51 @@ plate:
   min_area: 200.0
   max_area_per_tower: 1500.0
 placement:
-  angle_step_coarse: 5
-  angle_step_fine: 1
-  raster: 1.0
-  weights: {coverage: 0.35, gap: 0.10, breeze: 0.15, view: 0.05, west_glass: 0.10, balance: 0.10, depth: 0.15}
-  coverage_target: 0.40
+  # Tower placement v2 (planner_engine/placement.py). Soft criteria are scored 0..1 and weighted below; the weights are
+  # normalised, so only their ratios matter. Hard rules (setbacks, gap, coverage, FSI, fire access, gate, ramp) live in
+  # site.yaml and are never traded against these.
+  raster: 1.0              # m; plots with less than raster_fine_below m2 buildable use 0.5 m
+  raster_fine_below: 6000.0
+  coverage_target: 0.40    # design ceiling on ground coverage (the statutory maximum in site.yaml still applies)
+  weights:
+    fsi: 0.20              # built-up area achieved / permissible (the developer's first question)
+    depth: 0.12            # plate depth near 18-22 m and core share (plate efficiency)
+    west_glass: 0.10       # share of facade facing the hot west sun (Mumbai afternoons)
+    breeze: 0.10           # exposure of the faces to the wind rose (SW-W-WNW monsoon and sea breeze), wind shadow
+    view: 0.12             # facade that sees the view bearing unobstructed (sea / open land); constant (no effect) when unknown;
+                           # a Mumbai sea view sells at a premium, so it can outweigh the west sun (handled with balconies/fins)
+    privacy: 0.08          # distance between facing windows (other towers; neighbours assumed at their setback)
+    daylight: 0.07         # spacing / height in front of each face (lower floors)
+    garden: 0.10           # usable open space >= garden_min_width wide, in few pieces (RG)
+    leftovers: 0.07        # buildable land left as slivers narrower than garden_min_width
+    approach: 0.06         # gate to tower entrance distance (drop-off near the road)
+    phasing: 0.02          # towers buildable in phases with independent access (large plots only)
+    alignment: 0.08        # tower parallel to the main plot edges: basement parking grid, straight drives, no wedge leftovers
+  slab_depths: [16.0, 18.0, 20.0, 22.0]
+  point_depths: [24.0, 28.0, 32.0]
+  slab_min_aspect: 1.9     # long / short >= this is a slab, else a point tower (typology classifier uses 1.9 too)
+  ideal_depth_range: [18.0, 22.0]
+  depth_tolerance: 6.0     # depth quality falls to 0 this far outside the ideal range
+  one_core_max_length: 48.0  # a longer slab needs a second core (22.5 m travel distance each way)
+  # gross core per tower (stairs, lifts, lobby, shafts) by height: [max height m, m2]
+  core_area_by_height: [[24.0, 45.0], [45.0, 65.0], [70.0, 85.0], [9999.0, 110.0]]
+  max_core_share: 0.20     # a plate whose core takes more than this is not offered
+  fsi_countable_fraction: 0.88   # plate area counted in FSI (stair, lift and lobby are FSI-free under DCPR 2034 Reg 31)
+  privacy_distance: 18.0   # facing habitable windows closer than this overlook each other ...
+  privacy_height_ratio: 0.3  # ... or closer than this x building height for tall towers
+  daylight_ratio: 0.6      # wanted clear distance in front of a face = ratio x building height
+  garden_min_width: 8.0
+  approach_good: 15.0      # gate to entrance distance that scores 1
+  approach_bad: 80.0       # ... and 0 (at least 0.6 x the plot diagonal on big plots)
+  phasing_min_plot: 6000.0 # below this plot area phasing is not scored
+  sea_bearing_default: 270.0  # Mumbai coast faces the Arabian Sea to the west; used only when sea_view = yes and no bearing is given
+  wind_shadow_heights: 3.0 # a tower downwind of another within this many building heights loses breeze
+  full_eval_budget: 24     # layouts per tower count given the full fire / gate / ramp / garden check
+  full_eval_passing: 6     # ... stop early once this many pass every hard rule
+  options: 3
+  runners_up: 2
+  min_family_share: 0.0    # tower count is the first decision: every legally feasible count is shown (ranked);
+                           # raise (e.g. 0.75) to drop counts scoring below that share of the best
 core:
   lift_size: [2.4, 2.6]
   stair_flight_width: 1.5

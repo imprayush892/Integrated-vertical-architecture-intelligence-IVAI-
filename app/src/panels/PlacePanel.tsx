@@ -7,15 +7,37 @@ import type { PlacementOption } from "../lib/types";
 import { Chip, EmptyState, Icon, LatchButton, Panel, Progress, ProvenanceTag, Readout, Skeleton, StatusChip } from "../ui";
 import "./stage14.css";
 
-/** The five trade-off criteria of the placement search (engine score terms, 0 to 1, higher is better). */
+/** Trade-off criteria of the placement search (engine score terms, 0 to 1, higher is better). Older projects
+ *  only carry the first v1 terms; a missing term shows "–". */
 const CRITERIA: { key: string; label: string; hint: string }[] = [
-  { key: "coverage", label: "Coverage", hint: "plot used" },
-  { key: "gap", label: "Gap", hint: "between towers" },
-  { key: "breeze", label: "Breeze", hint: "faces the wind" },
+  { key: "fsi", label: "FSI use", hint: "of permissible BUA" },
+  { key: "depth", label: "Plate", hint: "depth and core share" },
+  { key: "west_glass", label: "West sun", hint: "less west glass" },
+  { key: "breeze", label: "Breeze", hint: "wind rose, no shadow" },
   { key: "view", label: "View", hint: "faces the view" },
-  { key: "west_glass", label: "West glass", hint: "less is better" },
+  { key: "daylight", label: "Daylight", hint: "spacing / height" },
+  { key: "privacy", label: "Privacy", hint: "facing windows" },
+  { key: "garden", label: "Garden", hint: "usable lawns" },
+  { key: "leftovers", label: "No slivers", hint: "no dead strips" },
+  { key: "approach", label: "Approach", hint: "gate to tower" },
+  { key: "alignment", label: "Alignment", hint: "with plot edges" },
 ];
 const OPTION_NAME: Record<string, string> = { 1: "Single tower", 2: "Twin towers", 3: "Three towers" };
+
+/** Placement v2 fields (engine models.py PlacementOption); optional so v1 projects still render. */
+interface Reason { key: string; kind: "pro" | "con" | "note" | "rule" | "fail"; text: string; value?: number; impact?: number }
+interface RunnerUp { concept: string; arrangement: string; angle_deg: number; score: number; plate: [number, number]; why_not: string; passes: boolean }
+type OptionV2 = PlacementOption & {
+  rank?: number; recommended?: boolean; concept?: string; arrangement?: string; typology_hint?: string;
+  reasons?: Reason[]; metrics?: Record<string, number>; runners_up?: RunnerUp[];
+};
+const REASON_MARK: Record<Reason["kind"], { mark: string; color: string; label: string }> = {
+  pro: { mark: "+", color: "var(--pass-ink)", label: "advantage" },
+  con: { mark: "−", color: "var(--warn-ink)", label: "drawback" },
+  note: { mark: "·", color: "var(--ink-3)", label: "note" },
+  rule: { mark: "✓", color: "var(--det-ink)", label: "rule met" },
+  fail: { mark: "✗", color: "var(--fail-ink)", label: "rule failed" },
+};
 const nice = (k: string) => k.replace(/_/g, " ");
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -31,8 +53,10 @@ export function PlacePanel() {
   const [picked, setPicked] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
 
-  const options = pl?.options ?? [];
-  const best = useMemo(() => options.reduce<PlacementOption | null>((b, o) => (!b || o.score > b.score ? o : b), null), [options]);
+  const options = (pl?.options ?? []) as OptionV2[];
+  const best = useMemo(() => options.find((o) => o.recommended)
+    ?? options.reduce<OptionV2 | null>((b, o) => (!b || o.score > b.score ? o : b), null), [options]);
+  const [showAll, setShowAll] = useState(false);
   const currentId = picked && options.some((o) => o.id === picked) ? picked : pl?.chosen ?? best?.id ?? null;
   const cur = options.find((o) => o.id === currentId) ?? null;
 
@@ -46,12 +70,12 @@ export function PlacePanel() {
     return (
       <div className="s14">
         <Panel profile="well" pad="sm" className="s14-busy" role="status" aria-live="polite">
-          <Progress label="Trying every angle and tower count" showLabel />
+          <Progress label="Weighing tower counts, angles and site rules" showLabel />
           <Skeleton height={44} radius={12} />
           <Skeleton height={44} radius={12} />
           <Skeleton height={44} radius={12} />
         </Panel>
-        <p className="s14-meta">Every angle in 1° steps and every plate size that fits is being tried.</p>
+        <p className="s14-meta">Plot-aligned, north-south and climate angles; slab and point towers; fire drive, gate, ramp and garden checked for each.</p>
       </div>
     );
   }
@@ -64,7 +88,7 @@ export function PlacePanel() {
             ? <LatchButton variant="det" onClick={() => void run("Placing towers", () => rpc("place_towers"))}>{pl ? "Search again" : "Find options"}</LatchButton>
             : <LatchButton variant="primary" onClick={() => setStep("trace")}>Trace the plot</LatchButton>}>
           {pl ? "No tower fits the buildable area with the plate limits. Try a smaller setback, a lower height or a bigger plot."
-            : site ? "The rules will try every angle and tower count on your buildable area and score them." : "Trace the plot first, then the rules can place towers on it."}
+            : site ? "The rules will try 1, 2 and 3 towers on your buildable area, check fire access, gate, ramp and FSI, and explain the trade-offs." : "Trace the plot first, then the rules can place towers on it."}
         </EmptyState>
       </div>
     );
@@ -86,11 +110,16 @@ export function PlacePanel() {
 
   const sameAll = (key: string) => options.every((o) => Math.abs((o.score_terms[key] ?? 0) - (options[0].score_terms[key] ?? 0)) < 1e-6);
   // a term that is the same neutral 0.5 everywhere means the rules had no input for it
-  const noInput = (key: string) => (key === "view" || key === "breeze") && options.every((o) => Math.abs((o.score_terms[key] ?? 0) - 0.5) < 1e-6);
+  const noInput = (key: string) => (key === "view" || key === "breeze" || key === "phasing") && options.every((o) => Math.abs((o.score_terms[key] ?? 0) - 0.5) < 1e-6);
+  // only show criteria the engine computed (v1 projects carry fewer terms)
+  const criteria = CRITERIA.filter((c) => options.some((o) => c.key in o.score_terms));
+  const reasons = cur?.reasons ?? [];
+  const soft = reasons.filter((r) => r.kind !== "rule");
+  const shown = showAll ? reasons : soft.slice(0, 5);
 
   return (
     <div className="s14">
-      <p className="s14-intro">Best option per tower count, found by trying every angle. Latch one to see it on the map.</p>
+      <p className="s14-intro">One option per tower count the plot can take, each checked against setbacks, gap, coverage, FSI, fire access, gate and parking. <b>{best ? `Option ${best.id}` : "The top score"}</b> is recommended. Latch one to see it on the map.</p>
 
       <Panel profile="well" pad="none" aria-label="Trade-off matrix">
         <table className="s14-mx">
@@ -105,13 +134,13 @@ export function PlacePanel() {
                     aria-label={`Option ${o.id}, ${OPTION_NAME[o.towers] ?? o.label}${o.id === pl.chosen ? ", in use" : ""}`}>
                     {o.id}
                   </LatchButton>
-                  <span className="s14-mx-sub">{o.towers === 1 ? "1 tower" : `${o.towers} towers`}</span>
+                  <span className="s14-mx-sub">{o.towers === 1 ? "1 tower" : `${o.towers} towers`}{o.concept ? ` · ${o.concept}` : ""}{o.rank ? ` · #${o.rank}` : ""}</span>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {CRITERIA.map((c) => {
+            {criteria.map((c) => {
               const vals = options.map((o) => o.score_terms[c.key] ?? 0);
               const unknown = noInput(c.key);
               const hi = Math.max(...vals);
@@ -120,6 +149,7 @@ export function PlacePanel() {
                   <th scope="row" className="s14-mx-label">{c.label}<small>{unknown ? "no input yet" : c.hint}</small></th>
                   {options.map((o, i) => {
                     const v = vals[i];
+                    const missing = !(c.key in o.score_terms);
                     const isBest = !unknown && !sameAll(c.key) && v >= hi - 1e-9;
                     return (
                       <td key={o.id} className={o.id === currentId ? "is-sel" : undefined}>
@@ -127,7 +157,7 @@ export function PlacePanel() {
                           <span className={`s14-meter${isBest ? " is-best" : ""}${unknown ? " is-unknown" : ""}`} aria-hidden="true"><i style={{ width: `${Math.round(v * 100)}%` }} /></span>
                           <span className={`s14-cell-num${isBest ? " is-best" : ""}${unknown ? " is-unknown" : ""}`}
                             aria-label={unknown ? `${c.label}, option ${o.id}: unknown` : `${c.label}, option ${o.id}: ${Math.round(v * 100)} of 100${isBest ? ", best" : ""}`}>
-                            {unknown ? "–" : Math.round(v * 100)}
+                            {unknown || missing ? "–" : Math.round(v * 100)}
                           </span>
                         </div>
                       </td>
@@ -149,7 +179,7 @@ export function PlacePanel() {
           </tfoot>
         </table>
       </Panel>
-      <p className="s14-meta">Scores are 0 to 100 from the rule engine. Higher is better.{noInput("view") ? " View shows – until a sea view is set in stage 3." : ""}</p>
+      <p className="s14-meta">Scores are 0 to 100 from the rule engine, weighted by design.yaml. Higher is better. Hard rules are never traded against them.{noInput("view") ? " View shows – until a sea view or view bearing is set." : ""}</p>
 
       {cur && (
         <Panel profile="flat" small pad="sm" className="s14-detail" aria-live="polite"
@@ -165,7 +195,40 @@ export function PlacePanel() {
             <Readout label={cur.plates.length > 1 ? "Each plate" : "Plate"} value={fmt(cur.plates[0]?.area, 0)} unit="m²" tone="det" size="sm" />
             <Readout label="Axis" value={cur.plates[0]?.angle_deg} unit="°" digits={0} tone="det" size="sm" />
           </div>
-          <p className="s14-meta"><b>{OPTION_NAME[cur.towers] ?? cap(cur.label)}.</b>{cur.plates[0] && <> Each plate {fmt(cur.plates[0].width)} × {fmt(cur.plates[0].depth)} m. Covers {pct(cur.coverage)} of the plot.</>}</p>
+          <p className="s14-meta"><b>{cur.label ? cap(cur.label) : OPTION_NAME[cur.towers]}.</b>{cur.plates[0] && <> Each plate {fmt(cur.plates[0].width)} × {fmt(cur.plates[0].depth)} m. Covers {pct(cur.coverage)} of the plot.</>}
+            {cur.typology_hint && <> Suggested plate: {nice(cur.typology_hint)}.</>}
+            {cur.metrics?.fsi_util != null && <> Uses {pct(cur.metrics.fsi_util)} of the permissible built-up area.</>}</p>
+
+          {reasons.length > 0 && (
+            <div aria-label="Why this option">
+              <div className="s14-row between"><span className="eyebrow">Why{cur.rank ? ` (rank ${cur.rank} of ${options.length})` : ""}</span>
+                {reasons.length > shown.length || showAll
+                  ? <LatchButton size="sm" variant="ghost" onClick={() => setShowAll(!showAll)}>{showAll ? "Fewer" : `All ${reasons.length}`}</LatchButton> : null}
+              </div>
+              <ul role="list" style={{ listStyle: "none", margin: "6px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {shown.map((r, i) => {
+                  const m = REASON_MARK[r.kind] ?? REASON_MARK.note;
+                  return (
+                    <li key={`${r.key}-${i}`} className="s14-meta" style={{ display: "grid", gridTemplateColumns: "14px 1fr", gap: 6, color: "var(--ink-2)" }}>
+                      <span aria-label={m.label} style={{ color: m.color, fontWeight: 700, textAlign: "center" }}>{m.mark}</span>
+                      <span>{r.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          {(cur.runners_up?.length ?? 0) > 0 && (
+            <details className="s14-meta">
+              <summary>Also tried ({cur.runners_up!.length})</summary>
+              <ul role="list" style={{ listStyle: "none", margin: "4px 0 0", padding: 0 }}>
+                {cur.runners_up!.map((r, i) => (
+                  <li key={i}>{cap(r.concept)}, {fmt(r.plate[0])} × {fmt(r.plate[1])} m at {fmt(r.angle_deg, 0)}°: {r.why_not}{r.passes ? "" : " (fails a rule)"}.</li>
+                ))}
+              </ul>
+            </details>
+          )}
 
           <div className="s14-pass-row" role="list" aria-label="Rule checks">
             {Object.entries(cur.passes).map(([k, v]) => <span role="listitem" key={k}><StatusChip status={v ? "pass" : "fail"}>{nice(k)}</StatusChip></span>)}
