@@ -83,3 +83,47 @@ def test_model_shape_and_centering():
     lo = min(r.x - bubble_radius(r.target_area) for r in d.rooms)
     hi = max(r.x + bubble_radius(r.target_area) for r in d.rooms)
     assert abs(lo + hi) < 0.5
+
+
+# ---------------------------------------------------------------------------------------------- generator v2 zoning
+
+def test_zone_programme_guest_toilet_and_optional_connectors():
+    """v2 brief: a 1BHK gains a powder room off the living room; foyer / passage become optional connectors;
+    nothing the user placed is removed."""
+    from planner_engine.diagram import zone_programme
+
+    prog = presets()["1bhk"]
+    d = from_programme(_unit(), prog)
+    z = zone_programme(d, 48.0, {}, _unit(), facade=14.0)
+    ids = {r.id for r in z.rooms}
+    assert {r.id for r in d.rooms} <= ids
+    powder = next(r for r in z.rooms if r.id == "powder")
+    assert powder.type == "wc" and powder.optional
+    assert ("living", "powder") in [tuple(l) for l in z.links]
+    assert all(r.optional for r in z.rooms if r.type in ("foyer", "passage"))
+    assert len(d.rooms) == len(prog.rooms)  # the input diagram is not mutated
+
+
+def test_zone_programme_adds_rooms_only_when_the_flat_is_big():
+    from planner_engine.diagram import zone_programme
+
+    d = from_programme(_unit(), presets()["2bhk"])
+    small = zone_programme(d, 70.0, {}, _unit(), facade=16.0)
+    big = zone_programme(d, 150.0, {}, _unit(), facade=12.0)
+    assert len(small.rooms) <= len(big.rooms)
+    extra = {r.type for r in big.rooms} - {r.type for r in d.rooms}
+    assert extra & {"dress", "pooja", "study"} and all(r.optional for r in big.rooms if r.id not in {x.id for x in d.rooms})
+
+
+def test_flex_links_open_private_rooms_onto_one_hub():
+    """Programme links to the passage become 'door onto the hub' choices (dining > passage > living)."""
+    from planner_engine.diagram import flex_links
+
+    d = from_programme(_unit(), presets()["2bhk"])
+    fixed, alts = flex_links(d)
+    alt = dict(alts)
+    for rid in ("master", "bed2", "toilet_c"):
+        assert alt[rid] == ("dining", "passage", "living")
+    assert alt["kitchen"] == ("dining", "living")
+    assert ("master", "toilet_m") in fixed  # attached toilets stay attached
+    assert not any("passage" in l and ("master" in l or "bed2" in l) for l in fixed)

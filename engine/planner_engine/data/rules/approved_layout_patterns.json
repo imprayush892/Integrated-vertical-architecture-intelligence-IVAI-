@@ -1,0 +1,1593 @@
+{
+ "_meta": {
+  "source": "data/mined/graphs_v2.jsonl.gz (kept flats, apartments only, one flat per project and signature)",
+  "built_by": "engine/tools/build_graph_dataset.py --patterns-only",
+  "min_projects_per_figure": 5,
+  "frame": "origin = flat entrance door, +x = wall direction towards the flat's deepest facade, +y = x turned 90 deg anticlockwise; angles in degrees (0 = towards the deep facade, 180 = back towards the entrance)",
+  "angle_bins": "8 sectors of 45 deg, centre angle per name: E_deep=0, NE=45, N=90, NW=135, W_entrance=180, SW=-135, S=-90, SE=-45; names are frame-relative (x = deep facade), not compass",
+  "kept_flats_total": 1264,
+  "pap_tenements_excluded": 7,
+  "unique_apartments_used": 967,
+  "n": "figure basis: rooms for direction/hops, flats for the rest (n_flats where both apply)",
+  "hub_types": "living / dining / foyer / passage / unnamed (unlabelled cell, mostly a passage whose label was lost) / none (no link to a hub found; link not detected or room reached through another room)",
+  "bhk_groups": "bedroom + master count; '4+' = 4 or more; 'all' = every group"
+ },
+ "bhk": {
+  "1": {
+   "n": 152,
+   "n_projects": 34,
+   "direction_from_living": {
+    "kitchen": {
+     "n": 152,
+     "n_projects": 34,
+     "n_flats": 152,
+     "angle_hist_8": {
+      "E_deep": 0.191,
+      "NE": 0.224,
+      "N": 0.079,
+      "NW": 0.046,
+      "W_entrance": 0.086,
+      "SW": 0.039,
+      "S": 0.105,
+      "SE": 0.23
+     },
+     "dist_m": {
+      "p10": 2.74,
+      "p25": 2.88,
+      "p50": 3.23,
+      "p75": 3.67,
+      "p90": 4.31
+     }
+    },
+    "bedroom": {
+     "n": 134,
+     "n_projects": 31,
+     "n_flats": 134,
+     "angle_hist_8": {
+      "E_deep": 0.59,
+      "NE": 0.097,
+      "N": 0.09,
+      "NW": 0.007,
+      "W_entrance": 0.007,
+      "SW": 0.007,
+      "S": 0.09,
+      "SE": 0.112
+     },
+     "dist_m": {
+      "p10": 3.7,
+      "p25": 4.86,
+      "p50": 5.34,
+      "p75": 5.57,
+      "p90": 6.38
+     }
+    },
+    "any_bedroom": {
+     "n": 152,
+     "n_projects": 34,
+     "n_flats": 152,
+     "angle_hist_8": {
+      "E_deep": 0.618,
+      "NE": 0.086,
+      "N": 0.079,
+      "NW": 0.007,
+      "W_entrance": 0.007,
+      "SW": 0.02,
+      "S": 0.086,
+      "SE": 0.099
+     },
+     "dist_m": {
+      "p10": 3.72,
+      "p25": 4.93,
+      "p50": 5.36,
+      "p75": 5.62,
+      "p90": 6.34
+     }
+    },
+    "toilet": {
+     "n": 246,
+     "n_projects": 34,
+     "n_flats": 152,
+     "angle_hist_8": {
+      "E_deep": 0.333,
+      "NE": 0.179,
+      "N": 0.069,
+      "NW": 0.069,
+      "W_entrance": 0.028,
+      "SW": 0.073,
+      "S": 0.085,
+      "SE": 0.163
+     },
+     "dist_m": {
+      "p10": 2.7,
+      "p25": 3.19,
+      "p50": 4.99,
+      "p75": 6.2,
+      "p90": 7.08
+     }
+    },
+    "dining": {
+     "n": 18,
+     "n_projects": 8,
+     "n_flats": 18,
+     "angle_hist_8": {
+      "E_deep": 0.278,
+      "NE": 0.333,
+      "N": 0.056,
+      "W_entrance": 0.056,
+      "SW": 0.056,
+      "S": 0.111,
+      "SE": 0.111
+     },
+     "dist_m": {
+      "p10": 2.15,
+      "p25": 2.23,
+      "p50": 2.48,
+      "p75": 2.75,
+      "p90": 2.93
+     }
+    }
+   },
+   "hops_from_entrance": {
+    "living": {
+     "n": 152,
+     "n_projects": 34,
+     "hist": {
+      "0": 0.849,
+      "1": 0.138,
+      "2": 0.007,
+      "4": 0.007
+     },
+     "median": 0.0,
+     "mean": 0.18
+    },
+    "dining": {
+     "n": 18,
+     "n_projects": 8,
+     "hist": {
+      "0": 0.167,
+      "1": 0.556,
+      "2": 0.278
+     },
+     "median": 1.0,
+     "mean": 1.11
+    },
+    "passage": {
+     "n": 64,
+     "n_projects": 17,
+     "hist": {
+      "0": 0.031,
+      "1": 0.812,
+      "2": 0.078,
+      "3": 0.078
+     },
+     "median": 1.0,
+     "mean": 1.2
+    },
+    "kitchen": {
+     "n": 138,
+     "n_projects": 30,
+     "hist": {
+      "1": 0.486,
+      "2": 0.486,
+      "3": 0.029
+     },
+     "median": 2.0,
+     "mean": 1.54
+    },
+    "bedroom": {
+     "n": 107,
+     "n_projects": 26,
+     "hist": {
+      "1": 0.262,
+      "2": 0.607,
+      "3": 0.121,
+      "4": 0.009
+     },
+     "median": 2.0,
+     "mean": 1.88
+    },
+    "toilet": {
+     "n": 170,
+     "n_projects": 31,
+     "hist": {
+      "1": 0.141,
+      "2": 0.353,
+      "3": 0.347,
+      "4": 0.118,
+      "5": 0.041
+     },
+     "median": 3.0,
+     "mean": 2.56
+    }
+   },
+   "entrance_room": {
+    "n": 152,
+    "n_projects": 34,
+    "share": {
+     "living": 0.849,
+     "other": 0.118,
+     "dining": 0.02,
+     "passage": 0.013
+    }
+   },
+   "hub_patterns": {
+    "bedroom_opens_onto": {
+     "n": 152,
+     "n_projects": 34,
+     "share": {
+      "passage": 0.355,
+      "unnamed": 0.263,
+      "living": 0.191,
+      "none": 0.164,
+      "dining": 0.026
+     }
+    },
+    "flat_patterns": [
+     {
+      "n": 54,
+      "n_projects": 17,
+      "pattern": "passage",
+      "share": 0.355
+     },
+     {
+      "n": 40,
+      "n_projects": 11,
+      "pattern": "unnamed",
+      "share": 0.263
+     },
+     {
+      "n": 29,
+      "n_projects": 14,
+      "pattern": "living",
+      "share": 0.191
+     },
+     {
+      "n": 25,
+      "n_projects": 13,
+      "pattern": "none",
+      "share": 0.164
+     }
+    ]
+   },
+   "passage": {
+    "all_flats": {
+     "n": 152,
+     "n_projects": 34,
+     "share_of_flats_with_passage": 0.421,
+     "passage_area_share": {
+      "p10": 0.0,
+      "p25": 0.0,
+      "p50": 0.0,
+      "p75": 0.04,
+      "p90": 0.06
+     }
+    },
+    "flats_with_passage": {
+     "n": 64,
+     "n_projects": 17,
+     "passage_area_share": {
+      "p10": 0.03,
+      "p25": 0.04,
+      "p50": 0.05,
+      "p75": 0.06,
+      "p90": 0.09
+     }
+    }
+   },
+   "area_m2": {
+    "n": 152,
+    "n_projects": 34,
+    "percentiles": {
+     "p10": 33.26,
+     "p25": 36.02,
+     "p50": 39.45,
+     "p75": 44.07,
+     "p90": 56.11
+    }
+   },
+   "n_rooms": {
+    "n": 152,
+    "n_projects": 34,
+    "percentiles": {
+     "p10": 5.0,
+     "p25": 5.0,
+     "p50": 6.0,
+     "p75": 7.0,
+     "p90": 9.0
+    }
+   }
+  },
+  "2": {
+   "n": 524,
+   "n_projects": 40,
+   "direction_from_living": {
+    "kitchen": {
+     "n": 524,
+     "n_projects": 40,
+     "n_flats": 524,
+     "angle_hist_8": {
+      "E_deep": 0.147,
+      "NE": 0.374,
+      "N": 0.011,
+      "NW": 0.017,
+      "W_entrance": 0.084,
+      "SW": 0.029,
+      "S": 0.019,
+      "SE": 0.319
+     },
+     "dist_m": {
+      "p10": 2.91,
+      "p25": 3.08,
+      "p50": 3.45,
+      "p75": 3.99,
+      "p90": 4.4
+     }
+    },
+    "master": {
+     "n": 113,
+     "n_projects": 13,
+     "n_flats": 105,
+     "angle_hist_8": {
+      "E_deep": 0.575,
+      "NE": 0.204,
+      "N": 0.027,
+      "NW": 0.009,
+      "SE": 0.186
+     },
+     "dist_m": {
+      "p10": 4.48,
+      "p25": 4.65,
+      "p50": 6.11,
+      "p75": 8.13,
+      "p90": 8.75
+     }
+    },
+    "bedroom": {
+     "n": 935,
+     "n_projects": 39,
+     "n_flats": 516,
+     "angle_hist_8": {
+      "E_deep": 0.614,
+      "NE": 0.127,
+      "N": 0.027,
+      "NW": 0.002,
+      "W_entrance": 0.037,
+      "SW": 0.002,
+      "S": 0.024,
+      "SE": 0.167
+     },
+     "dist_m": {
+      "p10": 3.93,
+      "p25": 5.32,
+      "p50": 6.05,
+      "p75": 7.29,
+      "p90": 8.31
+     }
+    },
+    "any_bedroom": {
+     "n": 1048,
+     "n_projects": 40,
+     "n_flats": 524,
+     "angle_hist_8": {
+      "E_deep": 0.61,
+      "NE": 0.135,
+      "N": 0.027,
+      "NW": 0.003,
+      "W_entrance": 0.033,
+      "SW": 0.002,
+      "S": 0.021,
+      "SE": 0.169
+     },
+     "dist_m": {
+      "p10": 4.0,
+      "p25": 5.31,
+      "p50": 6.07,
+      "p75": 7.35,
+      "p90": 8.36
+     }
+    },
+    "toilet": {
+     "n": 1041,
+     "n_projects": 40,
+     "n_flats": 524,
+     "angle_hist_8": {
+      "E_deep": 0.566,
+      "NE": 0.168,
+      "N": 0.01,
+      "NW": 0.037,
+      "W_entrance": 0.019,
+      "SW": 0.026,
+      "S": 0.01,
+      "SE": 0.165
+     },
+     "dist_m": {
+      "p10": 3.12,
+      "p25": 4.04,
+      "p50": 5.69,
+      "p75": 7.51,
+      "p90": 8.29
+     }
+    },
+    "dining": {
+     "n": 191,
+     "n_projects": 15,
+     "n_flats": 191,
+     "angle_hist_8": {
+      "E_deep": 0.445,
+      "NE": 0.257,
+      "N": 0.005,
+      "NW": 0.01,
+      "W_entrance": 0.005,
+      "S": 0.021,
+      "SE": 0.257
+     },
+     "dist_m": {
+      "p10": 2.35,
+      "p25": 2.55,
+      "p50": 2.74,
+      "p75": 3.0,
+      "p90": 3.25
+     }
+    }
+   },
+   "hops_from_entrance": {
+    "living": {
+     "n": 524,
+     "n_projects": 40,
+     "hist": {
+      "0": 0.95,
+      "1": 0.046,
+      "2": 0.004
+     },
+     "median": 0.0,
+     "mean": 0.05
+    },
+    "dining": {
+     "n": 191,
+     "n_projects": 15,
+     "hist": {
+      "0": 0.031,
+      "1": 0.958,
+      "2": 0.01
+     },
+     "median": 1.0,
+     "mean": 0.98
+    },
+    "passage": {
+     "n": 231,
+     "n_projects": 25,
+     "hist": {
+      "0": 0.004,
+      "1": 0.74,
+      "2": 0.221,
+      "3": 0.035
+     },
+     "median": 1.0,
+     "mean": 1.29
+    },
+    "kitchen": {
+     "n": 502,
+     "n_projects": 39,
+     "hist": {
+      "1": 0.482,
+      "2": 0.51,
+      "3": 0.006,
+      "5": 0.002
+     },
+     "median": 2.0,
+     "mean": 1.53
+    },
+    "master": {
+     "n": 92,
+     "n_projects": 13,
+     "hist": {
+      "1": 0.261,
+      "2": 0.413,
+      "3": 0.239,
+      "4": 0.065,
+      "5": 0.022
+     },
+     "median": 2.0,
+     "mean": 2.17
+    },
+    "bedroom": {
+     "n": 817,
+     "n_projects": 39,
+     "hist": {
+      "1": 0.092,
+      "2": 0.599,
+      "3": 0.271,
+      "4": 0.033,
+      "5": 0.006
+     },
+     "median": 2.0,
+     "mean": 2.26
+    },
+    "toilet": {
+     "n": 855,
+     "n_projects": 39,
+     "hist": {
+      "1": 0.057,
+      "2": 0.313,
+      "3": 0.478,
+      "4": 0.126,
+      "5": 0.025
+     },
+     "median": 3.0,
+     "mean": 2.75
+    }
+   },
+   "entrance_room": {
+    "n": 524,
+    "n_projects": 40,
+    "share": {
+     "living": 0.95,
+     "other": 0.034,
+     "dining": 0.011,
+     "passage": 0.002,
+     "foyer": 0.002
+    }
+   },
+   "hub_patterns": {
+    "bedroom_opens_onto": {
+     "n": 1048,
+     "n_projects": 40,
+     "share": {
+      "passage": 0.359,
+      "unnamed": 0.272,
+      "none": 0.133,
+      "dining": 0.129,
+      "living": 0.108
+     }
+    },
+    "flat_patterns": [
+     {
+      "n": 153,
+      "n_projects": 24,
+      "pattern": "passage+passage",
+      "share": 0.292
+     },
+     {
+      "n": 95,
+      "n_projects": 13,
+      "pattern": "unnamed+unnamed",
+      "share": 0.181
+     },
+     {
+      "n": 45,
+      "n_projects": 12,
+      "pattern": "none+none",
+      "share": 0.086
+     },
+     {
+      "n": 44,
+      "n_projects": 12,
+      "pattern": "living+unnamed",
+      "share": 0.084
+     },
+     {
+      "n": 28,
+      "n_projects": 10,
+      "pattern": "passage+unnamed",
+      "share": 0.053
+     },
+     {
+      "n": 23,
+      "n_projects": 8,
+      "pattern": "living+passage",
+      "share": 0.044
+     },
+     {
+      "n": 18,
+      "n_projects": 5,
+      "pattern": "none+passage",
+      "share": 0.034
+     },
+     {
+      "n": 16,
+      "n_projects": 8,
+      "pattern": "living+none",
+      "share": 0.031
+     }
+    ]
+   },
+   "passage": {
+    "all_flats": {
+     "n": 524,
+     "n_projects": 40,
+     "share_of_flats_with_passage": 0.441,
+     "passage_area_share": {
+      "p10": 0.0,
+      "p25": 0.0,
+      "p50": 0.0,
+      "p75": 0.04,
+      "p90": 0.05
+     }
+    },
+    "flats_with_passage": {
+     "n": 231,
+     "n_projects": 25,
+     "passage_area_share": {
+      "p10": 0.03,
+      "p25": 0.03,
+      "p50": 0.04,
+      "p75": 0.05,
+      "p90": 0.06
+     }
+    }
+   },
+   "area_m2": {
+    "n": 524,
+    "n_projects": 40,
+    "percentiles": {
+     "p10": 45.88,
+     "p25": 50.71,
+     "p50": 57.19,
+     "p75": 62.67,
+     "p90": 68.05
+    }
+   },
+   "n_rooms": {
+    "n": 524,
+    "n_projects": 40,
+    "percentiles": {
+     "p10": 7.0,
+     "p25": 7.0,
+     "p50": 8.0,
+     "p75": 9.0,
+     "p90": 10.0
+    }
+   }
+  },
+  "3": {
+   "n": 242,
+   "n_projects": 37,
+   "direction_from_living": {
+    "kitchen": {
+     "n": 242,
+     "n_projects": 37,
+     "n_flats": 242,
+     "angle_hist_8": {
+      "E_deep": 0.112,
+      "NE": 0.219,
+      "N": 0.083,
+      "NW": 0.021,
+      "W_entrance": 0.124,
+      "SW": 0.037,
+      "S": 0.045,
+      "SE": 0.36
+     },
+     "dist_m": {
+      "p10": 3.05,
+      "p25": 3.22,
+      "p50": 3.84,
+      "p75": 4.43,
+      "p90": 5.98
+     }
+    },
+    "master": {
+     "n": 90,
+     "n_projects": 11,
+     "n_flats": 68,
+     "angle_hist_8": {
+      "E_deep": 0.711,
+      "NE": 0.156,
+      "N": 0.033,
+      "W_entrance": 0.011,
+      "S": 0.022,
+      "SE": 0.067
+     },
+     "dist_m": {
+      "p10": 5.23,
+      "p25": 7.0,
+      "p50": 8.25,
+      "p75": 9.06,
+      "p90": 9.58
+     }
+    },
+    "bedroom": {
+     "n": 636,
+     "n_projects": 34,
+     "n_flats": 233,
+     "angle_hist_8": {
+      "E_deep": 0.472,
+      "NE": 0.157,
+      "N": 0.031,
+      "NW": 0.03,
+      "W_entrance": 0.157,
+      "SW": 0.014,
+      "S": 0.009,
+      "SE": 0.129
+     },
+     "dist_m": {
+      "p10": 3.84,
+      "p25": 5.52,
+      "p50": 6.43,
+      "p75": 8.49,
+      "p90": 9.2
+     }
+    },
+    "any_bedroom": {
+     "n": 726,
+     "n_projects": 37,
+     "n_flats": 242,
+     "angle_hist_8": {
+      "E_deep": 0.501,
+      "NE": 0.157,
+      "N": 0.032,
+      "NW": 0.026,
+      "W_entrance": 0.139,
+      "SW": 0.012,
+      "S": 0.011,
+      "SE": 0.121
+     },
+     "dist_m": {
+      "p10": 3.94,
+      "p25": 5.55,
+      "p50": 6.77,
+      "p75": 8.58,
+      "p90": 9.34
+     }
+    },
+    "toilet": {
+     "n": 741,
+     "n_projects": 37,
+     "n_flats": 242,
+     "angle_hist_8": {
+      "E_deep": 0.42,
+      "NE": 0.155,
+      "N": 0.043,
+      "NW": 0.094,
+      "W_entrance": 0.055,
+      "SW": 0.072,
+      "S": 0.011,
+      "SE": 0.15
+     },
+     "dist_m": {
+      "p10": 3.5,
+      "p25": 4.32,
+      "p50": 5.74,
+      "p75": 8.07,
+      "p90": 9.35
+     }
+    },
+    "dining": {
+     "n": 100,
+     "n_projects": 17,
+     "n_flats": 99,
+     "angle_hist_8": {
+      "E_deep": 0.26,
+      "NE": 0.39,
+      "N": 0.01,
+      "NW": 0.06,
+      "W_entrance": 0.01,
+      "SW": 0.05,
+      "S": 0.02,
+      "SE": 0.2
+     },
+     "dist_m": {
+      "p10": 2.66,
+      "p25": 2.88,
+      "p50": 3.02,
+      "p75": 3.42,
+      "p90": 3.84
+     }
+    }
+   },
+   "hops_from_entrance": {
+    "living": {
+     "n": 242,
+     "n_projects": 37,
+     "hist": {
+      "0": 0.806,
+      "1": 0.19,
+      "2": 0.004
+     },
+     "median": 0.0,
+     "mean": 0.2
+    },
+    "dining": {
+     "n": 100,
+     "n_projects": 17,
+     "hist": {
+      "0": 0.01,
+      "1": 0.93,
+      "2": 0.05,
+      "3": 0.01
+     },
+     "median": 1.0,
+     "mean": 1.06
+    },
+    "passage": {
+     "n": 162,
+     "n_projects": 24,
+     "hist": {
+      "0": 0.086,
+      "1": 0.395,
+      "2": 0.512,
+      "3": 0.006
+     },
+     "median": 2.0,
+     "mean": 1.44
+    },
+    "kitchen": {
+     "n": 230,
+     "n_projects": 36,
+     "hist": {
+      "1": 0.457,
+      "2": 0.513,
+      "3": 0.03
+     },
+     "median": 2.0,
+     "mean": 1.57
+    },
+    "master": {
+     "n": 71,
+     "n_projects": 11,
+     "hist": {
+      "1": 0.141,
+      "2": 0.183,
+      "3": 0.451,
+      "4": 0.211,
+      "5": 0.014
+     },
+     "median": 3.0,
+     "mean": 2.77
+    },
+    "bedroom": {
+     "n": 573,
+     "n_projects": 33,
+     "hist": {
+      "1": 0.209,
+      "2": 0.414,
+      "3": 0.297,
+      "4": 0.061,
+      "5": 0.019
+     },
+     "median": 2.0,
+     "mean": 2.27
+    },
+    "toilet": {
+     "n": 633,
+     "n_projects": 36,
+     "hist": {
+      "1": 0.063,
+      "2": 0.329,
+      "3": 0.324,
+      "4": 0.21,
+      "5": 0.066,
+      "6": 0.008
+     },
+     "median": 3.0,
+     "mean": 2.91
+    }
+   },
+   "entrance_room": {
+    "n": 242,
+    "n_projects": 37,
+    "share": {
+     "living": 0.806,
+     "other": 0.132,
+     "passage": 0.058,
+     "dining": 0.004
+    }
+   },
+   "hub_patterns": {
+    "bedroom_opens_onto": {
+     "n": 726,
+     "n_projects": 37,
+     "share": {
+      "passage": 0.353,
+      "unnamed": 0.304,
+      "living": 0.213,
+      "none": 0.073,
+      "dining": 0.056
+     }
+    },
+    "flat_patterns": [
+     {
+      "n": 40,
+      "n_projects": 10,
+      "pattern": "living+unnamed+unnamed",
+      "share": 0.165
+     },
+     {
+      "n": 38,
+      "n_projects": 7,
+      "pattern": "living+passage+passage",
+      "share": 0.157
+     },
+     {
+      "n": 23,
+      "n_projects": 9,
+      "pattern": "passage+passage+unnamed",
+      "share": 0.095
+     },
+     {
+      "n": 21,
+      "n_projects": 10,
+      "pattern": "unnamed+unnamed+unnamed",
+      "share": 0.087
+     },
+     {
+      "n": 20,
+      "n_projects": 6,
+      "pattern": "passage+passage+passage",
+      "share": 0.083
+     },
+     {
+      "n": 11,
+      "n_projects": 5,
+      "pattern": "living+living+living",
+      "share": 0.045
+     },
+     {
+      "n": 10,
+      "n_projects": 7,
+      "pattern": "passage+unnamed+unnamed",
+      "share": 0.041
+     }
+    ]
+   },
+   "passage": {
+    "all_flats": {
+     "n": 242,
+     "n_projects": 37,
+     "share_of_flats_with_passage": 0.649,
+     "passage_area_share": {
+      "p10": 0.0,
+      "p25": 0.0,
+      "p50": 0.03,
+      "p75": 0.04,
+      "p90": 0.05
+     }
+    },
+    "flats_with_passage": {
+     "n": 157,
+     "n_projects": 25,
+     "passage_area_share": {
+      "p10": 0.02,
+      "p25": 0.03,
+      "p50": 0.04,
+      "p75": 0.04,
+      "p90": 0.05
+     }
+    }
+   },
+   "area_m2": {
+    "n": 242,
+    "n_projects": 37,
+    "percentiles": {
+     "p10": 69.87,
+     "p25": 76.97,
+     "p50": 90.5,
+     "p75": 106.06,
+     "p90": 119.53
+    }
+   },
+   "n_rooms": {
+    "n": 242,
+    "n_projects": 37,
+    "percentiles": {
+     "p10": 9.0,
+     "p25": 10.0,
+     "p50": 11.5,
+     "p75": 13.0,
+     "p90": 15.0
+    }
+   }
+  },
+  "4+": {
+   "n": 40,
+   "n_projects": 15,
+   "direction_from_living": {
+    "kitchen": {
+     "n": 40,
+     "n_projects": 15,
+     "n_flats": 40,
+     "angle_hist_8": {
+      "E_deep": 0.1,
+      "NE": 0.05,
+      "N": 0.075,
+      "NW": 0.125,
+      "W_entrance": 0.2,
+      "SW": 0.175,
+      "S": 0.2,
+      "SE": 0.075
+     },
+     "dist_m": {
+      "p10": 4.07,
+      "p25": 4.37,
+      "p50": 6.4,
+      "p75": 8.27,
+      "p90": 8.96
+     }
+    },
+    "bedroom": {
+     "n": 133,
+     "n_projects": 13,
+     "n_flats": 34,
+     "angle_hist_8": {
+      "E_deep": 0.301,
+      "NE": 0.218,
+      "N": 0.038,
+      "NW": 0.045,
+      "W_entrance": 0.135,
+      "SW": 0.09,
+      "SE": 0.173
+     },
+     "dist_m": {
+      "p10": 4.66,
+      "p25": 6.29,
+      "p50": 7.37,
+      "p75": 8.46,
+      "p90": 9.86
+     }
+    },
+    "any_bedroom": {
+     "n": 164,
+     "n_projects": 15,
+     "n_flats": 40,
+     "angle_hist_8": {
+      "E_deep": 0.268,
+      "NE": 0.177,
+      "N": 0.03,
+      "NW": 0.073,
+      "W_entrance": 0.165,
+      "SW": 0.11,
+      "S": 0.037,
+      "SE": 0.14
+     },
+     "dist_m": {
+      "p10": 5.04,
+      "p25": 6.17,
+      "p50": 7.29,
+      "p75": 8.46,
+      "p90": 9.56
+     }
+    },
+    "toilet": {
+     "n": 202,
+     "n_projects": 15,
+     "n_flats": 40,
+     "angle_hist_8": {
+      "E_deep": 0.292,
+      "NE": 0.114,
+      "N": 0.059,
+      "NW": 0.149,
+      "W_entrance": 0.144,
+      "SW": 0.099,
+      "S": 0.03,
+      "SE": 0.114
+     },
+     "dist_m": {
+      "p10": 4.29,
+      "p25": 5.05,
+      "p50": 7.37,
+      "p75": 9.32,
+      "p90": 10.68
+     }
+    },
+    "dining": {
+     "n": 14,
+     "n_projects": 7,
+     "n_flats": 14,
+     "angle_hist_8": {
+      "E_deep": 0.071,
+      "N": 0.143,
+      "NW": 0.071,
+      "W_entrance": 0.714
+     },
+     "dist_m": {
+      "p10": 3.9,
+      "p25": 3.94,
+      "p50": 3.96,
+      "p75": 4.92,
+      "p90": 5.03
+     }
+    }
+   },
+   "hops_from_entrance": {
+    "living": {
+     "n": 40,
+     "n_projects": 15,
+     "hist": {
+      "0": 0.65,
+      "1": 0.2,
+      "2": 0.025,
+      "3": 0.125
+     },
+     "median": 0.0,
+     "mean": 0.62
+    },
+    "dining": {
+     "n": 14,
+     "n_projects": 7,
+     "hist": {
+      "0": 0.071,
+      "1": 0.571,
+      "2": 0.357
+     },
+     "median": 1.0,
+     "mean": 1.29
+    },
+    "passage": {
+     "n": 20,
+     "n_projects": 8,
+     "hist": {
+      "1": 0.3,
+      "2": 0.65,
+      "3": 0.05
+     },
+     "median": 2.0,
+     "mean": 1.75
+    },
+    "kitchen": {
+     "n": 40,
+     "n_projects": 15,
+     "hist": {
+      "1": 0.45,
+      "2": 0.425,
+      "3": 0.125
+     },
+     "median": 2.0,
+     "mean": 1.68
+    },
+    "bedroom": {
+     "n": 128,
+     "n_projects": 13,
+     "hist": {
+      "1": 0.312,
+      "2": 0.383,
+      "3": 0.234,
+      "4": 0.062,
+      "6": 0.008
+     },
+     "median": 2.0,
+     "mean": 2.08
+    },
+    "toilet": {
+     "n": 142,
+     "n_projects": 15,
+     "hist": {
+      "1": 0.106,
+      "2": 0.225,
+      "3": 0.246,
+      "4": 0.176,
+      "5": 0.204,
+      "6": 0.042
+     },
+     "median": 3.0,
+     "mean": 3.27
+    }
+   },
+   "entrance_room": {
+    "n": 40,
+    "n_projects": 15,
+    "share": {
+     "living": 0.65,
+     "other": 0.3,
+     "foyer": 0.025,
+     "dining": 0.025
+    }
+   },
+   "hub_patterns": {
+    "bedroom_opens_onto": {
+     "n": 164,
+     "n_projects": 15,
+     "share": {
+      "unnamed": 0.39,
+      "living": 0.311,
+      "passage": 0.14,
+      "none": 0.11,
+      "dining": 0.049
+     }
+    }
+   },
+   "passage": {
+    "all_flats": {
+     "n": 40,
+     "n_projects": 15,
+     "share_of_flats_with_passage": 0.35,
+     "passage_area_share": {
+      "p10": 0.0,
+      "p25": 0.0,
+      "p50": 0.0,
+      "p75": 0.02,
+      "p90": 0.03
+     }
+    },
+    "flats_with_passage": {
+     "n": 14,
+     "n_projects": 8,
+     "passage_area_share": {
+      "p10": 0.02,
+      "p25": 0.02,
+      "p50": 0.02,
+      "p75": 0.05,
+      "p90": 0.06
+     }
+    }
+   },
+   "area_m2": {
+    "n": 40,
+    "n_projects": 15,
+    "percentiles": {
+     "p10": 100.75,
+     "p25": 133.47,
+     "p50": 142.28,
+     "p75": 186.9,
+     "p90": 193.61
+    }
+   },
+   "n_rooms": {
+    "n": 40,
+    "n_projects": 15,
+    "percentiles": {
+     "p10": 15.0,
+     "p25": 15.0,
+     "p50": 18.0,
+     "p75": 20.25,
+     "p90": 22.0
+    }
+   }
+  },
+  "all": {
+   "n": 967,
+   "n_projects": 47,
+   "direction_from_living": {
+    "kitchen": {
+     "n": 967,
+     "n_projects": 47,
+     "n_flats": 967,
+     "angle_hist_8": {
+      "E_deep": 0.142,
+      "NE": 0.296,
+      "N": 0.048,
+      "NW": 0.027,
+      "W_entrance": 0.098,
+      "SW": 0.038,
+      "S": 0.049,
+      "SE": 0.303
+     },
+     "dist_m": {
+      "p10": 2.9,
+      "p25": 3.08,
+      "p50": 3.47,
+      "p75": 4.23,
+      "p90": 4.95
+     }
+    },
+    "master": {
+     "n": 252,
+     "n_projects": 14,
+     "n_flats": 201,
+     "angle_hist_8": {
+      "E_deep": 0.587,
+      "NE": 0.147,
+      "N": 0.024,
+      "NW": 0.028,
+      "W_entrance": 0.04,
+      "SW": 0.032,
+      "S": 0.036,
+      "SE": 0.107
+     },
+     "dist_m": {
+      "p10": 4.5,
+      "p25": 5.54,
+      "p50": 7.29,
+      "p75": 8.38,
+      "p90": 9.22
+     }
+    },
+    "bedroom": {
+     "n": 1838,
+     "n_projects": 46,
+     "n_flats": 917,
+     "angle_hist_8": {
+      "E_deep": 0.54,
+      "NE": 0.142,
+      "N": 0.034,
+      "NW": 0.015,
+      "W_entrance": 0.084,
+      "SW": 0.013,
+      "S": 0.022,
+      "SE": 0.15
+     },
+     "dist_m": {
+      "p10": 3.89,
+      "p25": 5.31,
+      "p50": 6.2,
+      "p75": 7.76,
+      "p90": 8.73
+     }
+    },
+    "any_bedroom": {
+     "n": 2090,
+     "n_projects": 47,
+     "n_flats": 958,
+     "angle_hist_8": {
+      "E_deep": 0.546,
+      "NE": 0.143,
+      "N": 0.033,
+      "NW": 0.017,
+      "W_entrance": 0.078,
+      "SW": 0.015,
+      "S": 0.023,
+      "SE": 0.145
+     },
+     "dist_m": {
+      "p10": 3.98,
+      "p25": 5.32,
+      "p50": 6.26,
+      "p75": 7.91,
+      "p90": 8.8
+     }
+    },
+    "toilet": {
+     "n": 2242,
+     "n_projects": 47,
+     "n_flats": 967,
+     "angle_hist_8": {
+      "E_deep": 0.465,
+      "NE": 0.16,
+      "N": 0.032,
+      "NW": 0.071,
+      "W_entrance": 0.043,
+      "SW": 0.053,
+      "S": 0.021,
+      "SE": 0.155
+     },
+     "dist_m": {
+      "p10": 3.17,
+      "p25": 4.18,
+      "p50": 5.74,
+      "p75": 7.8,
+      "p90": 8.68
+     }
+    },
+    "dining": {
+     "n": 323,
+     "n_projects": 27,
+     "n_flats": 322,
+     "angle_hist_8": {
+      "E_deep": 0.362,
+      "NE": 0.291,
+      "N": 0.015,
+      "NW": 0.028,
+      "W_entrance": 0.04,
+      "SW": 0.019,
+      "S": 0.025,
+      "SE": 0.22
+     },
+     "dist_m": {
+      "p10": 2.41,
+      "p25": 2.59,
+      "p50": 2.88,
+      "p75": 3.1,
+      "p90": 3.53
+     }
+    }
+   },
+   "hops_from_entrance": {
+    "living": {
+     "n": 967,
+     "n_projects": 47,
+     "hist": {
+      "0": 0.886,
+      "1": 0.102,
+      "2": 0.005,
+      "3": 0.005,
+      "4": 0.001
+     },
+     "median": 0.0,
+     "mean": 0.13
+    },
+    "dining": {
+     "n": 323,
+     "n_projects": 27,
+     "hist": {
+      "0": 0.034,
+      "1": 0.91,
+      "2": 0.053,
+      "3": 0.003
+     },
+     "median": 1.0,
+     "mean": 1.02
+    },
+    "passage": {
+     "n": 477,
+     "n_projects": 31,
+     "hist": {
+      "0": 0.036,
+      "1": 0.614,
+      "2": 0.319,
+      "3": 0.031
+     },
+     "median": 1.0,
+     "mean": 1.35
+    },
+    "kitchen": {
+     "n": 919,
+     "n_projects": 46,
+     "hist": {
+      "1": 0.478,
+      "2": 0.499,
+      "3": 0.022,
+      "5": 0.001
+     },
+     "median": 2.0,
+     "mean": 1.55
+    },
+    "master": {
+     "n": 191,
+     "n_projects": 14,
+     "hist": {
+      "1": 0.188,
+      "2": 0.277,
+      "3": 0.325,
+      "4": 0.168,
+      "5": 0.042
+     },
+     "median": 3.0,
+     "mean": 2.6
+    },
+    "bedroom": {
+     "n": 1625,
+     "n_projects": 45,
+     "hist": {
+      "1": 0.162,
+      "2": 0.517,
+      "3": 0.267,
+      "4": 0.044,
+      "5": 0.01,
+      "6": 0.001
+     },
+     "median": 2.0,
+     "mean": 2.22
+    },
+    "toilet": {
+     "n": 1804,
+     "n_projects": 47,
+     "hist": {
+      "1": 0.071,
+      "2": 0.316,
+      "3": 0.393,
+      "4": 0.159,
+      "5": 0.055,
+      "6": 0.006
+     },
+     "median": 3.0,
+     "mean": 2.83
+    }
+   },
+   "entrance_room": {
+    "n": 967,
+    "n_projects": 47,
+    "share": {
+     "living": 0.886,
+     "other": 0.083,
+     "passage": 0.018,
+     "dining": 0.011,
+     "foyer": 0.002
+    }
+   },
+   "hub_patterns": {
+    "bedroom_opens_onto": {
+     "n": 2090,
+     "n_projects": 47,
+     "share": {
+      "passage": 0.339,
+      "unnamed": 0.292,
+      "living": 0.167,
+      "none": 0.112,
+      "dining": 0.09
+     }
+    },
+    "flat_patterns": [
+     {
+      "n": 153,
+      "n_projects": 24,
+      "pattern": "passage+passage",
+      "share": 0.16
+     },
+     {
+      "n": 95,
+      "n_projects": 13,
+      "pattern": "unnamed+unnamed",
+      "share": 0.099
+     },
+     {
+      "n": 54,
+      "n_projects": 17,
+      "pattern": "passage",
+      "share": 0.056
+     },
+     {
+      "n": 45,
+      "n_projects": 12,
+      "pattern": "none+none",
+      "share": 0.047
+     },
+     {
+      "n": 44,
+      "n_projects": 12,
+      "pattern": "living+unnamed",
+      "share": 0.046
+     },
+     {
+      "n": 40,
+      "n_projects": 11,
+      "pattern": "unnamed",
+      "share": 0.042
+     },
+     {
+      "n": 40,
+      "n_projects": 10,
+      "pattern": "living+unnamed+unnamed",
+      "share": 0.042
+     },
+     {
+      "n": 38,
+      "n_projects": 7,
+      "pattern": "living+passage+passage",
+      "share": 0.04
+     },
+     {
+      "n": 29,
+      "n_projects": 14,
+      "pattern": "living",
+      "share": 0.03
+     }
+    ]
+   },
+   "passage": {
+    "all_flats": {
+     "n": 967,
+     "n_projects": 47,
+     "share_of_flats_with_passage": 0.482,
+     "passage_area_share": {
+      "p10": 0.0,
+      "p25": 0.0,
+      "p50": 0.0,
+      "p75": 0.04,
+      "p90": 0.05
+     }
+    },
+    "flats_with_passage": {
+     "n": 466,
+     "n_projects": 31,
+     "passage_area_share": {
+      "p10": 0.02,
+      "p25": 0.03,
+      "p50": 0.04,
+      "p75": 0.05,
+      "p90": 0.06
+     }
+    }
+   },
+   "area_m2": {
+    "n": 967,
+    "n_projects": 47,
+    "percentiles": {
+     "p10": 40.13,
+     "p25": 49.44,
+     "p50": 60.11,
+     "p75": 76.81,
+     "p90": 106.75
+    }
+   },
+   "n_rooms": {
+    "n": 967,
+    "n_projects": 47,
+    "percentiles": {
+     "p10": 6.0,
+     "p25": 7.0,
+     "p50": 8.0,
+     "p75": 10.0,
+     "p90": 13.0
+    }
+   }
+  }
+ }
+}

@@ -396,6 +396,195 @@ def build(raw: Path, out: Path) -> dict:
             "relaxed_by_bhk": dict(sorted(bhk_rel.items())), "qc_failures": dict(fail)}
 
 
+# --------------------------------------------------------------------------------------------------
+# stage 3: compact per-BHK pattern summary for the generator
+# --------------------------------------------------------------------------------------------------
+
+MIN_PROJECTS = 5  # a figure resting on fewer projects is dropped
+HUBS = ("living", "dining", "foyer", "passage")
+ANGLE_BINS = (0, 45, 90, 135, 180, -135, -90, -45)  # bin centres, degrees in the flat frame
+ANGLE_NAMES = {0: "E_deep", 45: "NE", 90: "N", 135: "NW", 180: "W_entrance", -135: "SW", -90: "S", -45: "SE"}
+
+
+def _pct(v, q):
+    v = sorted(v)
+    if not v:
+        return None
+    k = (len(v) - 1) * q
+    lo = int(math.floor(k))
+    hi = min(lo + 1, len(v) - 1)
+    return round(v[lo] + (v[hi] - v[lo]) * (k - lo), 2)
+
+
+def _pcts(v, qs=(0.1, 0.25, 0.5, 0.75, 0.9)):
+    return {f"p{int(q * 100)}": _pct(v, q) for q in qs}
+
+
+def _abin(a):
+    return min(ANGLE_BINS, key=lambda c: abs((a - c + 180) % 360 - 180))
+
+
+def _fig(items, payload):
+    """items = [(project, flat_id)] the figure rests on; None when it rests on < MIN_PROJECTS projects."""
+    proj = {p for p, _ in items}
+    if len(proj) < MIN_PROJECTS:
+        return None
+    return {"n": len(items), "n_projects": len(proj), **payload}
+
+
+def _hist(counter, keys=None):
+    tot = sum(counter.values())
+    keys = keys if keys is not None else sorted(counter, key=lambda k: -counter[k])
+    return {str(k): round(counter[k] / tot, 3) for k in keys if counter.get(k)} if tot else {}
+
+
+def patterns(graphs: Path, out: Path) -> dict:
+    """Per-BHK distributions from the kept flats of graphs_v2.jsonl.gz (apartments, one per project signature)."""
+    uniq, raw_n, pap_n = {}, 0, 0
+    with gzip.open(graphs, "rt") as fh:
+        for line in fh:
+            pg = json.loads(line)
+            for f in pg["flats"]:
+                raw_n += 1
+                if f.get("kind", "apartment") != "apartment":
+                    pap_n += 1
+                    continue
+                uniq.setdefault((pg["pdf"], f["signature"]), (pg["pdf"], f))
+    flats = list(uniq.values())
+    groups = defaultdict(list)
+    for pdf, f in flats:
+        b = f["bhk"]
+        groups[str(b) if b in (1, 2, 3) else "4+" if b >= 4 else None].append((pdf, f))
+        groups["all"].append((pdf, f))
+    groups.pop(None, None)
+
+    def summarise(fl):
+        ids = [(p, f["flat_id"]) for p, f in fl]
+        res = {"n": len(fl), "n_projects": len({p for p, _ in fl})}
+        # direction + distance of each room type from the living centroid, in the flat frame
+        direction = {}
+        for label, types in (("kitchen", {"kitchen"}), ("master", {"master"}), ("bedroom", {"bedroom"}),
+                             ("any_bedroom", {"master", "bedroom"}), ("toilet", {"toilet"}), ("dining", {"dining"})):
+            ang, dist, items, fl_ids = Counter(), [], [], set()
+            for p, f in fl:
+                for v in f["living_vectors"]:
+                    if v["type"] in types:
+                        ang[_abin(v["angle_deg"])] += 1
+                        dist.append(v["dist_m"])
+                        items.append((p, f["flat_id"]))
+            g = _fig(items, {"n_flats": len({i[1] for i in items}),
+                             "angle_hist_8": {ANGLE_NAMES[k]: round(ang[k] / sum(ang.values()), 3) for k in ANGLE_BINS if ang[k]},
+                             "dist_m": _pcts(dist)}) if items else None
+            if g:
+                direction[label] = g
+        res["direction_from_living"] = direction
+        # hop depth from the entrance, per type
+        hop = {}
+        for t in ("living", "dining", "foyer", "passage", "kitchen", "master", "bedroom", "toilet"):
+            vals, items = [], []
+            for p, f in fl:
+                for n in f["nodes"]:
+                    if n["type"] == t and n["hops"] is not None:
+                        vals.append(n["hops"])
+                        items.append((p, f["flat_id"]))
+            g = _fig(items, {"hist": _hist(Counter(vals), sorted(set(vals))), "median": _pct(vals, 0.5),
+                             "mean": round(sum(vals) / len(vals), 2)}) if items else None
+            if g:
+                hop[t] = g
+        res["hops_from_entrance"] = hop
+        # entrance
+        ec = Counter("living" if f["entrance"]["room_type"] == "living" else
+                     "foyer" if f["entrance"]["room_type"] == "foyer" else
+                     "dining" if f["entrance"]["room_type"] == "dining" else
+                     "passage" if f["entrance"]["room_type"] == "passage" else "other"
+                     for _, f in fl)
+        res["entrance_room"] = _fig(ids, {"share": _hist(ec)})
+        # which room the bedroom doors open onto (hub), per bedroom and per flat
+        hub_bed, hub_flat, hb_items, hf_items = Counter(), Counter(), [], []
+        for p, f in fl:
+            per_flat = _bed_hubs(f)
+            for h in per_flat:
+                hub_bed[h] += 1
+                hb_items.append((p, f["flat_id"]))
+            if per_flat:
+                hub_flat["+".join(sorted(per_flat))] += 1
+                hf_items.append((p, f["flat_id"]))
+        hubs_pat = {}
+        if hb_items:
+            hubs_pat["bedroom_opens_onto"] = _fig(hb_items, {"share": _hist(hub_bed)})
+            top = []
+            for pat, c in hub_flat.most_common(10):
+                its = [(p, f["flat_id"]) for p, f in fl if "+".join(sorted(_bed_hubs(f))) == pat]
+                g = _fig(its, {"pattern": pat, "share": round(c / len(hf_items), 3)})
+                if g:
+                    top.append(g)
+            hubs_pat["flat_patterns"] = top
+        res["hub_patterns"] = {k: v for k, v in hubs_pat.items() if v}
+        # passage share of the flat area
+        shares_all, shares_with, it_all, it_with = [], [], [], []
+        for p, f in fl:
+            ps = sum(n["area"] for n in f["nodes"] if n["type"] == "passage") / f["area_m2"]
+            shares_all.append(ps)
+            it_all.append((p, f["flat_id"]))
+            if ps > 0:
+                shares_with.append(ps)
+                it_with.append((p, f["flat_id"]))
+        pas = {}
+        g = _fig(it_all, {"share_of_flats_with_passage": round(len(shares_with) / len(shares_all), 3),
+                          "passage_area_share": _pcts(shares_all)})
+        if g:
+            pas["all_flats"] = g
+        g = _fig(it_with, {"passage_area_share": _pcts(shares_with)}) if shares_with else None
+        if g:
+            pas["flats_with_passage"] = g
+        res["passage"] = pas
+        res["area_m2"] = _fig(ids, {"percentiles": _pcts([f["area_m2"] for _, f in fl])})
+        res["n_rooms"] = _fig(ids, {"percentiles": _pcts([f["n_rooms"] for _, f in fl])})
+        return {k: v for k, v in res.items() if v is not None}
+
+    out_d = {
+        "_meta": {
+            "source": "data/mined/graphs_v2.jsonl.gz (kept flats, apartments only, one flat per project and signature)",
+            "built_by": "engine/tools/build_graph_dataset.py --patterns-only",
+            "min_projects_per_figure": MIN_PROJECTS,
+            "frame": "origin = flat entrance door, +x = wall direction towards the flat's deepest facade, +y = x turned "
+                     "90 deg anticlockwise; angles in degrees (0 = towards the deep facade, 180 = back towards the entrance)",
+            "angle_bins": "8 sectors of 45 deg, centre angle per name: " + ", ".join(f"{ANGLE_NAMES[k]}={k}" for k in ANGLE_BINS) + "; names are frame-relative (x = deep facade), not compass",
+            "kept_flats_total": raw_n, "pap_tenements_excluded": pap_n, "unique_apartments_used": len(flats),
+            "n": "figure basis: rooms for direction/hops, flats for the rest (n_flats where both apply)",
+            "hub_types": "living / dining / foyer / passage / unnamed (unlabelled cell, mostly a passage whose label was lost) / none (no link to a hub found; link not detected or room reached through another room)",
+            "bhk_groups": "bedroom + master count; '4+' = 4 or more; 'all' = every group",
+        },
+        "bhk": {k: summarise(v) for k, v in sorted(groups.items())},
+    }
+    out_d["bhk"] = {k: v for k, v in out_d["bhk"].items() if v["n_projects"] >= MIN_PROJECTS}
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(out_d, indent=1) + "\n")
+    return out_d
+
+
+def _bed_hubs(f):
+    """Per bedroom / master: the hub room its door or opening leads to (the one nearest the entrance). 'unnamed' =
+    an unlabelled cell (in practice a passage whose label was lost), 'none' = no door / opening to any hub found
+    (the bedroom's link was not detected, or it is reached only through another room)."""
+    ty = {n["id"]: n for n in f["nodes"]}
+    res = []
+    for n in f["nodes"]:
+        if n["type"] not in BED:
+            continue
+        best = None
+        for e in f["edges"]:
+            if e["kind"] in ("door", "open") and n["id"] in (e["a"], e["b"]):
+                o = e["b"] if e["a"] == n["id"] else e["a"]
+                t = ty[o]["type"]
+                if t in HUBS or t in ("unknown", "unlabeled"):
+                    h = ty[o]["hops"] if ty[o]["hops"] is not None else 99
+                    if best is None or h < best[0]:
+                        best = (h, t if t in HUBS else "unnamed")
+        res.append(best[1] if best else "none")
+    return res
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("root", type=Path)
@@ -404,11 +593,18 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=MAX_WORKERS)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--skip-extract", action="store_true")
+    ap.add_argument("--patterns-out", type=Path, default=None, help="also write the per-BHK pattern summary JSON")
+    ap.add_argument("--patterns-only", action="store_true", help="only (re)compute the pattern summary from <out>")
     a = ap.parse_args()
+    if a.patterns_only:
+        patterns(a.out, a.patterns_out)
+        return
     if not a.skip_extract:
         extract(a.root, a.raw, max(1, min(a.workers, MAX_WORKERS)), a.limit)
     rep = build(a.raw, a.out)
     print(json.dumps(rep, indent=1))
+    if a.patterns_out:
+        patterns(a.out, a.patterns_out)
 
 
 if __name__ == "__main__":

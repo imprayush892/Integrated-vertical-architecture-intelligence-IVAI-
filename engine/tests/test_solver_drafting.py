@@ -229,3 +229,50 @@ def test_timed_out_first_search_gets_more_time_not_a_smaller_flat(footprint, mon
     assert fr.plan is not None and fr.applied_fix is None
     assert calls[1] > 2.0  # the retry got the extended budget
     assert fr.validation["extended"]
+
+
+# ---------------------------------------------------------------------------------------------- generator v2
+
+def test_v2_plan_enters_living_with_little_circulation(footprint):
+    """Generator v2 on a 2BHK: the front door opens into the living-dining (or a short foyer before it), passage +
+    foyer stay a small share of the flat, no big leftover store, every bedroom opens onto a public space."""
+    from shapely.geometry import Polygon
+
+    from planner_engine.quality import critique
+
+    p = _plate(footprint)
+    u = next(u for u in split_units(p) if u.programme.bhk == 2)
+    fr = solve_flat(p, u)
+    assert fr.plan is not None, fr.message
+    res = critique(fr.plan, u, p, furniture=False)
+    assert res["metrics"]["entry_seq"]["value"] >= 0.85  # living, foyer -> living, or dining -> living
+    assert res["metrics"]["circ_share"]["value"] <= 12.0
+    rooms = {r.id: r for r in fr.plan.rooms}
+    assert all(r.area < 5.0 for r in fr.plan.rooms if r.type == "store")
+    public = {"living", "dining", "passage", "foyer"}
+    for r in fr.plan.rooms:
+        if r.type in ("master", "bedroom"):
+            assert any(r.id in d.rooms and any(rooms[o].type in public for o in d.rooms if o != r.id and o in rooms)
+                       for d in fr.plan.doors), r.id
+    assert all(Polygon(r.polygon).is_valid for r in fr.plan.rooms)
+
+
+def test_grow_to_fill_keeps_rectangles_and_contacts():
+    """Rooms push into free floor only across fully free strips: they stay rectangles and never shrink."""
+    from shapely.geometry import box
+
+    from planner_engine.drafting import grow_to_fill
+    from planner_engine.solver import RoomSpec, UnitGrid
+
+    ug = UnitGrid("u", 0.0, 0.0, 60, 40, box(0, 0, 6, 4), [], [], None, box(0, 0, 6, 4), box(0, 0, 0, 0))
+    specs = [RoomSpec(id="a", type="living", name="a", tgt=1600, amin=7.5, wmin=26, aspect=23, window_run=0,
+                      vent_run=0, optional=False, target_area=16, cap=2000, hard=3000, over_w=2),
+             RoomSpec(id="b", type="bedroom", name="b", tgt=1000, amin=7.5, wmin=26, aspect=16, window_run=0,
+                      vent_run=0, optional=False, target_area=10, cap=1300, hard=2000, over_w=3)]
+    rects = {"a": (0, 0, 30, 30), "b": (30, 0, 26, 40)}
+    out = grow_to_fill(ug, specs, rects)
+    for rid, (x, y, w, h) in out.items():
+        x0, y0, w0, h0 = rects[rid]
+        assert x <= x0 and y <= y0 and x + w >= x0 + w0 and y + h >= y0 + h0
+    covered = sum(w * h for _x, _y, w, h in out.values())
+    assert covered > sum(w * h for _x, _y, w, h in rects.values())

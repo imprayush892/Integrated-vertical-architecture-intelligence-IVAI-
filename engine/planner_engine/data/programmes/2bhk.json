@@ -1,151 +1,165 @@
 {
- "id": "2bhk",
- "name": "2 BHK (60-79 m\u00b2)",
- "bhk": 2,
- "area_range": [
-  60,
-  79
- ],
- "entry": "foyer",
- "rooms": [
-  {
-   "id": "foyer",
-   "type": "foyer",
-   "name": "Foyer",
-   "target_area": 3.5,
-   "min_area": 2,
-   "needs_window": false,
-   "wet": false,
-   "optional": true
-  },
-  {
-   "id": "living",
-   "type": "living",
-   "name": "Living",
-   "target_area": 18,
-   "min_area": 12,
-   "needs_window": true,
-   "wet": false,
-   "optional": false
-  },
-  {
-   "id": "dining",
-   "type": "dining",
-   "name": "Dining",
-   "target_area": 7.5,
-   "min_area": 6,
-   "needs_window": false,
-   "wet": false,
-   "optional": false
-  },
-  {
-   "id": "kitchen",
-   "type": "kitchen",
-   "name": "Kitchen",
-   "target_area": 7.5,
-   "min_area": 5.5,
-   "needs_window": true,
-   "wet": true,
-   "optional": false
-  },
-  {
-   "id": "passage",
-   "type": "passage",
-   "name": "Passage",
-   "target_area": 4.0,
-   "min_area": 2,
-   "needs_window": false,
-   "wet": false,
-   "optional": false
-  },
-  {
-   "id": "master",
-   "type": "master",
-   "name": "Master",
-   "target_area": 13.0,
-   "min_area": 10,
-   "needs_window": true,
-   "wet": false,
-   "optional": false
-  },
-  {
-   "id": "toilet_m",
-   "type": "toilet",
-   "name": "Toilet (master)",
-   "target_area": 3.6,
-   "min_area": 2.2,
-   "needs_window": false,
-   "wet": true,
-   "optional": false
-  },
-  {
-   "id": "bed2",
-   "type": "bedroom",
-   "name": "Bed 2",
-   "target_area": 11.2,
-   "min_area": 9,
-   "needs_window": true,
-   "wet": false,
-   "optional": false
-  },
-  {
-   "id": "toilet_c",
-   "type": "toilet",
-   "name": "Toilet",
-   "target_area": 3.0,
-   "min_area": 2.2,
-   "needs_window": false,
-   "wet": true,
-   "optional": false
-  },
-  {
-   "id": "balcony",
-   "type": "balcony",
-   "name": "Balcony",
-   "target_area": 4.0,
-   "min_area": 0,
-   "needs_window": false,
-   "wet": false,
-   "optional": true
-  }
- ],
- "links": [
-  [
-   "foyer",
-   "living"
+  "id": "2bhk",
+  "name": "2 BHK (60-79 m²)",
+  "bhk": 2,
+  "area_range": [
+    60,
+    79
   ],
-  [
-   "living",
-   "dining"
+  "entry": "foyer",
+  "rooms": [
+    {
+      "id": "foyer",
+      "type": "foyer",
+      "name": "Foyer",
+      "target_area": 3.5,
+      "min_area": 2,
+      "needs_window": false,
+      "wet": false,
+      "optional": true
+    },
+    {
+      "id": "living",
+      "type": "living",
+      "name": "Living",
+      "target_area": 18,
+      "min_area": 12,
+      "needs_window": true,
+      "wet": false,
+      "optional": false
+    },
+    {
+      "id": "dining",
+      "type": "dining",
+      "name": "Dining",
+      "target_area": 7.5,
+      "min_area": 6,
+      "needs_window": false,
+      "wet": false,
+      "optional": false
+    },
+    {
+      "id": "kitchen",
+      "type": "kitchen",
+      "name": "Kitchen",
+      "target_area": 7.5,
+      "min_area": 5.5,
+      "needs_window": true,
+      "wet": true,
+      "optional": false
+    },
+    {
+      "id": "utility",
+      "type": "utility",
+      "name": "Utility",
+      "target_area": 2.0,
+      "min_area": 0,
+      "needs_window": false,
+      "wet": true,
+      "optional": true
+    },
+    {
+      "id": "passage",
+      "type": "passage",
+      "name": "Passage",
+      "target_area": 4.0,
+      "min_area": 2,
+      "needs_window": false,
+      "wet": false,
+      "optional": false
+    },
+    {
+      "id": "master",
+      "type": "master",
+      "name": "Master",
+      "target_area": 13.0,
+      "min_area": 10,
+      "needs_window": true,
+      "wet": false,
+      "optional": false
+    },
+    {
+      "id": "toilet_m",
+      "type": "toilet",
+      "name": "Toilet (master)",
+      "target_area": 3.6,
+      "min_area": 2.2,
+      "needs_window": false,
+      "wet": true,
+      "optional": false
+    },
+    {
+      "id": "bed2",
+      "type": "bedroom",
+      "name": "Bed 2",
+      "target_area": 11.2,
+      "min_area": 9,
+      "needs_window": true,
+      "wet": false,
+      "optional": false
+    },
+    {
+      "id": "toilet_c",
+      "type": "toilet",
+      "name": "Toilet",
+      "target_area": 3.0,
+      "min_area": 2.2,
+      "needs_window": false,
+      "wet": true,
+      "optional": false
+    },
+    {
+      "id": "balcony",
+      "type": "balcony",
+      "name": "Balcony",
+      "target_area": 4.0,
+      "min_area": 0,
+      "needs_window": false,
+      "wet": false,
+      "optional": true
+    }
   ],
-  [
-   "dining",
-   "kitchen"
+  "links": [
+    [
+      "foyer",
+      "living"
+    ],
+    [
+      "living",
+      "dining"
+    ],
+    [
+      "dining",
+      "kitchen"
+    ],
+    [
+      "kitchen",
+      "utility"
+    ],
+    [
+      "living",
+      "passage"
+    ],
+    [
+      "passage",
+      "master"
+    ],
+    [
+      "master",
+      "toilet_m"
+    ],
+    [
+      "passage",
+      "bed2"
+    ],
+    [
+      "passage",
+      "toilet_c"
+    ],
+    [
+      "living",
+      "balcony"
+    ]
   ],
-  [
-   "living",
-   "passage"
-  ],
-  [
-   "passage",
-   "master"
-  ],
-  [
-   "master",
-   "toilet_m"
-  ],
-  [
-   "passage",
-   "bed2"
-  ],
-  [
-   "passage",
-   "toilet_c"
-  ],
-  [
-   "living",
-   "balcony"
-  ]
- ],
- "note": "A starting point, not the answer. Source: target_area values calibrated to the p50 (p50-p75 for larger flats) of room areas in municipal-approved Mumbai plans, see planner_engine/data/mumbai_approved_stats.json (50 projects, 655 pages); min_area stays at the DCPR 2034 / office floors. Foyer is optional and the entry falls back to the living room: in approved Mumbai plans the front door opens straight into the living room in 73% of flats whose entrance room is named, and a named foyer is the entrance in 0.4% (mumbai_topology_priors.json, entrance.room_type; n=1,797 flats, 48 projects)."
+  "note": "A starting point, not the answer. Source: target_area values calibrated to the p50 (p50-p75 for larger flats) of room areas in municipal-approved Mumbai plans, see planner_engine/data/mumbai_approved_stats.json (50 projects, 655 pages); min_area stays at the DCPR 2034 / office floors. Foyer is optional and the entry falls back to the living room: in approved Mumbai plans the front door opens straight into the living room in 73% of flats whose entrance room is named, and a named foyer is the entrance in 0.4% (mumbai_topology_priors.json, entrance.room_type; n=1,797 flats, 48 projects). Utility (dry balcony / wash area off the kitchen) is optional, as in the 3BHK and 4BHK presets: generator v2 places it when the flat has floor to spare (docs/quality/generator-v2.md)."
 }

@@ -45,6 +45,45 @@ CIRCULATION = {"foyer", "passage"}
 SERVICE = {"toilet", "bath", "wc", "utility", "foyer", "passage", "balcony", "store", "pooja", "dress"}
 DOOR_RUN = {"toilet": 9, "bath": 9, "wc": 9}  # cells of shared wall for a door (0.75 + wall) else 10
 
+# ---- generator v2 (docs/quality/generator-v2.md)
+# Furniture-aware minimum clear dimensions (short side m, net area m2), measured with the critic's furniture placer
+# (quality.place_furniture) on rectangles with a door on one side: the smallest room where the full set fits
+# (bed + wardrobe with clearances, sofa facing a TV, table for 4 with chair room, WC + basin + shower zone).
+FURN_MIN = {"master": (3.0, 11.0), "bedroom": (2.8, 9.5), "living": (3.2, 12.0), "dining": (2.7, 7.5),
+            "kitchen": (2.0, 6.0), "toilet": (1.5, 3.2), "bath": (1.5, 3.2), "wc": (1.0, 1.5), "study": (2.4, 7.5),
+            "dress": (1.2, 2.2), "passage": (1.1, 0.0)}
+# Size above which floor counts as wasted (net m2): min(OVERSIZE, 1.3 x target + 0.5), the critic's rule
+# (quality.OVERSIZE = approved-plan p90 x ~1.3). Below the cap rooms may grow to fill the flat, above it they pay CAP_W.
+OVERSIZE = {"master": 20.0, "bedroom": 16.0, "living": 32.0, "dining": 16.0, "kitchen": 11.0, "toilet": 5.5, "bath": 4.0,
+            "wc": 2.5, "foyer": 5.5, "passage": 6.5, "utility": 5.0, "study": 10.0, "dress": 6.0, "pooja": 3.0}
+# objective weights, per 0.01 m2 cell
+OVER_W = {"living": 2, "dining": 3, "master": 3, "bedroom": 3, "study": 4, "kitchen": 6, "dress": 6, "balcony": 8,
+          "toilet": 10, "bath": 10, "wc": 15, "utility": 10, "store": 10, "pooja": 10, "foyer": 30, "passage": 30}
+UNDER_W = 15  # a room below its target
+CAP_W = 100  # a room above its waste cap
+UNCOVERED_W = 120  # floor no room covers (becomes a leftover pocket)
+PASSAGE_FIXED = 400  # having a passage / foyer at all (on top of OVER_W per cell)
+CIRC_FREE = 0.05  # share of the floor passage + foyer may take at the light rate (approved plans p90 = 4.7 %)
+CIRC_EXCESS_W = 100  # per cell of passage + foyer beyond that (priced like wasted floor)
+HUB_PEN = 300  # per step down a room's hub preference list (dining > passage > living)
+HUB_SPLIT = 12000  # each distinct space the private doors open onto (one compact hub wanted)
+PRIVATE_DOOR = ("master", "bedroom", "study", "toilet", "bath", "wc")  # doors the critic's hub metrics look at
+HUB_ZONE_R = 20  # cells (0 = off): private hub doors reach into a 4 m square around one point
+HUB_ZONE_W = 6000  # a private room whose hub door is outside that cluster
+BED_ENTRY_CLEAR = 20  # cells: bedrooms keep 2 m clear of the flat's front door
+ENTRY_DINING_PEN = 100000  # front door into the dining room (only when the flat's depth leaves no other way)
+POWDER_ABSENT = 80000  # a flat without a guest toilet loses ~15 critic points (common_toilet gate)
+NEAR_LIVING = 30  # cells: guest toilet within 3 m of the living room
+NEAR_LIVING_W = 8000
+WET_PAIR_W = 3000  # per pair of toilets that do not share a wall (critic wet_cluster)
+VENT_DUCT_W = 70000  # a wet room ventilated by mechanical duct instead of façade/shaft (DCPR "review")
+# a room too small for its furniture set: living / bedrooms are critic gates (a sofa or bed that does not fit
+# costs 17-35 % of the score), so they pay like ~12 m2 of waste
+FURN_W = {"living": 150000, "master": 150000, "bedroom": 150000}
+FURN_W_OTHER = 40000
+HARD_MIN_W = {"living": 2.8}  # m net: below this the critic finds no sofa set at all
+SNAP = 1  # cells: >1 puts room edges on a SNAP grid or the flat's boundary lines (tried 3: worse on the golden set)
+
 
 @dataclass
 class Edge:
@@ -88,6 +127,12 @@ class RoomSpec:
     optional: bool
     force: bool | None = None  # True force present, False force absent
     target_area: float = 0.0
+    cap: int = 0  # v2: net cells above which area is waste (0 = none)
+    hard: int = 0  # v2: gross cells hard upper bound (0 = legacy caps)
+    over_w: int = 1  # v2: cost per cell above target (below cap)
+    wfurn: int = 0  # v2: cells, side the furniture set needs (soft, FURN_W if missed)
+    afurn: float = 0.0  # v2: net m2 the furniture set needs (soft, with wfurn)
+    absent: int = 0  # v2: extra cost when an optional room is left out (e.g. the only guest toilet)
 
 
 @dataclass
@@ -98,6 +143,9 @@ class SolveResult:
     objective: float | None = None
     time_s: float = 0.0
     core: list[str] = field(default_factory=list)  # infeasible-core labels
+    links: list[tuple[str, str]] | None = None  # v2: the door links the layout uses (fixed + chosen hub doors)
+    entry: str | None = None  # v2: the room the front door opens into
+    hub_point: tuple[int, int] | None = None  # v2: grid point the private doors cluster around
 
 
 # ------------------------------------------------------------------------------------- unit geometry
@@ -306,7 +354,12 @@ def _opens_outward(outline: Polygon, mid, normal, a, b, horiz: bool) -> bool:
 # ------------------------------------------------------------------------------------------ specs
 
 
+V2_ASPECT = {"passage": 35, "foyer": 35}  # v2: a hub, not a gallery (critic corridor_len counts long passages)
+
+
 def aspect_x10(room_type: str) -> int:
+    if room_type in V2_ASPECT:
+        return V2_ASPECT[room_type]
     pri = rules.priors().get("aspect_max", {})
     if room_type in pri:
         return int(round(float(pri[room_type]) * 10))
@@ -328,6 +381,7 @@ def fill_scale(diagram: Diagram, ug: UnitGrid | None, overrides: dict[str, dict]
 def room_specs(diagram: Diagram, overrides: dict[str, dict] | None = None, ug: UnitGrid | None = None) -> list[RoomSpec]:
     overrides = overrides or {}
     k = fill_scale(diagram, ug, overrides)
+    interior = ug.interior.area if ug is not None and not ug.interior.is_empty else 0.0
     specs = []
     for r in diagram.rooms:
         if not r.placed:
@@ -336,12 +390,34 @@ def room_specs(diagram: Diagram, overrides: dict[str, dict] | None = None, ug: U
         target = float(o.get("target_area", r.target_area)) * (k if "target_area" not in o else 1.0)
         amin, wmin_m = room_minimums(r.type)
         amin = min(amin, target) if r.type not in ("living", "master", "bedroom", "study", "kitchen", "toilet", "bath", "wc") else amin
+        fw, fa = FURN_MIN.get(r.type, (0.0, 0.0))
         wmin = max(8, math.ceil((wmin_m + INT_WALL) / G - 1e-6))
+        wfurn = max(wmin, math.ceil((fw + INT_WALL) / G - 1e-6))
+        if r.type in ("toilet", "bath", "wc"):  # small rooms: the WC/basin/shower set is a hard minimum
+            wmin, amin = wfurn, max(amin, fa)
+        elif r.type in HARD_MIN_W:  # the critic's tight tier (sofa facing a TV) never fails below this
+            wmin = max(wmin, math.ceil((HARD_MIN_W[r.type] + INT_WALL) / G - 1e-6))
         tgt = int(round(100 * target + 23 * math.sqrt(max(target, 0.5))))
+        cap_net = min(OVERSIZE.get(r.type, 1e9), 1.3 * target + 0.5)
+        if r.type == "balcony":
+            cap_net, hard_net = 0.0, max(1.8 * target, 4.0)
+        elif r.type == "passage":
+            hard_net = max(3.5, 0.06 * interior)
+        elif r.type == "foyer":
+            hard_net = max(4.5, 0.05 * interior)
+        elif r.type in ("living", "dining", "master", "bedroom"):
+            hard_net = 1.6 * cap_net
+        else:
+            hard_net = max(1.3 * cap_net, amin + 1.0)
+        hard = int(100 * hard_net + 23 * math.sqrt(hard_net))
+        if r.type in ("passage", "foyer"):
+            tgt = 0  # circulation is a cost, not a room to reach a size
         needs_window = o.get("needs_window", r.needs_window)
         win = 0
         if needs_window:
-            win = math.ceil((max(1.0, target / (6 * WIN_HEIGHT)) + 0.3) / G)
+            # v2: the run a window needs at the room's minimum size; the 1/6 glazing constraint (_touch) then
+            # holds for the room's final area, so a big target no longer reserves façade it does not need
+            win = math.ceil((max(1.0, min(target, max(amin, 9.0)) / (6 * WIN_HEIGHT)) + 0.3) / G)
         vent = 7 if r.type in ("toilet", "bath", "wc", "utility") and not needs_window else 0
         if r.type == "balcony":
             win = max(win, math.ceil(1.5 / G))  # balcony: >= 1.5 m on an outer façade
@@ -350,6 +426,8 @@ def room_specs(diagram: Diagram, overrides: dict[str, dict] | None = None, ug: U
                 id=r.id, type=r.type, name=r.name, tgt=tgt, amin=amin, wmin=wmin,
                 aspect=aspect_x10(r.type), window_run=win, vent_run=vent,
                 optional=r.optional, force=o.get("force"), target_area=target,
+                cap=int(100 * cap_net), hard=hard, over_w=OVER_W.get(r.type, 4), wfurn=wfurn, afurn=max(fa, amin),
+                absent=POWDER_ABSENT if r.type == "wc" and r.optional else 0,
             )
         )
     return specs
@@ -360,12 +438,16 @@ def room_specs(diagram: Diagram, overrides: dict[str, dict] | None = None, ug: U
 
 class _Builder:
     def __init__(self, ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], entry: str,
-                 guards: bool):
+                 guards: bool, alts: list[tuple[str, tuple[str, ...]]] | None = None):
         self.m = cp_model.CpModel()
         self.ug, self.specs, self.links, self.entry = ug, specs, links, entry
+        self.alts = alts or []
         self.guards: dict[str, cp_model.IntVar] = {}
         self.guard_mode = guards
         self.v: dict[str, dict] = {}
+        self.choice: dict[str, list[tuple[str, cp_model.IntVar]]] = {}
+        self.extra_cost: list = []
+        self.duct: dict[str, cp_model.IntVar] = {}
         self.build()
 
     def guard(self, label: str):
@@ -379,6 +461,20 @@ class _Builder:
         m, ug = self.m, self.ug
         W, H = ug.Wg, ug.Hg
         xs, ys = [], []
+        if SNAP > 1:
+            vx = set(range(0, W + 1, SNAP)) | {0, W}
+            vy = set(range(0, H + 1, SNAP)) | {0, H}
+            for x0, y0, x1, y1 in ug.blocked:
+                vx |= {x0, x1}
+                vy |= {y0, y1}
+            for e in ug.edges:
+                (vy if e.horizontal else vx).add(e.pos)
+                (vx if e.horizontal else vy).update((e.a, e.b))
+            if ug.door is not None:
+                e, along = ug.door
+                (vx if e.horizontal else vy).update((along - 5, along + 5))
+            self.dom_x = cp_model.Domain.from_values(sorted(v for v in vx if 0 <= v <= W))
+            self.dom_y = cp_model.Domain.from_values(sorted(v for v in vy if 0 <= v <= H))
         for s in self.specs:
             pres = m.new_bool_var(f"p_{s.id}")
             if s.force is True or (not s.optional and s.force is None):
@@ -388,17 +484,25 @@ class _Builder:
                     m.add(pres == 1)
             elif s.force is False:
                 m.add(pres == 0)
-            wmax = W
-            hmax = H
-            x = m.new_int_var(0, W, f"x_{s.id}")
-            y = m.new_int_var(0, H, f"y_{s.id}")
+            # domain: no side longer than the hard area cap allows at the room's aspect limit
+            dmax = W if not s.hard else int(math.ceil(math.sqrt(s.hard * s.aspect / 10.0))) + 1
+            wmax = max(min(s.wmin, W), min(W, dmax))
+            hmax = max(min(s.wmin, H), min(H, dmax))
+            if SNAP > 1:  # v2: room edges on a SNAP grid or on one of the flat's own boundary lines
+                x = m.new_int_var_from_domain(self.dom_x, f"x_{s.id}")
+                y = m.new_int_var_from_domain(self.dom_y, f"y_{s.id}")
+                xe = m.new_int_var_from_domain(self.dom_x, f"xe_{s.id}")
+                ye = m.new_int_var_from_domain(self.dom_y, f"ye_{s.id}")
+            else:
+                x = m.new_int_var(0, W, f"x_{s.id}")
+                y = m.new_int_var(0, H, f"y_{s.id}")
+                xe = m.new_int_var(0, W, f"xe_{s.id}")
+                ye = m.new_int_var(0, H, f"ye_{s.id}")
             w = m.new_int_var(min(s.wmin, W), wmax, f"w_{s.id}")
             h = m.new_int_var(min(s.wmin, H), hmax, f"h_{s.id}")
-            xe = m.new_int_var(0, W, f"xe_{s.id}")
-            ye = m.new_int_var(0, H, f"ye_{s.id}")
             m.add(xe == x + w)
             m.add(ye == y + h)
-            a = m.new_int_var(0, W * H, f"a_{s.id}")
+            a = m.new_int_var(0, wmax * hmax, f"a_{s.id}")
             m.add_multiplication_equality(a, [w, h])
             xi = m.new_optional_interval_var(x, w, xe, pres, f"xi_{s.id}")
             yi = m.new_optional_interval_var(y, h, ye, pres, f"yi_{s.id}")
@@ -410,26 +514,34 @@ class _Builder:
             )
             m.add(10 * w <= s.aspect * h)
             m.add(10 * h <= s.aspect * w)
-            eff = m.new_int_var(0, W * H, f"e_{s.id}")
+            eff = m.new_int_var(0, wmax * hmax, f"e_{s.id}")
             m.add(eff == a).only_enforce_if(pres)
             m.add(eff == 0).only_enforce_if(pres.negated())
-            # under-size costs 1, over-size costs 1 for main rooms and 4 for service rooms (so leftover
-            # space goes to living rooms, not toilets); service rooms are also capped at 1.6x target
-            over_w = 2 if s.type in CIRCULATION else 4 if s.type in SERVICE else 2 if s.type == "kitchen" else 1
-            if s.type in CIRCULATION:
-                m.add(a <= max(s.tgt * 3, 1500)).only_enforce_if(pres)
-            elif s.type in SERVICE or s.type == "kitchen":
-                m.add(a <= max(int(s.tgt * 1.6), s.tgt + 150)).only_enforce_if(pres)
-            else:
-                m.add(a <= int(s.tgt * 2.2)).only_enforce_if(pres)
+            if s.hard:
+                m.add(a <= max(s.hard, s.tgt)).only_enforce_if(pres)
             under = m.new_int_var(0, s.tgt, f"u_{s.id}")
-            over = m.new_int_var(0, W * H, f"o_{s.id}")
+            over = m.new_int_var(0, wmax * hmax, f"o_{s.id}")
             m.add(a - s.tgt == over - under).only_enforce_if(pres)
             m.add(under == s.tgt).only_enforce_if(pres.negated())
             m.add(over == 0).only_enforce_if(pres.negated())
-            dev = m.new_int_var(0, 4 * W * H + s.tgt, f"d_{s.id}")
-            m.add(dev == under + over_w * over)
-            self.v[s.id] = {"p": pres, "x": x, "y": y, "w": w, "h": h, "a": a, "e": eff, "d": dev, "s": s}
+            cost = UNDER_W * under + s.over_w * over
+            if s.cap:
+                oc = m.new_int_var(0, wmax * hmax, f"oc_{s.id}")
+                # net area (gross less half the internal walls) above the waste cap
+                m.add(100 * oc >= 100 * a - 115 * w - 115 * h - 100 * s.cap).only_enforce_if(pres)
+                cost = cost + CAP_W * oc
+            if s.type in ("passage", "foyer"):
+                cost = cost + PASSAGE_FIXED * pres
+            if s.absent:
+                cost = cost + s.absent * (1 - pres)
+            if s.wfurn > s.wmin or s.afurn > s.amin:
+                fit = m.new_bool_var(f"fit_{s.id}")  # furniture fits with clearances (soft: façade may forbid it)
+                m.add(w >= s.wfurn).only_enforce_if(fit)
+                m.add(h >= s.wfurn).only_enforce_if(fit)
+                m.add(100 * a - 115 * w - 115 * h >= int(10000 * s.afurn) - 132).only_enforce_if(fit)
+                cost = cost + FURN_W.get(s.type, FURN_W_OTHER) * (pres - fit)
+                m.add_implication(fit, pres)
+            self.v[s.id] = {"p": pres, "x": x, "y": y, "w": w, "h": h, "a": a, "e": eff, "cost": cost, "s": s}
         for i, (x0, y0, x1, y1) in enumerate(ug.blocked):
             xs.append(m.new_interval_var(x0, x1 - x0, x1, f"bx{i}"))
             ys.append(m.new_interval_var(y0, y1 - y0, y1, f"by{i}"))
@@ -437,6 +549,12 @@ class _Builder:
         for a_id, b_id in self.links:
             if a_id in self.v and b_id in self.v:
                 self._adjacent(a_id, b_id)
+        self.hub_zone = None
+        if HUB_ZONE_R and self.alts and sum(1 for s in self.specs if s.type in PRIVATE_DOOR) >= 2:
+            self.hub_zone = (m.new_int_var(0, W, "hub_cx"), m.new_int_var(0, H, "hub_cy"), HUB_ZONE_R)
+        for rid, cands in self.alts:
+            self._adjacent_any(rid, cands)
+        self._one_hub()
         for s in self.specs:
             if s.type == "balcony":
                 self._touch(s.id, s.window_run, ("facade",), f"window:{s.id}", balcony=True)
@@ -444,21 +562,68 @@ class _Builder:
                 self._touch(s.id, s.window_run, ("facade",), f"window:{s.id}", glazing=True)
             elif s.vent_run:
                 self._touch(s.id, s.vent_run, ("facade", "shaft"), f"vent:{s.id}")
-        if self.entry in self.v and ug.door is not None:
+        if self.alts and ug.door is not None and self.entry in self.v:
+            self._door_any()
+        elif self.entry in self.v and ug.door is not None:
             fb = entry_fallback(self.specs, self.entry)
             self._door(self.entry, fallback=fb)
-        # objective: target closeness (x2) + uncovered area + small bias against tall/skinny rooms
+        if self.alts and ug.door is not None and self.entry in self.v:  # v2 zoning: the private zone keeps away from the front door
+                for s in self.specs:
+                    if s.type in ("master", "bedroom") and s.id != self.entry:
+                        self._clear_of_door(s.id, BED_ENTRY_CLEAR)
+        # objective: waste (uncovered floor, rooms above their cap) >> circulation >> target closeness
         total = W * H - sum((x1 - x0) * (y1 - y0) for x0, y0, x1, y1 in ug.blocked)
         covered = sum(v["e"] for v in self.v.values())
         m.add(covered <= total)  # tightens the bound: uncovered >= 0
         self.total = total
-        m.minimize(sum(v["d"] for v in self.v.values()) + 5 * (total - covered))
+        circ = [v["e"] for v in self.v.values() if v["s"].type in CIRCULATION]
+        if circ and self.alts:
+            # v2: circulation up to 5 % of the flat is nearly free (approved plans p90 = 4.7 %); beyond it each cell
+            # costs like wasted floor (the critic's circ_share gate)
+            excess = m.new_int_var(0, total, "circ_excess")
+            m.add(excess >= sum(circ) - int(CIRC_FREE * total))
+            self.extra_cost.append(CIRC_EXCESS_W * excess)
+            self._near_living()
+            self._wet_pairs()
+        m.minimize(sum(v["cost"] for v in self.v.values()) + UNCOVERED_W * (total - covered) + sum(self.extra_cost))
 
-    def _adjacent(self, i: str, j: str) -> None:
+    def _wet_pairs(self) -> None:
+        """v2: toilets back to back on a shared wall / shaft (soft reward per touching pair)."""
+        wet = [rid for rid, v in self.v.items() if v["s"].type in ("toilet", "bath")]
+        for i in range(len(wet)):
+            for j in range(i + 1, len(wet)):
+                t = self.m.new_bool_var(f"wet_{wet[i]}_{wet[j]}")
+                self.m.add_implication(t, self.v[wet[i]]["p"])
+                self.m.add_implication(t, self.v[wet[j]]["p"])
+                self._cases(wet[i], wet[j], [t], min_run=4)
+                self.extra_cost.append(WET_PAIR_W * (1 - t))
+
+    def _near_living(self) -> None:
+        """v2: the guest toilet (a toilet that opens onto the hub, not attached to a bedroom) within 3 m of the
+        living room, so a guest walks a few steps, not across the flat (soft)."""
+        m = self.m
+        liv = next((v for v in self.v.values() if v["s"].type == "living"), None)
+        if liv is None:
+            return
+        for rid in self.choice:
+            T = self.v[rid]
+            if T["s"].type not in ("toilet", "bath", "wc"):
+                continue
+            near = m.new_bool_var(f"near_{rid}")
+            g = NEAR_LIVING
+            m.add(T["x"] <= liv["x"] + liv["w"] + g).only_enforce_if(near)
+            m.add(liv["x"] <= T["x"] + T["w"] + g).only_enforce_if(near)
+            m.add(T["y"] <= liv["y"] + liv["h"] + g).only_enforce_if(near)
+            m.add(liv["y"] <= T["y"] + T["h"] + g).only_enforce_if(near)
+            self.extra_cost.append(NEAR_LIVING_W * (T["p"] - near))
+            m.add_implication(near, T["p"])
+
+    def _cases(self, i: str, j: str, enf: list, zone=None, min_run: int | None = None) -> None:
+        """Rooms i and j share a wall of at least a door's width whenever all of ``enf`` hold. With ``zone``
+        (cx, cy, r, z) the shared wall also reaches into the square of half-side r around (cx, cy) when z holds."""
         m = self.m
         A, B = self.v[i], self.v[j]
-        L = min(DOOR_RUN.get(A["s"].type, 10), DOOR_RUN.get(B["s"].type, 10))
-        enf = [A["p"], B["p"], *self.guard(f"link:{i}-{j}")]
+        L = min(DOOR_RUN.get(A["s"].type, 10), DOOR_RUN.get(B["s"].type, 10)) if min_run is None else min_run
         cases = []
         for horiz_touch in (True, False):
             for order in (0, 1):
@@ -468,16 +633,121 @@ class _Builder:
                     m.add(P["x"] + P["w"] == Q["x"]).only_enforce_if(c)
                     m.add(P["y"] + P["h"] - Q["y"] >= L).only_enforce_if(c)
                     m.add(Q["y"] + Q["h"] - P["y"] >= L).only_enforce_if(c)
-                    m.add(P["h"] >= L).only_enforce_if(c)
-                    m.add(Q["h"] >= L).only_enforce_if(c)
                 else:  # P below Q
                     m.add(P["y"] + P["h"] == Q["y"]).only_enforce_if(c)
                     m.add(P["x"] + P["w"] - Q["x"] >= L).only_enforce_if(c)
                     m.add(Q["x"] + Q["w"] - P["x"] >= L).only_enforce_if(c)
-                    m.add(P["w"] >= L).only_enforce_if(c)
-                    m.add(Q["w"] >= L).only_enforce_if(c)
+                if zone is not None:
+                    cx, cy, r, z = zone
+                    # wall line inside the band, and the shared stretch overlaps the square by a door's width
+                    if horiz_touch:
+                        a_, b_, wall, ctr, ctr2 = "y", "h", P["x"] + P["w"], cx, cy
+                    else:
+                        a_, b_, wall, ctr, ctr2 = "x", "w", P["y"] + P["h"], cy, cx
+                    m.add(wall <= ctr + r).only_enforce_if([c, z])
+                    m.add(wall >= ctr - r).only_enforce_if([c, z])
+                    for U in (P[a_] + P[b_], Q[a_] + Q[b_], ctr2 + r):
+                        for Lo in (P[a_], Q[a_], ctr2 - r):
+                            m.add(U - Lo >= L).only_enforce_if([c, z])
                 cases.append(c)
         m.add_bool_or(cases).only_enforce_if(enf)
+
+    def _adjacent(self, i: str, j: str) -> None:
+        A, B = self.v[i], self.v[j]
+        self._cases(i, j, [A["p"], B["p"], *self.guard(f"link:{i}-{j}")])
+
+    def _adjacent_any(self, rid: str, cands: tuple[str, ...]) -> None:
+        """v2 hub door: room ``rid`` opens onto exactly one of ``cands`` (preference order, HUB_PEN per step)."""
+        if rid not in self.v:
+            return
+        m, R = self.m, self.v[rid]
+        opts = [c for c in cands if c in self.v and c != rid]
+        if not opts:
+            return
+        lits = []
+        zone = None
+        if self.hub_zone is not None and R["s"].type in PRIVATE_DOOR:
+            z = m.new_bool_var(f"zone_{rid}")  # soft: this room's hub door lies in the flat's door cluster
+            self.extra_cost.append(HUB_ZONE_W * (R["p"] - z))
+            m.add_implication(z, R["p"])
+            zone = (*self.hub_zone, z)
+        for k, c in enumerate(opts):
+            ch = m.new_bool_var(f"ch_{rid}_{c}")
+            m.add_implication(ch, self.v[c]["p"])
+            m.add_implication(ch, R["p"])
+            self._cases(rid, c, [ch], zone)
+            if k:
+                self.extra_cost.append(HUB_PEN * k * ch)
+            lits.append((c, ch))
+        self.choice[rid] = lits
+        g = self.guard(f"link:{rid}-hub")
+        m.add(sum(ch for _, ch in lits) == 1).only_enforce_if([R["p"], *g])
+
+    def _one_hub(self) -> None:
+        """v2: private doors (bedrooms, study, common toilet) should open onto ONE hub: each extra hub used costs."""
+        m = self.m
+        used: dict[str, list] = {}
+        for rid, lits in self.choice.items():
+            if self.v[rid]["s"].type not in ("master", "bedroom", "study", "toilet", "bath", "wc"):
+                continue
+            for c, ch in lits:
+                used.setdefault(c, []).append(ch)
+        if len(used) < 2:
+            return
+        for c, chs in used.items():
+            y = m.new_bool_var(f"hub_{c}")
+            for ch in chs:
+                m.add_implication(ch, y)
+            self.extra_cost.append(HUB_SPLIT * y)
+
+    def _clear_of_door(self, rid: str, d: int) -> None:
+        """Room ``rid`` stays at least ``d`` cells from the flat's front door (either along or across the edge)."""
+        m, R = self.m, self.v[rid]
+        e, along = self.ug.door  # type: ignore[misc]
+        px, py = (along, e.pos) if e.horizontal else (e.pos, along)
+        bs = [m.new_bool_var("") for _ in range(4)]
+        m.add(R["x"] >= px + d).only_enforce_if(bs[0])
+        m.add(R["x"] + R["w"] <= px - d).only_enforce_if(bs[1])
+        m.add(R["y"] >= py + d).only_enforce_if(bs[2])
+        m.add(R["y"] + R["h"] <= py - d).only_enforce_if(bs[3])
+        viol = m.new_bool_var("")  # soft: a tight flat may still put a bedroom by the door, at a price
+        self.extra_cost.append(2000 * viol)
+        m.add_bool_or([*bs, viol]).only_enforce_if(R["p"])
+
+    def _door_any(self) -> None:
+        """v2: the front door opens into the foyer, the living room or (at a price: the critic scores it 0.85)
+        the dining room next to the living room - whichever the flat's depth allows."""
+        types = {s.id: s.type for s in self.specs}
+        order = [self.entry] + [rid for t in ("foyer", "living", "dining") for rid, ty in types.items()
+                                if ty == t and rid != self.entry]
+        lits = []
+        for rid in order:
+            ch = self.m.new_bool_var(f"door_{rid}")
+            self.m.add_implication(ch, self.v[rid]["p"])
+            self._door_one(rid, [ch])
+            if types[rid] == "dining":
+                self.extra_cost.append(ENTRY_DINING_PEN * ch)
+            lits.append((rid, ch))
+        self.entry_choice = lits
+        self.m.add(sum(ch for _, ch in lits) == 1)
+
+    def realized_entry(self, solver: cp_model.CpSolver) -> str | None:
+        for rid, ch in getattr(self, "entry_choice", []):
+            if solver.value(ch):
+                return rid
+        return None
+
+    def realized_links(self, solver: cp_model.CpSolver) -> list[tuple[str, str]]:
+        """Door links of the solved layout: fixed links between present rooms plus each hub room's chosen door."""
+        out = []
+        for a_id, b_id in self.links:
+            if a_id in self.v and b_id in self.v and solver.value(self.v[a_id]["p"]) and solver.value(self.v[b_id]["p"]):
+                out.append((a_id, b_id))
+        for rid, lits in self.choice.items():
+            for c, ch in lits:
+                if solver.value(ch):
+                    out.append((c, rid))
+        return out
 
     def _touch(self, rid: str, run: int, kinds: tuple[str, ...], label: str, glazing: bool = False,
                balcony: bool = False) -> None:
@@ -512,10 +782,9 @@ class _Builder:
                     m.add(R["y"] + R["h"] == e.pos).only_enforce_if(c)
                 else:
                     m.add(R["y"] == e.pos).only_enforce_if(c)
-                if glazing:
-                    m.add(R["x"] >= e.a).only_enforce_if(c)
-                    m.add(R["x"] + R["w"] <= e.b).only_enforce_if(c)
-                    m.add(90 * R["w"] >= R["a"] + 360).only_enforce_if(c)
+                if glazing:  # the part of the side on the façade carries the 1/6 window (v2: may overhang the span)
+                    ov = self._overlap(R["x"], R["w"], e.a, e.b, c)
+                    m.add(90 * ov >= R["a"] + 360).only_enforce_if(c)
                 else:
                     m.add(R["x"] <= e.b - run).only_enforce_if(c)
                     m.add(R["x"] + R["w"] >= e.a + run).only_enforce_if(c)
@@ -526,19 +795,34 @@ class _Builder:
                 else:
                     m.add(R["x"] == e.pos).only_enforce_if(c)
                 if glazing:
-                    m.add(R["y"] >= e.a).only_enforce_if(c)
-                    m.add(R["y"] + R["h"] <= e.b).only_enforce_if(c)
-                    m.add(90 * R["h"] >= R["a"] + 360).only_enforce_if(c)
+                    ov = self._overlap(R["y"], R["h"], e.a, e.b, c)
+                    m.add(90 * ov >= R["a"] + 360).only_enforce_if(c)
                 else:
                     m.add(R["y"] <= e.b - run).only_enforce_if(c)
                     m.add(R["y"] + R["h"] >= e.a + run).only_enforce_if(c)
                 m.add(R["h"] >= run).only_enforce_if(c)
             lits.append(c)
         enf = [R["p"], *self.guard(label)]
+        if label.startswith("vent:") and not self.guard_mode:
+            # v2: a toilet the façade/shaft cannot reach is ventilated by a mechanical duct (DCPR "review"), at a
+            # price worth ~2.5 m2 of wasted floor, instead of failing the flat into the fix ladder
+            duct = m.new_bool_var(f"duct_{rid}")
+            self.extra_cost.append(VENT_DUCT_W * duct)
+            self.duct[rid] = duct
+            lits = [*lits, duct]
         if lits:
             m.add_bool_or(lits).only_enforce_if(enf)
         else:
             m.add_bool_or([R["p"].negated(), *[g.negated() for g in self.guard(label)]])
+
+    def _overlap(self, lo, size, a: int, b: int, c):
+        """Length of [lo, lo + size] inside [a, b] (a lower bound that the solver pushes up to the true value)."""
+        m = self.m
+        ov = m.new_int_var(0, b - a, "")
+        m.add(ov <= lo + size - a).only_enforce_if(c)
+        m.add(ov <= b - lo).only_enforce_if(c)
+        m.add(ov <= size).only_enforce_if(c)
+        return ov
 
     def _door(self, rid: str, fallback: str | None = None) -> None:
         if fallback and fallback in self.v:
@@ -618,11 +902,13 @@ def _params(solver: cp_model.CpSolver, time_limit: float, workers: int | None = 
 
 
 def solve(ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], entry: str,
-          time_limit: float = TIME_CAP, explain: bool = True) -> SolveResult:
+          time_limit: float = TIME_CAP, explain: bool = True,
+          alts: list[tuple[str, tuple[str, ...]]] | None = None, seed: int = 7) -> SolveResult:
     t0 = time.perf_counter()
-    b = _Builder(ug, specs, links, entry, guards=False)
+    b = _Builder(ug, specs, links, entry, guards=False, alts=alts)
     solver = cp_model.CpSolver()
     _params(solver, max(0.2, time_limit - (time.perf_counter() - t0)))  # model build counts against the cap
+    solver.parameters.random_seed = seed
     cb = _Stall(patience=stall_patience(time_limit, len(specs)))
     st = _solve_with_stall(solver, b.m, cb, time_limit)
     elapsed = time.perf_counter() - t0
@@ -634,9 +920,12 @@ def solve(ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], ent
             else:
                 dropped.append(rid)
         status = "optimal" if st == cp_model.OPTIMAL else ("feasible" if elapsed < time_limit * 0.98 else "timeout")
-        return SolveResult(status, rects, dropped, solver.objective_value, round(elapsed, 3))
+        return SolveResult(status, rects, dropped, solver.objective_value, round(elapsed, 3),
+                           links=b.realized_links(solver), entry=b.realized_entry(solver),
+                           hub_point=(solver.value(b.hub_zone[0]), solver.value(b.hub_zone[1])) if b.hub_zone else None)
     if st == cp_model.INFEASIBLE or st == cp_model.MODEL_INVALID:
-        core = explain_infeasible(ug, specs, links, entry, budget=min(3.0, max(0.3, time_limit - elapsed))) if explain else []
+        core = explain_infeasible(ug, specs, links, entry, budget=min(3.0, max(0.3, time_limit - elapsed)),
+                                  alts=alts) if explain else []
         return SolveResult("infeasible", time_s=round(time.perf_counter() - t0, 3), core=core)
     return SolveResult("timeout", time_s=round(elapsed, 3))
 
@@ -662,8 +951,8 @@ def _solve_with_stall(solver: cp_model.CpSolver, model: cp_model.CpModel, cb: _S
         th.join(timeout=1)
 
 
-def _feasible_with(ug, specs, links, entry, active: set[str], t: float) -> bool | None:
-    b = _Builder(ug, specs, links, entry, guards=True)
+def _feasible_with(ug, specs, links, entry, active: set[str], t: float, alts=None) -> bool | None:
+    b = _Builder(ug, specs, links, entry, guards=True, alts=alts)
     for label, lit in b.guards.items():
         b.m.add(lit == (1 if label in active else 0))
     b.m.clear_objective()
@@ -680,7 +969,7 @@ def _feasible_with(ug, specs, links, entry, active: set[str], t: float) -> bool 
 CATEGORY_ORDER = ("link", "size", "entry", "window", "vent", "room")
 
 
-def explain_infeasible(ug: UnitGrid, specs, links, entry, budget: float = 6.0) -> list[str]:
+def explain_infeasible(ug: UnitGrid, specs, links, entry, budget: float = 6.0, alts=None) -> list[str]:
     """Smallest set of requirements (rooms, sizes, links, windows) that cannot hold together.
 
     Each test fixes the requirement literals as constants (so presolve can refute quickly), first
@@ -688,9 +977,9 @@ def explain_infeasible(ug: UnitGrid, specs, links, entry, budget: float = 6.0) -
     requirement, so the result is always a sufficient (if not always minimal) explanation.
     """
     t0 = time.perf_counter()
-    probe = _Builder(ug, specs, links, entry, guards=True)
+    probe = _Builder(ug, specs, links, entry, guards=True, alts=alts)
     labels = list(probe.guards)
-    if _feasible_with(ug, specs, links, entry, set(labels), min(2.0, budget)) is not False:
+    if _feasible_with(ug, specs, links, entry, set(labels), min(2.0, budget), alts) is not False:
         return []
     active = set(labels)
 
@@ -701,14 +990,14 @@ def explain_infeasible(ug: UnitGrid, specs, links, entry, budget: float = 6.0) -
         if left() <= 0:
             break
         trial = {lab for lab in active if not lab.startswith(cat + ":")}
-        if trial != active and _feasible_with(ug, specs, links, entry, trial, min(0.6, max(0.1, left()))) is False:
+        if trial != active and _feasible_with(ug, specs, links, entry, trial, min(0.6, max(0.1, left())), alts) is False:
             active = trial
     order = sorted(active, key=lambda lab: (CATEGORY_ORDER.index(lab.split(":")[0]), lab))
     for lab in order:
         if left() <= 0:
             break
         trial = active - {lab}
-        if _feasible_with(ug, specs, links, entry, trial, min(0.5, max(0.1, left()))) is False:
+        if _feasible_with(ug, specs, links, entry, trial, min(0.5, max(0.1, left())), alts) is False:
             active = trial
     return sorted(active, key=lambda lab: (CATEGORY_ORDER.index(lab.split(":")[0]), lab))
 

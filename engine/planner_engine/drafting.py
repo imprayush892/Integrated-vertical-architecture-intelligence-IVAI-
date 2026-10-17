@@ -19,8 +19,8 @@ from . import geo
 from .models import Opening, Plan, PlanRoom, Wall
 from .solver import EXT_WALL, INT_WALL, WIN_HEIGHT, G, RoomSpec, UnitGrid, entry_fallback, rect_to_poly
 
-MERGE_PRIORITY = ["passage", "foyer", "dining", "living", "master", "bedroom", "study", "kitchen", "utility",
-                  "balcony", "dress", "store", "pooja", "toilet", "bath", "wc"]
+MERGE_PRIORITY = ["dining", "living", "master", "bedroom", "study", "dress", "kitchen", "utility", "pooja", "store",
+                  "toilet", "bath", "wc", "foyer", "passage", "balcony"]  # v2: circulation takes leftovers last
 DOOR_W = {"toilet": 0.75, "bath": 0.75, "wc": 0.75, "utility": 0.75, "balcony": 0.9}
 ENTRY_W = 1.0
 VENT_W = 0.6
@@ -76,13 +76,28 @@ def _segments(geom) -> list[tuple[tuple[float, float], tuple[float, float]]]:
     return [s for s in out if math.dist(*s) > 1e-6]
 
 
+def _stays_rect(room: Polygon, comp: Polygon, rtype: str) -> bool:
+    """v2: merging ``comp`` keeps the room near-rectangular (else it becomes a store: an L-shaped dining with a
+    1.5 m arm fits no table)."""
+    u = shapely.union(room, comp).buffer(0)
+    rect = u.area / max(u.minimum_rotated_rectangle.area, 1e-6)
+    return rect >= (0.75 if rtype in ("living", "dining", "kitchen") else 0.85)
+
+
 def _merge_leftover(cells: dict[str, Polygon], interior: Polygon, types: dict[str, str],
-                    max_area: dict[str, float] | None = None) -> dict[str, Polygon]:
+                    max_area: dict[str, float] | None = None, waste_cap: dict[str, float] | None = None,
+                    owner: dict[str, str] | None = None, soft: dict[str, float] | None = None) -> dict[str, Polygon]:
     """Give leftover grid space to neighbours. ``max_area`` caps window rooms so their 1/6 glazing holds;
-    leftover nobody can take (>= 1 m2) becomes a store, smaller bits become wall."""
+    ``waste_cap`` (v2) is the size beyond which a room's floor counts as waste: a neighbour that stays under it is
+    preferred, and circulation takes leftovers last. A usable pocket against a bedroom becomes a walk-in wardrobe
+    opening off that bedroom (recorded in ``owner``); leftover nobody can take (>= 1 m2) becomes a store, smaller
+    bits become wall."""
     if not cells:
         return cells
     max_area = max_area or {}
+    waste_cap = waste_cap or {}
+    soft = soft or {}
+    owner = owner if owner is not None else {}
     used = shapely.union_all(list(cells.values())) if cells else Polygon()
     left = interior.difference(used)
     # slivers thinner than 0.3 m (grid rounding along the walls) stay wall; only real pockets are given away
@@ -95,9 +110,25 @@ def _merge_leftover(cells: dict[str, Polygon], interior: Polygon, types: dict[st
             L = c.boundary.intersection(comp.boundary).length if c.distance(comp) < 1e-6 else 0.0
             if L > 0.05:
                 nbrs.append((rid, L))
-        # never grow a balcony into the flat, nor a window room past what its window can light
+        # never grow a balcony into the flat, nor a window room past what its window can light, nor (v2) a small
+        # room (pooja, wardrobe, powder, toilet, store) past its own size: a 20 m2 pooja is worse than a store
         nbrs = [t for t in nbrs if types.get(t[0]) != "balcony"
-                and cells[t[0]].area + comp.area <= max_area.get(t[0], 1e9)]
+                and cells[t[0]].area + comp.area <= max_area.get(t[0], 1e9)
+                and not (types.get(t[0]) in ("passage", "foyer") and comp.area >= 1.0)  # v2: circulation stays lean
+                and not (comp.area >= 1.0 and not _stays_rect(cells[t[0]], comp, types.get(t[0], "")))
+                and not (types.get(t[0]) in SMALL_ROOMS and comp.area >= 0.6
+                         and cells[t[0]].area + comp.area > min(soft.get(t[0], 1e9), waste_cap.get(t[0], 1e9)))]
+        beds = [t for t in nbrs if types.get(t[0]) in ("master", "bedroom") and t[1] >= 0.8]
+        if (beds and 1.5 <= comp.area <= 6.0 and comp.area / max(comp.minimum_rotated_rectangle.area, 1e-6) >= 0.8
+                and geo.clear_width(comp) >= 0.9):
+            k = 1
+            while f"wardrobe{k}" in cells:
+                k += 1
+            nid = f"wardrobe{k}"
+            cells[nid] = comp
+            types[nid] = "dress"
+            owner[nid] = max(beds, key=lambda t: t[1])[0]
+            continue
         if not nbrs:
             if comp.area >= 1.0:
                 k = 1
@@ -106,19 +137,260 @@ def _merge_leftover(cells: dict[str, Polygon], interior: Polygon, types: dict[st
                 cells[f"store{k}"] = comp
                 types[f"store{k}"] = "store"
             continue
-        if comp.area < 0.6:
+        if comp.area < 0.6 or (not MERGE_SLIVERS and comp.area < SLIVER):
+            if not MERGE_SLIVERS:
+                continue  # v2: a small pocket stays solid (a duct), it does not notch a room
             rid = max(nbrs, key=lambda t: t[1])[0]
         else:
-            def rank(t: tuple[str, float]) -> tuple[int, float]:
+            def rank(t: tuple[str, float], extra: float = comp.area) -> tuple[bool, bool, int, float]:
                 ty = types.get(t[0], "")
                 pr = MERGE_PRIORITY.index(ty) if ty in MERGE_PRIORITY else len(MERGE_PRIORITY)
-                return (pr, -t[1])
+                after = cells[t[0]].area + extra
+                return (after > waste_cap.get(t[0], 1e9), after > soft.get(t[0], 1e9), pr, -t[1])
 
             rid = min(nbrs, key=rank)[0]
         merged = shapely.union(cells[rid], comp)
         parts = geo.polygons_of(merged.buffer(0))
         cells[rid] = max(parts, key=lambda p: p.area) if parts else cells[rid]
     return cells
+
+
+SMALL_ROOMS = {"pooja", "dress", "wc", "toilet", "bath", "store", "utility"}
+NO_GROW = {"passage", "foyer", "balcony"}  # circulation never grows; balconies keep their depth
+HUB_TYPES = ("passage", "foyer", "dining", "living")  # spaces doors open onto
+PRIVATE_DOOR = ("master", "bedroom", "study", "toilet", "bath", "wc")
+WET_ROOMS = ("toilet", "bath", "wc")
+CLUSTER_DOORS = True
+SLIVER = 0.6
+MERGE_SLIVERS = False  # v2: pockets under SLIVER m2 stay solid (duct) instead of notching a room
+
+
+def _facade_side(ug: UnitGrid, x: int, y: int, w: int, h: int) -> int:
+    """Longest run (cells) of this rectangle's sides that lies on a façade edge."""
+    best = 0
+    for e in ug.edges:
+        if e.kind != "facade":
+            continue
+        if e.horizontal:
+            if (e.outward > 0 and y + h == e.pos) or (e.outward < 0 and y == e.pos):
+                best = max(best, min(x + w, e.b) - max(x, e.a))
+        elif (e.outward > 0 and x + w == e.pos) or (e.outward < 0 and x == e.pos):
+            best = max(best, min(y + h, e.b) - max(y, e.a))
+    return best
+
+
+def grow_to_fill(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, int, int]],
+                 max_steps: int = 60) -> dict[str, tuple[int, int, int, int]]:
+    """v2: push room sides out into floor the solver left uncovered, keeping every room a rectangle.
+
+    A side moves only across a strip that is entirely free, so no wall contact (door) is lost. Each step is priced
+    with the solver's own objective (uncovered floor costs more than a room above its target or cap), within the
+    room's aspect limit, 1.2 x its hard cap and the 1/6 glazing rule; circulation never grows. Whatever stays
+    uncovered is handed to ``_merge_leftover``."""
+    import numpy as np
+
+    from .solver import CAP_W, UNCOVERED_W, UNDER_W
+
+    W, H = ug.Wg, ug.Hg
+    occ = np.zeros((max(W, 1), max(H, 1)), dtype=np.int16)
+    for x0, y0, x1, y1 in ug.blocked:
+        occ[x0:x1, y0:y1] = -1
+    out = dict(rects)
+    ids = list(out)
+    for k, rid in enumerate(ids):
+        x, y, w, h = out[rid]
+        occ[x:x + w, y:y + h] = k + 1
+    spec = {s.id: s for s in specs}
+
+    def cost(s: RoomSpec, w: int, h: int) -> float:
+        a = w * h
+        net = a - 1.15 * (w + h)
+        c = UNDER_W * max(0, s.tgt - a) + s.over_w * max(0, a - s.tgt)
+        if s.cap:
+            c += CAP_W * max(0.0, net - s.cap)
+        return c
+
+    for _ in range(max_steps):
+        best = None
+        for k, rid in enumerate(ids):
+            s = spec.get(rid)
+            if s is None or s.type in NO_GROW:
+                continue
+            x, y, w, h = out[rid]
+            base = cost(s, w, h)
+            for side in ("l", "r", "b", "t"):
+                d = 0
+                if side == "l":
+                    while x - d - 1 >= 0 and not occ[x - d - 1, y:y + h].any():
+                        d += 1
+                    nr = (x - d, y, w + d, h)
+                elif side == "r":
+                    while x + w + d < W and not occ[x + w + d, y:y + h].any():
+                        d += 1
+                    nr = (x, y, w + d, h)
+                elif side == "b":
+                    while y - d - 1 >= 0 and not occ[x:x + w, y - d - 1].any():
+                        d += 1
+                    nr = (x, y - d, w, h + d)
+                else:
+                    while y + h + d < H and not occ[x:x + w, y + h + d].any():
+                        d += 1
+                    nr = (x, y, w, h + d)
+                if d == 0:
+                    continue
+                nx, ny, nw, nh = nr
+                if 10 * max(nw, nh) > s.aspect * min(nw, nh):
+                    continue
+                if s.hard and nw * nh > 1.2 * max(s.hard, s.tgt):
+                    continue
+                if s.window_run and s.type != "balcony" and 90 * _facade_side(ug, nx, ny, nw, nh) < nw * nh + 360:
+                    continue
+                gain = nw * nh - w * h
+                delta = cost(s, nw, nh) - base - UNCOVERED_W * gain
+                if delta < 0 and (best is None or delta < best[0]):
+                    best = (delta, k, rid, nr)
+        if best is None:
+            break
+        _, k, rid, nr = best
+        x, y, w, h = nr
+        occ[x:x + w, y:y + h] = k + 1
+        out[rid] = nr
+    return out
+
+
+def _largest_rect(free) -> tuple[int, int, int, int, int]:
+    """Largest all-True axis-aligned rectangle in a boolean grid: (area, x, y, w, h)."""
+    W, H = free.shape
+    heights = [0] * H
+    best = (0, 0, 0, 0, 0)
+    for x in range(W):
+        col = free[x]
+        for y in range(H):
+            heights[y] = heights[y] + 1 if col[y] else 0
+        stack: list[int] = []  # largest rectangle in the histogram along y (bar = run of free cells ending at x)
+        for y in range(H + 1):
+            hgt = heights[y] if y < H else 0
+            start = y
+            while stack and heights[stack[-1]] >= hgt:
+                top = stack.pop()
+                left = stack[-1] + 1 if stack else 0
+                area = heights[top] * (y - left)
+                if area > best[0]:
+                    best = (area, x - heights[top] + 1, left, heights[top], y - left)
+                start = left
+            if y < H:
+                stack.append(y)
+        del start
+    return best
+
+
+POCKET_KINDS = {"toilet": (3.0, 5.0, 15), "dress": (1.8, 5.5, 12), "pooja": (1.4, 2.8, 12), "utility": (1.5, 4.5, 10)}  # m2 min, m2 max, min side
+
+
+def fill_pockets(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, int, int]],
+                 links: list[tuple[str, str]], max_rooms: int = 4):
+    """v2: floor the solver could not cover becomes the rooms an architect would put there instead of a sealed
+    store: an attached toilet for a bedroom that has none, a walk-in wardrobe off a bedroom, a pooja room off the
+    living/dining/hub. Each is cut as a rectangle from the largest free pocket, sized within the critic's waste caps;
+    returns (rects, new specs, new links)."""
+    import numpy as np
+
+    W, H = ug.Wg, ug.Hg
+    occ = np.zeros((max(W, 1), max(H, 1)), dtype=np.int16)
+    for x0, y0, x1, y1 in ug.blocked:
+        occ[x0:x1, y0:y1] = -1
+    out = dict(rects)
+    ids = list(out)
+    for k, rid in enumerate(ids):
+        x, y, w, h = out[rid]
+        occ[x:x + w, y:y + h] = k + 1
+    types = {s.id: s.type for s in specs}
+    has_toilet = {a if types.get(b) in ("toilet", "bath") else b for a, b in links
+                  if {types.get(a), types.get(b)} & {"toilet", "bath"} and {types.get(a), types.get(b)} & {"master", "bedroom"}}
+    has_dress = {a if types.get(b) == "dress" else b for a, b in links if "dress" in (types.get(a), types.get(b))}
+    has_pooja = any(t == "pooja" for t in types.values())
+    # the programme's optional utility the solver left out may take a pocket beside the kitchen
+    utility = next((s.id for s in specs if s.type == "utility" and s.id not in rects), None)
+    new_specs: list[RoomSpec] = []
+    new_links: list[tuple[str, str]] = []
+    for _ in range(max_rooms):
+        area, x, y, w, h = _largest_rect(occ == 0)
+        if area < 180 or min(w, h) < 10:
+            break
+        # rooms along the pocket's sides, with the length of wall they share with it
+        contact: dict[str, int] = {}
+        for xs, ys in (((x - 1,), range(y, y + h)), ((x + w,), range(y, y + h)), (range(x, x + w), (y - 1,)),
+                       (range(x, x + w), (y + h,))):
+            for cx in xs:
+                for cy in ys:
+                    if 0 <= cx < W and 0 <= cy < H and occ[cx, cy] > 0:
+                        rid = ids[occ[cx, cy] - 1]
+                        contact[rid] = contact.get(rid, 0) + 1
+        beds = sorted((r for r, L in contact.items() if types.get(r) in ("master", "bedroom") and L >= 10),
+                      key=lambda r: -contact[r])
+        hubs = [r for r, L in contact.items() if types.get(r) in ("dining", "living", "passage", "foyer") and L >= 10]
+        kitchens = [r for r, L in contact.items() if types.get(r) == "kitchen" and L >= 10]
+        kind = owner = None
+        if utility and kitchens:
+            kind, owner = "utility", kitchens[0]
+        for b in ([] if kind else beds):
+            if b not in has_toilet and area >= 300 and min(w, h) >= 15:
+                kind, owner = "toilet", b
+                break
+            if b not in has_dress:
+                kind, owner = "dress", b
+                break
+        if kind is None and hubs and not has_pooja:
+            kind, owner = "pooja", hubs[0]
+        if kind is None:
+            occ[x:x + w, y:y + h] = -2  # nobody can use it: leave it to the leftover merge
+            continue
+        amin, amax, side = POCKET_KINDS[kind]
+        # trim to the size cap, keeping the side against the owner
+        ox, oy, ow, oh = out[owner]
+        cap = int(amax * 100)
+        if w * h > cap:
+            if ox + ow == x or ox == x + w:  # owner beside the pocket: keep the full height, cut the depth
+                nw = max(side, min(w, cap // max(h, 1)))
+                x = x if ox + ow == x else x + w - nw
+                w = nw
+                if w * h > cap:
+                    nh = max(side, cap // w)
+                    y = max(y, min(oy, y + h - nh)) if oy + oh >= y + nh else y
+                    h = nh
+            else:  # owner above/below
+                nh = max(side, min(h, cap // max(w, 1)))
+                y = y if oy + oh == y else y + h - nh
+                h = nh
+                if w * h > cap:
+                    nw = max(side, cap // h)
+                    x = max(x, min(ox, x + w - nw)) if ox + ow >= x + nw else x
+                    w = nw
+        if w * h < amin * 100 or min(w, h) < side or max(w, h) > (2 if kind == "pooja" else 3) * min(w, h):
+            occ[x:x + w, y:y + h] = -2
+            continue
+        k = len(ids) + 1
+        nid = f"{kind}_{owner}" if f"{kind}_{owner}" not in out else f"{kind}{k}"
+        if kind == "utility":
+            nid, utility = utility, None
+        ids.append(nid)
+        occ[x:x + w, y:y + h] = len(ids)
+        out[nid] = (x, y, w, h)
+        a_m2 = w * h / 100
+        name = {"toilet": "Toilet", "dress": "Dress", "pooja": "Pooja", "utility": "Utility"}[kind]
+        new_specs.append(RoomSpec(id=nid, type=kind, name=name, tgt=w * h, amin=0, wmin=0, aspect=30, window_run=0,
+                                  vent_run=0, optional=True, target_area=round(a_m2, 2),
+                                  cap=int(100 * min(amax + 0.5, 1.3 * a_m2 + 0.5)), over_w=10,
+                                  hard=int(100 * (amax + 0.5) / 1.2)))
+        new_links.append((owner, nid))
+        types[nid] = kind
+        if kind == "toilet":
+            has_toilet.add(owner)
+        elif kind == "dress":
+            has_dress.add(owner)
+        else:
+            has_pooja = True
+    return out, new_specs, new_links
 
 
 def _place_on_segment(seg, width: float, at: float | None = None, margin: float = 0.15):
@@ -144,15 +416,25 @@ def _cut(a, b, depth: float, both: bool = True) -> Polygon:
 
 
 def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, int, int]],
-          links: list[tuple[str, str]], entry: str, overrides: dict[str, dict] | None = None) -> Plan:
+          links: list[tuple[str, str]], entry: str, overrides: dict[str, dict] | None = None,
+          hub_point: tuple[int, int] | None = None) -> Plan:
     overrides = overrides or {}
     spec = {s.id: s for s in specs}
     types = {s.id: s.type for s in specs}
+    rects = grow_to_fill(ug, specs, rects)
+    rects, more, more_links = fill_pockets(ug, specs, rects, list(links))
+    if more:
+        specs = [*specs, *more]
+        spec.update({s.id: s for s in more})
+        types.update({s.id: s.type for s in more})
+        links = [*links, *more_links]
+        rects = grow_to_fill(ug, specs, rects)
     cells = {rid: rect_to_poly(ug, r) for rid, r in rects.items()}
     base = dict(cells)  # the solver's rectangles: openings are placed on these (they are on the façade by construction)
     if entry not in cells:
         entry = entry_fallback(specs, entry) or entry
-    caps: dict[str, float] = {}
+    caps: dict[str, float] = {}  # hard: a window room's 1/6 glazing
+    soft: dict[str, float] = {}  # v2 preference only: better an oversized toilet than a store reached through it
     if True:
         fl = []
         for e in ug.edges:
@@ -164,18 +446,26 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         for rid, c in cells.items():
             # service rooms may grow at most 60% (or 1.5 m2) past their target when absorbing leftovers
             if spec[rid].type in ("toilet", "bath", "wc", "utility", "store", "pooja", "dress", "kitchen", "foyer"):
-                caps[rid] = max(c.area, spec[rid].target_area * 1.6, spec[rid].target_area + 1.5)
+                soft[rid] = max(c.area, spec[rid].target_area * 1.6, spec[rid].target_area + 1.5)
             if spec[rid].window_run and spec[rid].type != "balcony" and not fac_all.is_empty:
                 segs = _segments(c.boundary.intersection(fac_all))
                 L = max((math.dist(*sg) for sg in segs), default=0.0)
                 cap_w = max(c.area, (L - 0.4) * 9.0)  # window (L-0.25) x 1.5 m >= area / 6, with margin
-                caps[rid] = min(caps.get(rid, cap_w), cap_w)
-    cells = _merge_leftover(cells, ug.interior, types, caps)
+                caps[rid] = cap_w
+    waste_cap = {rid: spec[rid].cap / 100 + 0.12 * math.sqrt(max(spec[rid].cap, 1) / 100) * 4
+                 for rid in cells if spec[rid].cap}  # net cap -> gross (half walls on the perimeter)
+    owner: dict[str, str] = {}
+    cells = _merge_leftover(cells, ug.interior, types, caps, waste_cap, owner, soft)
+    links = list(links)
     for rid in cells:
-        if rid not in spec:  # leftover turned into a store
-            spec[rid] = RoomSpec(id=rid, type="store", name="Store", tgt=0, amin=0, wmin=0, aspect=99,
-                                 window_run=0, vent_run=0, optional=True, target_area=round(cells[rid].area, 2))
+        if rid not in spec:  # leftover turned into a wardrobe (off a bedroom) or a store
+            kind = types.get(rid, "store")
+            spec[rid] = RoomSpec(id=rid, type=kind, name="Wardrobe" if kind == "dress" else "Store", tgt=0, amin=0,
+                                 wmin=0, aspect=99, window_run=0, vent_run=0, optional=True,
+                                 target_area=round(cells[rid].area, 2))
             base[rid] = cells[rid]
+            if rid in owner:
+                links.append((owner[rid], rid))
     ids = list(cells)
     # internal walls on shared edges
     shared: dict[tuple[str, str], list] = {}
@@ -229,17 +519,50 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         doors.append(Opening(id="D-entry", kind="entry", a=a, b=b, width=ENTRY_W, rooms=[entry], hinge=a, swing_into=entry))
     # internal doors on links
     linked: set[str] = {entry}
+    if hub_point is None and CLUSTER_DOORS:
+        # v2: cluster the private doors (bedrooms, study, guest toilet onto the hub): the point their walls are
+        # closest to, found by two rounds of projecting a centre onto each wall
+        segs = []
+        for ra, rb in links:
+            key = (ra, rb) if (ra, rb) in shared else (rb, ra)
+            hub_r = next((r for r in (ra, rb) if types.get(r) in HUB_TYPES), None)
+            oth = rb if hub_r == ra else ra
+            if key in shared and hub_r is not None and types.get(oth) in PRIVATE_DOOR:
+                segs.append(LineString(max(shared[key], key=lambda s: math.dist(*s))))
+        if len(segs) >= 2:
+            cx = sum(sg.centroid.x for sg in segs) / len(segs)
+            cy = sum(sg.centroid.y for sg in segs) / len(segs)
+            for _ in range(2):
+                pts = [sg.interpolate(sg.project(shapely.geometry.Point(cx, cy))) for sg in segs]
+                cx, cy = sum(p.x for p in pts) / len(pts), sum(p.y for p in pts) / len(pts)
+            hub_point = (round((cx - ug.ox) / G), round((cy - ug.oy) / G))
     for k, (ra, rb) in enumerate(links):
         key = (ra, rb) if (ra, rb) in shared else (rb, ra)
         if key not in shared:
             continue
         seg = max(shared[key], key=lambda s: math.dist(*s))
         w = min(DOOR_W.get(types.get(ra, ""), 0.9), DOOR_W.get(types.get(rb, ""), 0.9))
-        placed = _place_on_segment(seg, w)
+        # v2: a door onto the hub sits at the end of the wall nearest the hub's centre, so the private doors
+        # cluster on one compact hub (and stay in the room's corner, clear of the bed wall)
+        hub = next((r for r in (ra, rb) if types.get(r) in HUB_TYPES), None)
+        other = rb if hub == ra else ra
+        at = None
+        if hub is not None and hub_point is not None and types.get(other) in PRIVATE_DOOR:
+            # v2: the solver clustered the private doors around hub_point: put this door as close to it as the wall allows
+            hp = (ug.ox + hub_point[0] * G, ug.oy + hub_point[1] * G)
+            L = math.dist(*seg)
+            t = LineString(seg).project(shapely.geometry.Point(hp))
+            at = min(max(t, 0.15 + w / 2), L - 0.15 - w / 2) if L > w + 0.3 else None
+        elif hub is not None:
+            c = cells[hub].centroid
+            L = math.dist(*seg)
+            if math.dist(seg[1], (c.x, c.y)) < math.dist(seg[0], (c.x, c.y)) and L > w + 0.3:
+                at = L - 0.15 - w / 2
+        placed = _place_on_segment(seg, w, at=at)
         if not placed:
             continue
         a, b = placed
-        into = rb if types.get(rb) in ("toilet", "bath", "wc", "master", "bedroom", "study", "utility") else ra
+        into = rb if types.get(rb) in ("toilet", "bath", "wc", "master", "bedroom", "study", "utility", "dress", "pooja") else ra
         doors.append(Opening(id=f"D{k + 1}", kind="door", a=a, b=b, width=round(math.dist(a, b), 3),
                              rooms=[ra, rb], hinge=a, swing_into=into))
         cut_geoms.append(_cut(a, b, INT_WALL))
@@ -249,6 +572,9 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         if rid in linked:
             continue
         cand = [(k, s) for k, segs in shared.items() if rid in k for s in segs]
+        if types.get(rid) not in WET_ROOMS:
+            # v2: never a door through a toilet (a store reached only through a toilet is worse than a sealed one)
+            cand = [(k, s) for k, s in cand if types.get(k[0] if k[1] == rid else k[1]) not in WET_ROOMS]
         if not cand:
             continue
         k, seg = max(cand, key=lambda t: math.dist(*t[1]))
@@ -302,7 +628,7 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
                     if vent_via == "shaft":
                         shaft_area, shaft_width = _shaft_dims(shaft_lines, contact)
                     win_area = math.dist(*placed) * VENT_H
-        if overrides.get(rid, {}).get("vent") == "duct" and not ventilated:
+        if not ventilated and (overrides.get(rid, {}).get("vent") == "duct" or s.type in ("toilet", "bath", "wc", "utility")):
             vent_via = "duct"  # reported as "review" by the checks
         plan_rooms.append(
             PlanRoom(

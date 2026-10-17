@@ -1,7 +1,7 @@
 # Design note: spatial graph dataset v2 (flat grouping, outline, core, flat frames)
 
 Owner of: `engine/tools/extract_pdf_topology.py` (changes), `engine/tools/build_graph_dataset.py` (new),
-`data/mined/graphs_v2.jsonl.gz`. Results, counts and example renders: [dataset-v2.md](dataset-v2.md).
+`data/mined/graphs_v2.jsonl.gz` (4.1 MB), `engine/planner_engine/data/rules/approved_layout_patterns.json` (27 KB).
 
 ## What
 
@@ -68,19 +68,98 @@ writes one record per page.
 
 Scoring unit: an emitted flat is **grouping-correct** when it holds every major room of one real apartment
 (living, kitchen, bedrooms, toilets) and no room of another apartment; missing small decks / balconies /
-service cells and stray non-room cells (a shaft, a ledge) are counted as defects, not failures. **Exact** =
-no defect at all. Ground truth is my reading of the drawings.
+service cells and stray non-room cells (a shaft, a ledge) are counted as defects, not failures. Ground truth is my
+reading of the overlay renders (fill = room region, red box = core, star = entrance, blue / green dot = open / door link).
 
-| Sample | Emitted flats grouping-correct | Real apartments recovered | Notes |
-| --- | --- | --- | --- |
-| Audit pages (10, same as DATASET_VALIDATION.md), before (v1) | 10 / 25 (40 %) | 10 / 27 (37 %) | from the audit |
-| Audit pages, final code | **25 / 26 (96 %)**, exact 21 / 26 | 25 / 26 | fixes were tuned on these pages |
-| Held-out 1 (6 random pages, other projects), first look | 18 / 26 (69 %) | 18 / 30 (60 %) | true held-out number |
-| Held-out 1, final code | 25 / 30 (83 %) | 25 / 30 | then used for tuning: no longer held out |
-| Held-out 2 (6 random pages, untouched), final code | **25 / 32 (78 %)** | **25 / 37 (68 %)** | honest generalisation estimate |
+### Re-audit of the 10 audited pages (final code, all 10 overlays looked at by eye)
 
-Dataset counts (flats kept by BHK, pages with outline / core, QC failures) are in
-[dataset-v2.md](dataset-v2.md).
+| # | Project / page | Plan | Emitted flats (v1 audit) | Emitted flats (v2) | Grouping-correct v2 | Notes |
+| - | --- | --- | --- | --- | --- | --- |
+| 1 | 33 CHEMBUR_W p3 | 3+3+1 BHK tower | 3 (1 ok) | 3 | 3 / 3 | master toilets and kitchens now kept |
+| 2 | 40 PAHADI_GOREGAON_W p5 | 3 x 2BHK | 3 (0 ok) | 3 | 3 / 3 | the 0.91 m passages no longer cut the flats |
+| 3 | 53 PAHADI_GOREGAON_W p1 | 3 x 2BHK | 3 (2 ok) | 3 | 3 / 3 | F1 includes its study room |
+| 4 | 54 BHULESHWAR p8 | rehab tenements | 2 (1 ok) | 3 | 2 / 3 | F2 (13 rooms, three bedrooms) is possibly two tenements; counted as wrong |
+| 5 | 61 DADAR_NAIGAON_F_S p4 | 1BHK rehab | 2 (1 ok) | 3 | 3 / 3 | fitness centre excluded; the third flat has no entrance found, so QC drops it |
+| 6 | 62 BANDRA_C p0 | 2 x 3BHK | 3 (2 ok) | 2 | 2 / 2 | parking block no longer a flat |
+| 7 | 69 MATUNGA p0 | 3BHK + 2BHK rehab | 2 (2 ok) | 2 | 2 / 2 | |
+| 8 | 74 BANDRA_B p3 | 4 x 1BHK rehab | 2 (0 ok) | 4 | 4 / 4 | F4 has an unlabelled ledge attached (defect) |
+| 9 | 75 BANDRA_B p9 | 2 x 3BHK | 3 (0 ok) | 2 | 2 / 2 | |
+| 10 | 76 BHULESHWAR p4 | 2BHK + school | 2 (1 ok) | 1 | 1 / 1 | school typed non-residential |
+| | **Total** | | **25 (10 ok, 40 %)** | **26** | **25 / 26 (96 %)** | real apartments recovered: 25 of 26 |
+
+Target: >= 75 % on these pages: met. These pages were used to tune the fixes, so 96 % is an optimistic number.
+Overlays: `img/dataset-audit-40_5.png`, `img/dataset-audit-74_3.png`, `img/dataset-audit-33_3.png`.
+
+### Pages not used for tuning
+
+| Sample | Emitted flats grouping-correct | Real apartments recovered |
+| --- | --- | --- |
+| Held-out 1 (6 random pages), first look | 18 / 26 (69 %) | 18 / 30 (60 %) |
+| Held-out 1, final code | 25 / 30 (83 %) | 25 / 30 (no longer held out) |
+| Held-out 2 (6 random pages, untouched), final code | **25 / 32 (78 %)** | **25 / 37 (68 %)** |
+
+The 78 % figure on untouched pages is the honest generalisation estimate (+-8 points: 32 flats, one reader).
+I did not re-score the kept set of the full run flat by flat; its quality rests on these samples plus the QC filters below.
+
+## Dataset (full run)
+
+`graphs_v2.jsonl.gz`: 655 pages processed with 2 workers (resumable; about 65 min wall on the shared CPU), 649 pages usable
+(3 segmentation failures, 2 non-plan sheets, 1 low-fidelity), 649 with a building outline and a core (645 with a lift, 634 with a stair).
+
+| | Count |
+| --- | --- |
+| Raw emitted flats | 3 137 |
+| Kept (clean flat: one entrance, living + kitchen + toilet, no merge, rooms within 25 % of printed dims) | **1 264** on 442 pages, 47 of 50 projects (1 257 apartments, 7 PAP tenements) |
+| Kept, unique per project and signature | 974 (967 apartments) |
+| Kept by BHK (bedroom + master) | 0: 16, 1: 211, 2: 731, 3: 266, 4: 38, 6: 2 |
+| `flats_relaxed` (fail only the 25 % dims test, within 40 %) | 444 |
+| Rejected, by failed check (a flat can fail several) | dims within 40 %: 887, one entrance: 527, no living: 286, dims within 25 %: 185, no kitchen: 154, no toilet: 141, no merge: 59 |
+| Entrance room of kept flats | living 1 130 (89 %), unknown 66, unlabeled 29, passage 23, dining 11, multipurpose 3, foyer 2 |
+| Flat door opens on | lobby 809, common passage 304, unlabelled 92, unknown 43, stair 13 |
+| Strict per-room dims within 25 % | 1 009 of 1 264 |
+
+Record per page: `flats[]` (kept), `flats_relaxed[]`, `rejected[]`, `outline`, `cores`, `common_rooms`. Per kept flat: `nodes`
+(type, area, centroid, simplified polygon, facade sides and length, hop depth, centroid and polygon in the frame), `edges`
+(`door` / `open` / `wall`), `entrance` (room, point, door kind, lobby), `frame`, `living_vectors` (angle, distance from the
+living centroid to every room), `core` (vector core -> entrance, core -> flat centroid, side of the core the door is on, core
+direction in the flat frame), `signature`, `qc`. `img/dataset-flat-frames.png` shows eight kept 2BHK flats in their frame.
+
+## Pattern summary for the generator (`approved_layout_patterns.json`)
+
+`python -I engine/tools/build_graph_dataset.py x data/mined/graphs_v2.jsonl.gz --raw x --patterns-only --patterns-out
+engine/planner_engine/data/rules/approved_layout_patterns.json` recomputes it from the dataset (about 2 s).
+
+* Basis: the 1 257 kept apartments (PAP tenements excluded), one flat per project and signature (967), grouped by BHK
+  `1`, `2`, `3`, `4+`, `all`. Every figure carries `n` (rooms for direction and hop figures, flats otherwise) and `n_projects`;
+  a figure resting on fewer than 5 projects is dropped, and so is a BHK group below 5 projects. Group sizes: 1BHK 152 flats / 34 projects,
+  2BHK 524 / 40, 3BHK 242 / 37, 4+ 40 / 15, all 967 / 47.
+* `direction_from_living`: angle histogram (8 sectors of 45 degrees, flat frame: 0 = towards the deepest facade, 180 = back towards
+  the entrance door) and distance percentiles from the living centroid to kitchen, master, bedroom, any bedroom, toilet, dining.
+* `hops_from_entrance`: histogram and median of the hop depth per room type.
+* `entrance_room`: share of flats whose entrance room is living, foyer, dining, passage or other.
+* `hub_patterns`: which room each bedroom's door or opening leads to (the hub nearest the entrance): living / dining / foyer / passage /
+  `unnamed` (an unlabelled cell, in practice a passage whose label was lost) / `none` (no link to a hub found); plus the commonest
+  per-flat combinations (projects >= 5).
+* `passage`: share of flats with a labelled passage, and the passage area share of the flat area (percentiles, all flats and flats with a passage).
+* `area_m2`, `n_rooms`: percentiles.
+
+Headline values (all-BHK, 47 projects): the flat's front door opens into the living room in 89 % of flats (1BHK 85 %, 2BHK 95 %,
+3BHK 81 %); a foyer entrance is almost absent in this dataset (0.2 % of flats), so the generator should not treat "foyer entry" as a common Mumbai pattern
+from this evidence. Bedrooms lie towards the deep
+facade: 55 % of bedrooms in the 0-degree sector from the living centroid (2BHK 61 %), median distance 6.3 m; kitchens split between the two
+forward-diagonal sectors (NE 30 %, SE 30 %, median 3.5 m, i.e. beside the living room, not behind it); toilets follow the bedrooms (47 % at 0
+degrees, median 5.7 m). Hop depth medians: living 0, dining 1, passage 1, kitchen 2, bedroom 2, master 3, toilet 3. Bedroom doors open onto a
+passage in 34 % of bedrooms, an unlabelled cell (probably a passage) in 29 %, the living room in 17 %, dining in 9 %, no hub found in 11 %.
+Labelled passages take a median 0 % of the flat (48 % of flats have one; where present: median 4 %, p90 6 %).
+
+## Re-audit limits of the patterns
+
+* The living label anchors the frame vectors; an `unknown` entrance room (66 flats) is kept but is probably a mislabelled living.
+* `unnamed` hubs hide a lost label, so the passage share is a lower bound; treat `passage` + `unnamed` (63 % of bedrooms) as "bedroom door opens
+  on a passage".
+* Direction bins depend on the frame rule (x to the deepest facade); in a flat whose deepest facade is the living side the bedroom angles
+  shift. The histograms are frame-relative, not compass.
+* Rooms in a flat are not independent and typical floors repeat inside a project; the `n_projects` figure is the honest sample size.
 
 ## Limits
 
@@ -98,3 +177,5 @@ Dataset counts (flats kept by BHK, pages with outline / core, QC failures) are i
 * Facade sides are in the drawing frame; sheets have no reliable north arrow, so no compass claims.
 * Typical floors repeat across pages; `signature` (types + rounded areas) lets a learner de-duplicate.
 * Ground truth is one reader's judgement on 22 pages; read the percentages as +-8 points.
+* 3 of 50 projects have no kept flat; 1 429 raw flats were rejected, mainly on the dimension test (a printed-dimension mismatch beyond 40 %) and on a missing or double entrance.
+* BHK label vs bedroom nodes (reviewer check): in 228 of 1 264 kept flats (18 %) the `bhk` value exceeds the number of nodes typed `bedroom` (197 by one, 31 by two or more), mostly master bedrooms labelled "UNK" or unlabelled (e.g. 33_3 F3). Treat `bhk` as the drawing's own count, not as a bedroom-node count, when training.

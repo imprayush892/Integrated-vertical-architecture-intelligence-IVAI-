@@ -394,3 +394,145 @@ def precheck(diagram: Diagram, unit_area: float, facade_len: float, shaft_len: f
                                   reason="This flat does not touch the common passage, so it has no entry door.",
                                   fixes=[{"action": "resplit", "label": "Re-split the plate so every flat meets the passage"}]))
     return conflicts
+
+
+# ------------------------------------------------------------------------------------------ v2 zoning
+# Generator v2 (docs/quality/generator-v2.md). An Indian flat reads PUBLIC (entry, living, dining, kitchen, powder,
+# utility, balcony off the living) -> HUB (one small distribution space the private doors open onto: the dining
+# area, a short passage, or the living room in a small flat) -> PRIVATE (bedrooms with attached toilets, dress).
+# The programme's "X - passage" links mean "X opens onto the hub"; which space is the hub is left to the solver,
+# in the preference order below, so the passage only appears when nothing else can serve the doors.
+
+HUB_ORDER = ("dining", "passage", "living")
+DOOR_FROM_HUB = {"master", "bedroom", "study", "toilet", "bath", "wc", "pooja"}
+ZONE = {"foyer": "public", "living": "public", "dining": "public", "kitchen": "public", "utility": "public",
+        "balcony": "public", "wc": "public", "passage": "hub", "master": "private", "bedroom": "private",
+        "study": "private", "dress": "private", "toilet": "private", "bath": "private"}
+# soft size caps used to judge whether the programme can fill the flat (= solver.OVERSIZE, the critic's waste rule)
+_CAP = {"master": 20.0, "bedroom": 16.0, "living": 32.0, "dining": 16.0, "kitchen": 11.0, "toilet": 5.5, "bath": 4.0,
+        "wc": 2.5, "foyer": 5.5, "passage": 6.5, "utility": 5.0, "study": 10.0, "dress": 6.0, "pooja": 3.0}
+NET_SHARE = 0.92  # room floor / net interior once the internal walls are drawn
+
+
+def flex_links(d: Diagram) -> tuple[list[tuple[str, str]], list[tuple[str, tuple[str, ...]]]]:
+    """Split the diagram's links into fixed door links and hub doors (room, candidate hubs in preference order)."""
+    types = {r.id: r.type for r in d.rooms if r.placed}
+    first = {t: next((k for k, v in types.items() if v == t), None) for t in HUB_ORDER}
+    hubs = tuple(first[t] for t in HUB_ORDER if first[t])
+    fixed: list[tuple[str, str]] = []
+    alts: dict[str, tuple[str, ...]] = {}
+    for a, b in d.links:
+        ta, tb = types.get(a), types.get(b)
+        if ta is None or tb is None or len(hubs) < 2:
+            fixed.append((a, b))
+            continue
+        if tb in HUB_ORDER and ta in DOOR_FROM_HUB or ta in HUB_ORDER and tb in DOOR_FROM_HUB:
+            x = a if ta in DOOR_FROM_HUB else b
+            alts[x] = hubs
+        elif {ta, tb} in ({"passage", "living"}, {"passage", "dining"}):
+            p = a if ta == "passage" else b
+            alts[p] = tuple(h for h in hubs if types[h] != "passage")
+        elif "kitchen" in (ta, tb) and {ta, tb} & {"dining", "living"}:
+            k = a if ta == "kitchen" else b
+            alts[k] = tuple(h for h in (first["dining"], first["living"]) if h)
+        elif "dress" in (ta, tb) and {ta, tb} & {"master", "bedroom"}:
+            x, owner = (a, b) if ta == "dress" else (b, a)
+            beds = [k for k, v in types.items() if v in ("master", "bedroom") and k != owner]
+            alts[x] = (owner, *beds)  # a walk-in wardrobe off its own bedroom, or off another one
+        elif "balcony" in (ta, tb) and {ta, tb} & {"dining", "living"}:
+            k = a if ta == "balcony" else b
+            alts[k] = tuple(h for h in (first["living"], first["dining"]) if h)
+        else:
+            fixed.append((a, b))
+    return fixed, list(alts.items())
+
+
+LIT_DEPTH = 5.0  # m: rooms lit from the façade rarely reach deeper than this (1/6 glazing, aspect limits)
+
+
+def _caps_total(rooms: list[DiagramRoom], usable: float, facade: float | None = None) -> tuple[float, float]:
+    """Floor the rooms can take before they count as oversized: window rooms limited by the façade band too."""
+    live = [r for r in rooms if r.placed]
+    total = sum(r.target_area for r in live) or 1.0
+    k = max(0.7, min(1.6, usable / total))
+    lit = dark = 0.0
+    for r in live:
+        if r.type in ("passage", "foyer"):
+            continue
+        c = 1.8 * r.target_area * k if r.type == "balcony" else min(_CAP.get(r.type, 1e9), 1.3 * k * r.target_area + 0.5)
+        if r.needs_window or r.type == "balcony":
+            lit += c
+        else:
+            dark += c
+    if facade:
+        lit = min(lit, facade * LIT_DEPTH)
+    return lit + dark, k
+
+
+def zone_programme(diagram: Diagram, interior_area: float, overrides: dict | None = None,
+                   unit: Unit | None = None, facade: float | None = None) -> Diagram:
+    """The v2 brief for one flat: enter into the living room, passage only if needed, and, when the flat is much
+    bigger than its programme, the rooms an architect would add instead of oversizing (powder room, attached
+    toilets, walk-in wardrobes, a study). Rooms the user placed are never removed; added rooms are optional."""
+    import copy
+
+    overrides = overrides or {}
+    d = copy.deepcopy(diagram)
+    rooms = {r.id: r for r in d.rooms}
+    forced = {rid for rid, o in overrides.items() if o.get("force") is True}
+    living = next((r.id for r in d.rooms if r.type == "living" and r.placed), None)
+    # 1. enter straight into the living room (approved plans: 95 %): the foyer is an optional connector the solver
+    #    pays for by area, used only when the front door is too far from the façade for a lit living room to reach it
+    # 2. the passage likewise: a hub door onto the dining/living serves when it can
+    for r in d.rooms:
+        if r.type in ("foyer", "passage") and r.id not in forced:
+            r.optional = True
+    usable = interior_area * NET_SHARE
+    bhk = sum(1 for r in d.rooms if r.placed and r.type in ("master", "bedroom"))
+    toilets_of = {}
+    for a, b in d.links:
+        for x, y in ((a, b), (b, a)):
+            if x in rooms and y in rooms and rooms[x].type in ("master", "bedroom") and rooms[y].type in ("toilet", "bath"):
+                toilets_of[x] = y
+    has_common = any(r.type in ("toilet", "bath", "wc") and r.placed and r.id not in toilets_of.values() for r in d.rooms)
+    hub = next((r.id for r in d.rooms if r.type == "passage" and r.placed), living)
+    extras: list[tuple[DiagramRoom, tuple[str, str]]] = []
+    if not has_common and living:  # a guest toilet off the living room (approved plans: 80 % of flats)
+        extras.append((DiagramRoom(id="powder", type="wc", name="Powder", target_area=1.8, optional=True), (living, "powder")))
+    beds = [r for r in d.rooms if r.placed and r.type in ("master", "bedroom")]
+    beds.sort(key=lambda r: (r.type != "master", r.id))
+    big: list[tuple[DiagramRoom, tuple[str, str]]] = []
+    for b in beds:
+        if b.id not in toilets_of:
+            big.append((DiagramRoom(id=f"toilet_{b.id}", type="toilet", name=f"Toilet ({b.name.lower()})",
+                                    target_area=3.4, optional=True), (b.id, f"toilet_{b.id}")))
+    if beds:
+        big.append((DiagramRoom(id=f"dress_{beds[0].id}", type="dress", name="Dress", target_area=4.0, optional=True),
+                    (beds[0].id, f"dress_{beds[0].id}")))
+    # a study needs its own window: only when the façade has a free 2.6 m beyond the window rooms' minimum widths
+    win_need = sum(max(2.6, WINDOW_MIN_RUN.get(r.type, 1.2)) for r in d.rooms if r.placed and r.needs_window)
+    if hub and bhk >= 2 and (facade is None or facade - win_need >= 2.8):
+        big.append((DiagramRoom(id="study", type="study", name="Study", target_area=8.0, needs_window=True, optional=True),
+                    (hub, "study")))
+    for b in beds[1:]:
+        big.append((DiagramRoom(id=f"dress_{b.id}", type="dress", name="Dress", target_area=3.5, optional=True),
+                    (b.id, f"dress_{b.id}")))
+    if hub:
+        big.append((DiagramRoom(id="pooja", type="pooja", name="Pooja", target_area=2.0, optional=True), (hub, "pooja")))
+    for room, link in extras:
+        if room.id not in rooms:
+            d.rooms.append(room)
+            d.links.append(link)
+            rooms[room.id] = room
+    for room, link in big:
+        cap, _k = _caps_total(d.rooms, usable, facade)
+        if usable - cap < 2.0:
+            break
+        if room.id in rooms or any(r.id == link[0] and not r.placed for r in d.rooms):
+            continue
+        d.rooms.append(room)
+        d.links.append(link)
+        rooms[room.id] = room
+    if unit is not None and len(d.rooms) != len(diagram.rooms):
+        _bubble_layout(d.rooms, d.links, d.entry, _entrance_dir(unit))
+    return d

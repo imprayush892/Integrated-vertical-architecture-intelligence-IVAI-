@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .checks import FloorContext, run_checks
-from .diagram import from_programme, precheck
+from .diagram import flex_links, from_programme, precheck, zone_programme
 from .drafting import draft
 from .models import Conflict, Diagram, Plan, Plate, Unit
 from .solver import TIME_CAP, SolveResult, room_specs, solve, unit_grid
@@ -87,7 +87,8 @@ def candidate_fixes(core: list[str], diagram: Diagram, overrides: dict, unit: Un
     core_rooms = {c.split(":", 1)[1] for c in core if c.split(":")[0] in ("room", "window", "vent", "size", "entry")}
     # 1. drop optional rooms (anywhere: they free façade and area)
     for rid, r in rooms.items():
-        if r.optional and overrides.get(rid, {}).get("force") is not False:
+        # v2: the solver already leaves out optional rooms that do not fit; only rooms the user forced are worth a try
+        if r.optional and overrides.get(rid, {}).get("force") is True:
             fixes.append({"action": "drop_room", "room": rid, "label": f"Drop {names[rid]}"})
     # 2. toilets in the core: ventilate by duct
     for c in core:
@@ -175,11 +176,14 @@ def room_check_fails(plan: Plan, plate: Plate) -> list[tuple[str, str, str]]:
 
 
 def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_limit: float, explain: bool,
-           tight: tuple[int, float, frozenset | None] | None = None):
+           tight: tuple[int, float, frozenset | None] | None = None, seed: int = 7):
     key = _key(plate, unit, diagram, overrides) + (repr((tight[0], tight[1], sorted(tight[2] or ())) if tight else None))
+    key += f"|seed={seed}"
     if key in _CACHE:
         return _CACHE[key]
     ug = unit_grid(plate, unit)
+    fac_len = sum((e.b - e.a) * 0.1 for e in ug.edges if e.kind == "facade")
+    diagram = zone_programme(diagram, ug.interior.area, overrides, unit, fac_len)  # v2 brief: entry, hub, extra rooms
     specs = room_specs(diagram, overrides, ug)
     # duct-ventilated rooms drop their façade/shaft requirement
     for s in specs:
@@ -190,11 +194,41 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
         if tight and (tight[2] is None or s.type in tight[2]):
             s.wmin += tight[0]  # tighter allowance: drafting may take more off a room than the solver assumed
             s.amin += tight[1]
-    res = solve(ug, specs, [tuple(l) for l in diagram.links], diagram.entry, time_limit=time_limit, explain=explain)
-    out = (res, {"ug": ug, "specs": specs})
+    fixed, alts = flex_links(diagram)
+    res = solve(ug, specs, fixed, diagram.entry, time_limit=time_limit, explain=explain, alts=alts, seed=seed)
+    out = (res, {"ug": ug, "specs": specs, "diagram": diagram})
     if res.status != "timeout" or res.rects:
         _CACHE[key] = out
     return out
+
+
+CANDIDATES = 2  # v2: layouts solved per flat (different seeds), the critic picks one
+PICK_RESERVE = 1.0  # s kept for drafting and critiquing the candidates
+
+
+def _pick(plate: Plate, unit: Unit, overrides: dict, cands: list):
+    """Draft each candidate and keep the one the critic scores highest (furniture pass skipped for speed)."""
+    from .quality import critique
+
+    best, best_s = cands[0], -1.0
+    for res, ctx in cands:
+        zd = ctx["diagram"]
+        links = res.links if res.links is not None else [tuple(l) for l in zd.links]
+        try:
+            plan = draft(ctx["ug"], ctx["specs"], res.rects, links, res.entry or zd.entry, overrides,
+                         hub_point=res.hub_point)
+            sc = critique(plan, unit, plate, furniture=False)["score"]
+            # the furniture pass is skipped for speed: a room below its furniture size costs the candidate instead
+            for sp in ctx["specs"]:
+                if sp.id in res.rects and (sp.wfurn > sp.wmin or sp.afurn > sp.amin):
+                    _x, _y, w, h = res.rects[sp.id]
+                    if min(w, h) < sp.wfurn or w * h - 1.15 * (w + h) < 100 * sp.afurn - 1.32:
+                        sc -= 10.0
+        except Exception:  # pragma: no cover - a candidate that cannot be drafted is not chosen
+            sc = -1.0
+        if sc > best_s:
+            best, best_s = (res, ctx), sc
+    return best
 
 
 def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrides: dict | None = None,
@@ -220,7 +254,14 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
         diagram = from_programme(unit, unit.programme)
     fac = facade_length(plate, unit)
     conflicts = precheck(diagram, unit.area, fac, 0.0, unit.core_link is not None)
-    res, ctx = _solve(plate, unit, diagram, overrides, tl(time_limit), explain=True)
+    two = CANDIDATES > 1 and budget >= 8.0 and time_limit >= 6.0
+    per = (budget - DRAFT_RESERVE - PICK_RESERVE) / 2 if two else time_limit
+    res, ctx = _solve(plate, unit, diagram, overrides, tl(min(time_limit, per)), explain=True)
+    if two and res.rects and remaining() > per - 0.3:
+        # v2: a second candidate from another seed; the critic (no furniture pass, ~0.1 s) keeps the better plan
+        r2, c2 = _solve(plate, unit, diagram, overrides, tl(per), explain=False, seed=11)
+        if r2.rects:
+            res, ctx = _pick(plate, unit, overrides, [(res, ctx), (r2, c2)])
     slow = False
     if not res.rects and res.status == "timeout":
         # The search ran out of time, not out of options (nothing was proven impossible): a correct plan is worth
@@ -287,7 +328,9 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
     def draft_checked() -> bool:
         nonlocal plan, fails
         stats["validated"] += 1
-        plan = draft(ctx["ug"], ctx["specs"], res.rects, [tuple(l) for l in cur_d.links], cur_d.entry, cur_ov)
+        zd = ctx.get("diagram", cur_d)
+        links = res.links if res.links is not None else [tuple(l) for l in zd.links]
+        plan = draft(ctx["ug"], ctx["specs"], res.rects, links, res.entry or zd.entry, cur_ov, hub_point=res.hub_point)
         fails = room_check_fails(plan, plate)
         if fails:
             stats["failed_checks"] += 1
@@ -324,6 +367,8 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
                 ok = draft_checked()
             else:
                 res = r2
+    if res.rects and ctx.get("diagram") is not None:
+        cur_d = ctx["diagram"].model_copy(deep=True)  # the v2 brief that was actually planned
     cur_d.conflicts = conflicts
     if fails and not ok:
         names = _names(cur_d)
@@ -337,6 +382,9 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
         cur_d.message = "No layout found. " + (conflicts[-1].reason if conflicts else "")
         return FlatResult(None, cur_d, res, applied, all_fixes, conflicts, cur_d.message, stats)
     assert plan is not None
+    if res.dropped:  # v2: an optional room that does not fit is by design, not a conflict to ask the user about
+        opt = {r.id for r in cur_d.rooms if getattr(r, "optional", False)}
+        res.dropped = [rid for rid in res.dropped if rid not in opt]
     plan.status = res.status if res.status in ("optimal", "feasible", "timeout") else "feasible"  # type: ignore[assignment]
     plan.solve_time_s = round(time.perf_counter() - t0, 3)
     plan.objective = res.objective
