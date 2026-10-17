@@ -48,20 +48,63 @@ BED_TYPES = {"master", "bedroom"}
 WALL_MIN_M, WALL_MAX_M = 0.07, 0.36
 EXTRA_TYPES = [
     (r"EVACU|FIRE\s*(MAN)?\s*LIFT", "fire_lift"),
+    (r"STRETCHER", "lift"),  # "STRETCHER LIFT" with the second word lost
     (r"SM[OA]CK\s*CHECK|SMOKE\s*CHECK", "lobby"),
     (r"MULTI\s*PURPOSE|M\.?P\.?R\b|REHAB\s*ROOM", "multipurpose"),
     (r"ALCOVE", "alcove"),
     (r"FOYER|ENTRANCE", "foyer"),
-    (r"CHAJJ?A", "chajja"),
+    (r"\bDECK\b", "balcony"),
+    (r"\bM\.?\s*V\.?\s*S\b|VENTILATION\s*SHAFT|\bO\.?T\.?S\b", "shaft"),
 ]
+# non-residential spaces drawn on residential floors (refuge floors, podium amenities, schools on rehab
+# floors, parking towers): never part of a flat and not part of the core
+NONRES = re.compile(r"REFUGE|PARKING|CAR\s*LIFT|STILT|SOCIETY|FITNESS|\bGYM|CLUB\s*HOUSE|SCHOOL|CLASS\s*ROOM|"
+                    r"PRINCIPAL|RECEPTION|WAITING|STAFF|SHOP|SUB\s*-?\s*STATION|METER\s*(ROOM|PANEL)|"
+                    r"ELECTRICAL\s*METER|D\.?\s*G\.?\s*SET|PUMP\s*ROOM|SECURITY|WATCHMAN|DRIVER|ROOF|"
+                    r"CUT\s*-?\s*OUT|\bVOID\b|\bO\.?T\.?S\b|SPACE\s*FOR", re.I)
+ROOM_WORD = re.compile(r"BED|KIT|LIV|TOIL|BATH|DIN|DRAW|HALL|PASS", re.I)
+
+
+# OCR splits of common labels ("| IVING", "ILET", "TOI.") tried only when nothing else matched
+FALLBACK_TYPES = [
+    (r"IVING|LIVIN|\bIVIN\b", "living"), (r"ILET\b|\bTOI\b|OILET", "toilet"), (r"ITCHEN|KITCH", "kitchen"),
+    (r"EDROOM|EDRM", "bedroom"), (r"\bIFT\b", "lift"), (r"^\W*ECK\b", "balcony"),
+]
+NOT_ROOM = re.compile(r"BUILDING|BLDG|BOUNDARY|SET\s*BACK|ROAD|PLOT", re.I)
 
 
 def classify2(text: str) -> str | None:
     t = text.upper()
+    if NOT_ROOM.search(t):  # "BUILDING LINE ABOVE" matched DIN -> dining in v1
+        t = NOT_ROOM.sub(" ", t)
+        if not re.search(r"[A-Z]{3,}", t):
+            return None
+    if NONRES.search(t) and not re.search(r"DUCT|SHAFT", t) and not (ROOM_WORD.search(t) and "ROOF" in t):
+        return "nonres"
+    core_m = re.search(r"EVACU|FIRE|LIFT|LOBBY|STAIR|SM[OA]CK", t)
+    room_m = [m for m in ROOM_WORD.finditer(t) if core_m and m.start() > core_m.end()]
+    if room_m:
+        t = t[room_m[-1].start():]
+    elif core_m and re.match(r"[\W\d]*(TOIL|BATH|BED|KITCH)", t[:core_m.start()]):
+        # "TOILET EVACUATION ...": a room label with the neighbouring fire-lift label merged after it
+        t = t[:core_m.start()]
+    if re.search(r"TOIL|\bW\.?\s?C\b", t):  # "(MVS) P.TOIL": a powder toilet on a ventilation shaft
+        t = re.sub(r"\bM\.?\s*V\.?\s*S\b", " ", t)
     for pat, ty in EXTRA_TYPES:
         if re.search(pat, t):
             return ty
-    return classify(text)
+    if re.search(r"CHAJJ?A", t):  # "BEDROOM-1 ... CHAJJA": a neighbouring chajja label merged in
+        if not ROOM_WORD.search(t):
+            return "chajja"
+        t = re.sub(r"CHAJJ?A", " ", t)
+    ty = classify(t)
+    if ty == "dining" and not re.search(r"\bDIN", t):
+        ty = None
+    if ty is None:
+        for pat, ty2 in FALLBACK_TYPES:
+            if re.search(pat, t):
+                return ty2
+    return ty
 
 
 # --------------------------------------------------------------------------------------------------
@@ -711,8 +754,9 @@ def fit_door_arcs(clusters, s):
     return out
 
 
-def door_links(arcs, lab, grid, s, n):
-    """Room pairs joined by door arcs. lab is the watershed label image (1..n rooms, n+1 exterior)."""
+def door_links(arcs, lab, grid, s, n, pos=None):
+    """Room pairs joined by door arcs. lab is the watershed label image (1..n rooms, n+1 exterior,
+    n+2.. unlabelled cells). Keys are label-1. pos (optional dict) receives the door point (rotated pt)."""
     links = Counter()
     h, w = lab.shape
     offs = [0.35, 0.5, 0.7, 0.95]
@@ -735,8 +779,10 @@ def door_links(arcs, lab, grid, s, n):
         for mx, my, nx, ny in ((hx + qx * r / 2, hy, 0, qy), (hx, hy + qy * r / 2, qx, 0)):
             a = first(mx, my, nx, ny)
             b = first(mx, my, -nx, -ny)
-            if a and b and a != b and a <= n and b <= n:
+            if a and b and a != b and a != n + 1 and b != n + 1:
                 links[(min(a, b) - 1, max(a, b) - 1)] += 1
+                if pos is not None:
+                    pos[(min(a, b) - 1, max(a, b) - 1)] = (float(mx), float(my))
                 break
     return links
 
@@ -771,31 +817,260 @@ def adjacency(lab, gap_px, ncode):
     return touch, wall
 
 
+def facade_reach(lab, ext, block, k_px):
+    """fac[label, d] = boundary pixels of each label from which the outside (ext) is reached within k_px steps
+    in direction d (top, bottom, left, right of the image) across non-blocking pixels only (walls, chajjas,
+    ledges, ducts). Rooms block, so a room behind another room never gets that facade."""
+    free = ~block[lab]
+    nl = int(lab.max()) + 2
+    fac = np.zeros((nl, 4), np.int64)
+    roomish = block[lab]
+
+    def shift(g, j):  # value at the neighbour in direction j
+        out = np.zeros_like(g)
+        if j == 0:
+            out[1:, :] = g[:-1, :]
+        elif j == 1:
+            out[:-1, :] = g[1:, :]
+        elif j == 2:
+            out[:, 1:] = g[:, :-1]
+        else:
+            out[:, :-1] = g[:, 1:]
+        return out
+
+    for j in range(4):
+        g = ext.copy()
+        for _ in range(k_px):
+            g = ext | (free & shift(g, j))
+        m = shift(g, j) & roomish
+        if m.any():
+            fac[:, j] += np.bincount(lab[m].astype(np.int64), minlength=nl)[:nl]
+    return fac
+
+
+def adjacency_pos(lab, gap_px, xlab):
+    """Label pairs facing each other across at most gap_px unlabelled (wall) pixels, with positions.
+
+    Returns (acc, fac): acc[(a, b)] = [n_touch, n_wall, sx_touch, sy_touch, sx_wall, sy_wall, sum_k_wall]
+    for raw label values a < b (pixel pairs at distance 1 are "touch", 2..gap_px are "wall"; midpoints
+    are summed in image x/y, sum_k_wall / n_wall is the wall thickness in pixels); fac[label] = pixel counts of the label's
+    boundary facing xlab (the outside) towards top, bottom, left, right of the drawing.
+    """
+    acc: dict = {}
+    nl = int(max(int(lab.max()), xlab)) + 2
+    fac = np.zeros((nl, 4), np.int64)
+    for axis in (0, 1):
+        a = lab if axis == 1 else lab.T
+        h, w = a.shape
+        clear = np.ones((h, w), bool)
+        for k in range(1, gap_px + 1):
+            if k >= w:
+                break
+            left, right = a[:, : w - k], a[:, k:]
+            if k > 1:
+                clear[:, : w - k] &= a[:, k - 1: w - 1] == 0
+            sel = clear[:, : w - k] & (left > 0) & (right > 0) & (left != right)
+            if not sel.any():
+                continue
+            rr, cc = np.nonzero(sel)
+            la, lb = left[rr, cc].astype(np.int64), right[rr, cc].astype(np.int64)
+            if axis == 1:
+                xs, ys = cc + k / 2.0, rr.astype(np.float64)
+            else:
+                xs, ys = rr.astype(np.float64), cc + k / 2.0
+            lo, hi = np.minimum(la, lb), np.maximum(la, lb)
+            key = lo * nl + hi
+            uk, inv, cnt = np.unique(key, return_inverse=True, return_counts=True)
+            sx = np.bincount(inv, weights=xs)
+            sy = np.bincount(inv, weights=ys)
+            for q, kk in enumerate(uk.tolist()):
+                e = acc.setdefault((kk // nl, kk % nl), [0, 0, 0.0, 0.0, 0.0, 0.0, 0.0])
+                j = 0 if k == 1 else 1
+                e[j] += int(cnt[q])
+                e[2 + 2 * j] += float(sx[q])
+                e[3 + 2 * j] += float(sy[q])
+                if k > 1:
+                    e[6] += float(k * cnt[q])
+            # facing the outside: room on the left side and outside on the right -> faces +axis
+            plus = 3 if axis == 1 else 1  # right / bottom
+            minus = 2 if axis == 1 else 0  # left / top
+            m1 = (lb == xlab) & (la != xlab)
+            m2 = (la == xlab) & (lb != xlab)
+            if m1.any():
+                np.add.at(fac[:, plus], la[m1], 1)
+            if m2.any():
+                np.add.at(fac[:, minus], lb[m2], 1)
+    return acc, fac
+
+
 # --------------------------------------------------------------------------------------------------
 # flats
 # --------------------------------------------------------------------------------------------------
 
+LIFTS = {"lift", "fire_lift"}
+NOT_PRIVATE = {"shaft", "chajja", "nonres", "shaft_cell"}
+CORE_OK = {"lobby", "passage", "unlabeled", "unknown", "foyer", "lift", "fire_lift", "stair"}
+ENTRY_TYPES = {"foyer", "living", "dining", "passage", "unlabeled", "unknown"}
+ENTRY_PREF = {"foyer": 0, "living": 1, "dining": 2, "passage": 3, "unlabeled": 4, "unknown": 4}
+
 
 def is_common(room):
+    """Lobby, lift, stair and wide passages are common. v2: the passage width comes from the label
+    (M.W. width, else the smaller printed dimension) or the inscribed width, never the bounding box."""
     ty = room["type"]
     if ty in ROOM_TYPES_COMMON:
         return True
     if ty == "passage":
-        w = room.get("label_width") or room["short"]  # "1.05 M.W. PASSAGE" labels give the clear width
-        return w >= 1.25 or (not room.get("label_width") and room["area"] >= 14)
+        if re.search(r"COMMON|CORRIDOR|\bCORR\b", (room.get("name") or "").upper()):
+            return True
+        if room.get("label_width"):
+            return room["label_width"] >= 1.2
+        if room.get("ocr_dims"):
+            return min(room["ocr_dims"]) >= 1.35
+        w = room.get("wclear") or room["short"]
+        return w >= 1.35 or room["area"] >= 14
     return False
 
 
-def build_flats(rooms, links, pdfname, page):
-    """Flats = components of the link graph without common rooms. Returns (flats, n_dropped)."""
+def _width(room):
+    """Clear width: the smaller printed dimension, else the inscribed width of the region."""
+    if room.get("label_width"):
+        return room["label_width"]
+    if room.get("ocr_dims"):
+        return min(room["ocr_dims"])
+    return room.get("wclear") or room["short"]
+
+
+def bad_link(ta, tb):
+    """Room-type pairs that are not joined by a door in these plans (audit: links across party walls,
+    from lifts into flats, bedroom to bedroom, toilet or bedroom to kitchen)."""
+    s = {ta, tb}
+    if s & LIFTS:
+        return not s <= CORE_OK
+    if "stair" in s:
+        return not s <= CORE_OK
+    if ta == tb and ta in ("living", "kitchen", "toilet"):
+        return True
+    if s <= BED_TYPES:
+        return True
+    if "kitchen" in s and s & (BED_TYPES | {"toilet"}):
+        return True
+    return False
+
+
+def mark_common(rooms, links, touch_len):
+    """Set room["common"]. Unlabelled cells and passages that hang off the core are common when they
+    touch a lift or stair, serve two living rooms, or open on to the lobby over a width no flat door has."""
     by_id = {r["id"]: r for r in rooms}
     nbr = defaultdict(set)
     for a, b in links:
         nbr[a].add(b)
         nbr[b].add(a)
-    private = {r["id"] for r in rooms if not is_common(r) and r["type"] not in ("shaft", "chajja")}
-    seen, flats = set(), []
-    for rid in sorted(private):
+    for r in rooms:
+        r["common"] = is_common(r)
+    for _ in range(4):
+        changed = False
+        for r in rooms:
+            if r["common"] or r["type"] not in ("unlabeled", "unknown", "passage"):
+                continue
+            if r["type"] == "unknown" and r.get("ocr_dims") and min(r["ocr_dims"]) >= 2.7 and \
+                    r["area"] >= 12 and r.get("area_ratio") and abs(r["area_ratio"] - 1) <= 0.25:
+                continue  # printed "5.05 X 3.05" with the name lost: a room (lobbies are < 2.7 m wide)
+            lk = [by_id[v] for v in nbr[r["id"]]]
+            com = [v for v in lk if v["common"]]
+            if not com:
+                continue
+            why = None
+            if any(v["type"] in LIFTS | {"stair"} for v in lk):
+                why = "touches_lift_or_stair"
+            elif sum(1 for v in lk if v["type"] in ("living", "foyer")) >= 2:
+                why = "serves_two_flats"
+            elif max(touch_len.get((min(r["id"], v["id"]), max(r["id"], v["id"])), 0.0) for v in com) >= 1.3 \
+                    and (_width(r) >= 1.4 or not any(v["type"] in BED_TYPES | {"toilet", "kitchen"} for v in lk)) \
+                    and sum(1 for v in lk if not v["common"] and v["type"] in ("living", "dining", "alcove", "foyer")
+                            and touch_len.get((min(r["id"], v["id"]), max(r["id"], v["id"])), 0.0) >= 1.3) != 1:
+                # (a cell open over >= 1.3 m on exactly one flat's living / dining / alcove is its foyer)
+                why = "wide_open_to_lobby"
+            if why:
+                r["common"], r["common_why"], changed = True, why, True
+        if not changed:
+            break
+
+
+def _centroid(r):
+    return (r.get("cxm", r["cx"]), r.get("cym", r["cy"]))
+
+
+def build_flats(rooms, links, pdfname, page, wall_info=None, link_pos=None):
+    """Group private rooms into flats. Returns (flats, n_dropped).
+
+    v2 (audit fixes): links of implausible room-type pairs are ignored; each living room (or living
+    rooms joined by an open link) anchors one flat and every private room goes to the anchor it reaches
+    in the fewest link hops (ties by distance), so one spurious link no longer merges two apartments;
+    link-less fragments without a living room are attached to the flat they share most wall with
+    (unless that would give the flat a second kitchen or living room); private passages and cells
+    are absorbed the same way.
+    """
+    wall_info = wall_info or {}
+    link_pos = link_pos or {}
+    by_id = {r["id"]: r for r in rooms}
+    nbr = defaultdict(set)
+    for a, b in links:
+        nbr[a].add(b)
+        nbr[b].add(a)
+    private = {r["id"] for r in rooms if not r.get("common") and r["type"] not in NOT_PRIVATE}
+    # ---- anchors: living rooms, merged when joined by an open link (living + drawing / dining hall).
+    # Also anchors: multipurpose rooms of PAP / rehab tenements (their living room), and large unnamed cells
+    # that open on the core and on private rooms (a living room whose label was lost); without an anchor
+    # such a flat is swallowed by its neighbour through any surviving link.
+    def lost_living(r):
+        if r["type"] not in ("unlabeled", "unknown") or r["area"] < 12 or (r.get("wclear") or r["short"]) < 2.5:
+            return False
+        lk = [by_id[v] for v in nbr[r["id"]]]
+        return any(v.get("common") and v["type"] not in LIFTS | {"stair"} for v in lk) and \
+            not any(v["type"] in LIFTS | {"stair"} for v in lk) and \
+            sum(1 for v in lk if not v.get("common") and v["type"] not in ("living", "chajja", "nonres")) >= 2
+
+    livings = sorted(i for i in private if by_id[i]["type"] == "living"
+                     or (by_id[i]["type"] == "multipurpose" and by_id[i]["area"] <= 25) or lost_living(by_id[i]))
+    for i in livings:
+        if by_id[i]["type"] != "living":
+            by_id[i]["anchor_src"] = "multipurpose" if by_id[i]["type"] == "multipurpose" else "lost_label"
+    par = {i: i for i in livings}
+
+    def find(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+
+    for a in livings:
+        for b in livings:
+            if a < b and links.get((a, b)) == "open" and not (by_id[a].get("anchor_src") or by_id[b].get("anchor_src")):
+                par[find(a)] = find(b)
+    owner = {i: find(i) for i in livings}
+    acen = defaultdict(list)
+    for i in livings:
+        acen[owner[i]].append(_centroid(by_id[i]))
+    acen = {k: np.mean(v, axis=0) for k, v in acen.items()}
+    frontier = list(livings)
+    while frontier:
+        prop = defaultdict(set)
+        for u in frontier:
+            for v in nbr[u]:
+                if v in private and v not in owner:
+                    prop[v].add(owner[u])
+        nxt = []
+        for v, cands in prop.items():
+            c = np.asarray(_centroid(by_id[v]))
+            owner[v] = min(cands, key=lambda k: float(np.hypot(*(acen[k] - c))))
+            nxt.append(v)
+        frontier = nxt
+    # ---- living-less components: a flat of their own if they look like one, else orphans
+    rest = sorted(i for i in private if i not in owner)
+    seen = set()
+    orphans = []
+    for rid in rest:
         if rid in seen:
             continue
         comp, q = [], deque([rid])
@@ -804,13 +1079,97 @@ def build_flats(rooms, links, pdfname, page):
             u = q.popleft()
             comp.append(u)
             for v in nbr[u]:
-                if v in private and v not in seen:
+                if v in private and v not in owner and v not in seen:
                     seen.add(v)
                     q.append(v)
-        flats.append(sorted(comp))
+        types = {by_id[i]["type"] for i in comp}
+        has_ent = any(by_id[v].get("common") and by_id[v]["type"] not in LIFTS for i in comp for v in nbr[i])
+        if "kitchen" in types and (types & BED_TYPES or (has_ent and len(comp) >= 3)):
+            for i in comp:
+                owner[i] = ("c", min(comp))
+        else:
+            orphans.append(comp)
+    # ---- attach orphans to the flat they share most wall with
+    attached = defaultdict(list)
+    for _ in range(4):
+        left = []
+        for comp in orphans:
+            cs = set(comp)
+            score = defaultdict(float)
+            core_wall = 0.0
+            if all(by_id[i]["type"] in ("unlabeled", "unknown") for i in comp) and \
+                    any(by_id[i].get("_near_stair") for i in comp):
+                left.append(comp)  # unnamed cells in the stair hall
+                continue
+            out_links = {v for i in comp for v in nbr[i] if v not in cs}
+            if out_links and all(by_id[v]["type"] == "nonres" for v in out_links):
+                left.append(comp)  # e.g. the toilet of a fitness centre: its door opens into that space
+                continue
+            for i in comp:
+                for v in by_id[i]["neighbours"]:
+                    if v in cs:
+                        continue
+                    ln, th = wall_info.get((min(i, v), max(i, v)), (0.0, 0.0))
+                    if by_id[v].get("common"):
+                        core_wall += ln
+                    elif v in owner:
+                        score[owner[v]] += ln * (1.0 if th <= 0.2 else 0.5)
+            named = {by_id[i]["type"] for i in comp} - {"unlabeled", "unknown"}
+            if not named and core_wall >= max(score.values(), default=0.0):
+                left.append(comp)  # an unnamed cell against the core (lift well, duct, lobby nook)
+                continue
+            if all(by_id[i]["type"] == "unlabeled" and not by_id[i].get("rejected_dims") for i in comp) and \
+                    not any(v in owner for v in out_links):
+                left.append(comp)  # cells with no label at all touching a flat only through walls: ducts, strips
+                continue
+            best = None
+            for k, sc in sorted(score.items(), key=lambda kv: -kv[1]):
+                if sc < 0.5:
+                    break
+                members = [j for j, o in owner.items() if o == k]
+                tt = Counter(by_id[j]["type"] for j in members + comp)
+                if tt["kitchen"] > 1 or tt["living"] > max(1, Counter(by_id[j]["type"] for j in members)["living"]):
+                    continue
+                best = k
+                break
+            if best is None:
+                left.append(comp)
+                continue
+            for i in comp:
+                owner[i] = best
+            attached[best] += comp
+        if len(left) == len(orphans):
+            break
+        orphans = left
+    groups = defaultdict(list)
+    for i, k in owner.items():
+        groups[k].append(i)
+    flats = sorted((sorted(g) for g in groups.values()), key=lambda g: g[0])
     out, dropped = [], 0
     for comp in flats:
         cs = set(comp)
+        # unnamed cells that are not rooms of this flat: chajja / ledge strips outside the outer wall
+        # (exterior, reached from at most one room), voids and terraces (large), cells with no opening
+        pruned = []
+        changed = True
+        while changed:
+            changed = False
+            for i in sorted(cs):
+                r = by_id[i]
+                if r["type"] != "unlabeled":
+                    continue
+                lk = [v for v in nbr[i] if v in cs]
+                named = [v for v in lk if by_id[v]["type"] != "unlabeled"]
+                was_room = bool(r.get("rejected_dims") or r.get("demoted_from") or r.get("anchor_src"))  # printed room / lost label
+                strip = (r.get("wclear") or r["short"]) < 1.05 or \
+                    sum((r.get("facade") or {}).values()) >= 0.6 * (r.get("perim") or 1e9)  # mostly open to outside
+                if (r["area"] >= (25 if was_room else 15)
+                        or (not lk and (r.get("exterior") or r["area"] >= 4) and not was_room)
+                        or (r.get("exterior") and len(named) <= 1 and strip and not was_room)):
+                    cs.discard(i)
+                    pruned.append(i)
+                    changed = True
+        comp = sorted(cs)
         types = [by_id[i]["type"] for i in comp]
         if not any(t in HABITABLE for t in types) or len(comp) < 2:
             continue
@@ -818,22 +1177,34 @@ def build_flats(rooms, links, pdfname, page):
         if len(dr) >= 2 and sum(1 for r in dr if abs(r["area_ratio"] - 1) > 0.25) > 0.5 * len(dr):
             dropped += 1  # geometry disagrees with most of its own labels: garbage, not emitted
             continue
-        ent, via = [], None
+        cand = []  # (room, common room) door/open links from the flat to the core
+        def entry_ok(v):
+            return by_id[v].get("common") and (by_id[v]["type"] not in LIFTS or by_id[v].get("leaky"))
+
         for i in comp:
             for v in nbr[i]:
-                if by_id[v].get("common"):
-                    ent.append(i)
-                    break
-        if ent:
-            via = "link"
-        else:  # fall back to a shared wall with a common room
+                if entry_ok(v):
+                    cand.append((i, v))
+        via = "link" if cand else None
+        if not cand:  # fall back to a shared wall with a common room
             for i in comp:
-                if any(by_id[v].get("common") for v in by_id[i]["neighbours"]):
-                    ent.append(i)
-            via = "wall" if ent else None
-        pref = {"foyer": 0, "living": 1, "passage": 2}
-        ent.sort(key=lambda i: (pref.get(by_id[i]["type"], 5), -by_id[i]["area"]))
-        entrance = ent[0] if ent else None
+                for v in by_id[i]["neighbours"]:
+                    if entry_ok(v):
+                        cand.append((i, v))
+            via = "wall" if cand else None
+        cpref = {"lobby": 0, "passage": 1, "unlabeled": 2, "unknown": 2, "stair": 3}
+        cand.sort(key=lambda iv: (ENTRY_PREF.get(by_id[iv[0]]["type"], 9), cpref.get(by_id[iv[1]]["type"], 5),
+                                  -by_id[iv[0]]["area"]))
+        ent_rooms = sorted({i for i, _v in cand if by_id[i]["type"] in ENTRY_TYPES})
+        entrance = cand[0][0] if cand else None
+        ent = None
+        if cand:
+            i, v = cand[0]
+            key = (min(i, v), max(i, v))
+            p = link_pos.get(key)
+            ent = {"room": i, "common": v,
+                   "common_type": by_id[v]["type"] + ("_leaky" if by_id[v].get("leaky") else ""), "via": via,
+                   "kind": links.get(key, "wall"), "x": p[0] if p else None, "y": p[1] if p else None}
         hops = {}
         if entrance is not None:
             hops = {entrance: 0}
@@ -846,7 +1217,7 @@ def build_flats(rooms, links, pdfname, page):
                         q.append(v)
         rr = []
         for i in comp:
-            r = dict(by_id[i])
+            r = {k: v for k, v in by_id[i].items() if not k.startswith("_")}
             r["hops"] = hops.get(i)
             r["neighbours"] = sorted(r["neighbours"])
             rr.append(r)
@@ -854,13 +1225,29 @@ def build_flats(rooms, links, pdfname, page):
                          | {v for i in comp for v in by_id[i]["neighbours"] if by_id[v].get("common")})
         with_dims = [r for r in rr if r.get("area_ratio") is not None]
         ok = [r for r in with_dims if abs(r["area_ratio"] - 1) <= 0.10]
+        tc = Counter(types)
+        flat_links = []
+        for (a, b), kind in links.items():
+            if (a in cs or b in cs) and (a in cs or by_id[a].get("common")) and (b in cs or by_id[b].get("common")):
+                p = link_pos.get((a, b))
+                flat_links.append({"a": a, "b": b, "kind": kind, "x": p[0] if p else None, "y": p[1] if p else None})
+        walls = []
+        for i in comp:
+            for v in by_id[i]["neighbours"]:
+                if v in cs and i < v:
+                    ln, th = wall_info.get((i, v), (0.0, 0.0))
+                    walls.append({"a": i, "b": v, "len": round(ln, 2), "thick": round(th, 3)})
         out.append({
             "pdf": pdfname, "page": page, "flat_id": None, "rooms": rr, "entrance_room": entrance,
-            "entrance_via": via, "bhk": sum(1 for t in types if t in BED_TYPES),
+            "entrance_via": via, "entrance": ent, "n_entrance_rooms": len(ent_rooms),
+            "bhk": sum(1 for t in types if t in BED_TYPES),
             "common_rooms": [{"id": c, "type": by_id[c]["type"], "name": by_id[c]["name"]} for c in commons],
+            "links": flat_links, "walls": walls,
+            "attached": sorted(set(attached.get(owner[comp[0]], [])) & cs) if comp else [], "pruned": sorted(pruned),
             "n_dims": len(with_dims), "n_dims_ok10": len(ok),
             "n_unlabeled": sum(1 for t in types if t == "unlabeled"),
-            "suspect_merge": len(comp) > 14 or sum(by_id[i]["area"] for i in comp) > 260,
+            "suspect_merge": len(comp) > 30 or sum(by_id[i]["area"] for i in comp) > 350 or tc["kitchen"] > 1
+            or tc["living"] > 2 or len(ent_rooms) > 2,
         })
     return out, dropped
 
@@ -975,7 +1362,9 @@ def _process_page(pdf, pno, name):
     if os.environ.get("TOPO_DEBUG"):
         _DEBUG.update(walls=res["walls"], free=res["free"], lab=res["lab"], snapped=res["snapped"],
                       grid=res["grid"], seeds=seeds, s=s)
-    return _finish_page(name, pno, marker, seeds, sp, res, pieces, s)
+    ctx = {"lines": lines, "vert": vert, "theta": theta, "cen": cen, "page_h": page.rect.height, "osegs": osegs,
+           "segs": segs}
+    return _finish_page(name, pno, marker, seeds, sp, res, pieces, s, ctx)
 
 
 def seed_marker(free, m, sd, s, rho):
@@ -1052,9 +1441,20 @@ def segment_page(osegs, seeds, sp, bbox, s):
     if hull.geom_type == "Polygon":
         ImageDraw.Draw(img).polygon(list(hull.exterior.coords), fill=1)
     ext = ~np.asarray(img, dtype=bool)
+    # v2: the exterior marker is only placed where the space is really outside the outer walls (free
+    # space reachable from the sheet border); the hull test alone clipped corner rooms (audit mode 4)
+    # Inside the hull, outside space far from any label (re-entrant notches) is exterior too; space
+    # near a label is left to the label (balconies with a single-line railing leak to the outside).
+    outside = outside_mask(walls, s, rho)
+    img2 = Image.new("L", (grid.w, grid.h), 0)
+    dr2 = ImageDraw.Draw(img2)
+    rs = 2.5 / s * rho
+    for x, y in zip(px, py, strict=True):
+        dr2.ellipse((float(x) - rs, float(y) - rs, float(x) + rs, float(y) + rs), fill=1)
+    ext = outside & (ext | ~np.asarray(img2, dtype=bool))
     kghost = max(5, int(round(1.1 / s * rho)))
     tmin = max(2, int(round(0.18 / s * rho)))
-    lab, _dt = segment_rooms(free, marker_px, ext, kghost, tmin)
+    lab, dt = segment_rooms(free, marker_px, ext, kghost, tmin)
     regions = run_regions(lab, n)
     leaky = _ext_leaky(lab, n)
     for i, st in regions.items():
@@ -1073,7 +1473,30 @@ def segment_page(osegs, seeds, sp, bbox, s):
     if len(vals) < 3:
         return None
     return {"scale": float(np.median(vals)), "samples": vals, "lab": lab, "regions": regions, "snapped": snapped,
-            "grid": grid, "walls": walls, "free": free, "n": n, "rho": rho}
+            "grid": grid, "walls": walls, "free": free, "n": n, "rho": rho, "outside": outside, "dt": dt}
+
+
+def outside_mask(walls, s, rho, close_m=0.35):
+    """Free space outside the building: reachable from the raster border through gaps wider than
+    2 x close_m (window and door openings narrower than that are treated as closed)."""
+    from scipy.ndimage import distance_transform_edt, label
+
+    r = max(2.0, close_m / s * rho)
+    # window and door openings are bridged first: collinear wall pieces up to 2 m apart are joined
+    # (this also fills narrow rooms, which does not matter here: only the outside is wanted)
+    kl = max(3, int(round(2.0 / s * rho)))
+    sealed = walls | _closing_1d(walls, kl, 0) | _closing_1d(walls, kl, 1)
+    dw = distance_transform_edt(~sealed)
+    del sealed
+    comp, _nc = label(dw > r)
+    border = np.unique(np.concatenate([comp[0], comp[-1], comp[:, 0], comp[:, -1]]))
+    border = border[border > 0]
+    core = np.isin(comp, border)
+    del comp, dw
+    if not core.any():
+        return core
+    d2 = distance_transform_edt(~core)
+    return (d2 <= r + 1) & ~walls
 
 
 def _ext_leaky(lab, n):
@@ -1090,8 +1513,9 @@ def _ext_leaky(lab, n):
     return out
 
 
-def _ghost_rooms(lab, n, px_m, rooms, idmap):
-    """Enclosed free-space cores with no label (OCR missed it): nodes of type 'unlabeled'."""
+def _ghost_rooms(lab, n, px_m, rooms, idmap, outside=None):
+    """Enclosed free-space cores with no label (OCR missed it): nodes of type 'unlabeled'.
+    v2: cells that lie mostly in the space outside the outer walls are not rooms."""
     from scipy.ndimage import find_objects
 
     objs = find_objects(lab)
@@ -1099,7 +1523,10 @@ def _ghost_rooms(lab, n, px_m, rooms, idmap):
         sl = objs[lb - 1]
         if sl is None:
             continue
-        st = region_stats(lab[sl] == lb)
+        m = lab[sl] == lb
+        if outside is not None and m.any() and float(outside[sl][m].mean()) > 0.6:
+            continue
+        st = region_stats(m)
         if st is None:
             continue
         area_px, w, h, y0, x0 = st
@@ -1116,9 +1543,122 @@ def _ghost_rooms(lab, n, px_m, rooms, idmap):
         rooms.append(r)
 
 
-def _finish_page(name, pno, marker, seeds, sp, res, pieces, s):
+def region_polygon(mask, tol_px=0.0):
+    """Outer boundary of the largest connected part of a boolean mask as a shapely Polygon (pixel
+    units, x = column, y = row); holes are dropped."""
+    import shapely
+    from shapely.geometry import Polygon
+
+    h, w = mask.shape
+    m8 = np.zeros((h, w + 2), np.int8)
+    m8[:, 1:-1] = mask
+    d = np.diff(m8, axis=1)
+    ys, x0 = np.nonzero(d == 1)
+    _, x1 = np.nonzero(d == -1)
+    if not len(ys):
+        return None
+    g = shapely.union_all(shapely.box(x0, ys, x1, ys + 1))
+    if g.geom_type == "MultiPolygon":
+        g = max(g.geoms, key=lambda p: p.area)
+    elif g.geom_type != "Polygon":
+        return None
+    g = Polygon(g.exterior)
+    if tol_px:
+        g = g.simplify(tol_px, preserve_topology=True)
+    return g if g.is_valid and not g.is_empty else g.buffer(0)
+
+
+def stair_flights(osegs, s):
+    """Stair flights from the tread lines: runs of >= 6 parallel lines of equal length (0.7-2.4 m)
+    at an even 0.18-0.38 m pitch. Returns boxes (x0, y0, x1, y1) in rotated pt. Treads are often
+    paired closely enough to land in the wall mask, so stairs rarely appear as free space."""
+    out = []
+    if not len(osegs):
+        return out
+    d = osegs[:, 2:] - osegs[:, :2]
+    hmask = np.abs(d[:, 0]) >= np.abs(d[:, 1])
+    tol = 0.08 / s
+    for horiz in (True, False):
+        sg = osegs[hmask if horiz else ~hmask]
+        if not len(sg):
+            continue
+        if horiz:
+            a0, a1, pos = np.minimum(sg[:, 0], sg[:, 2]), np.maximum(sg[:, 0], sg[:, 2]), (sg[:, 1] + sg[:, 3]) / 2
+        else:
+            a0, a1, pos = np.minimum(sg[:, 1], sg[:, 3]), np.maximum(sg[:, 1], sg[:, 3]), (sg[:, 0] + sg[:, 2]) / 2
+        ln = (a1 - a0) * s
+        keep = (ln >= 0.7) & (ln <= 2.4)
+        a0, a1, pos = a0[keep], a1[keep], pos[keep]
+        order = np.argsort(a0)
+        a0, a1, pos = a0[order], a1[order], pos[order]
+        n = len(a0)
+        par = list(range(n))
+
+        def find(i, par=par):
+            while par[i] != i:
+                par[i] = par[par[i]]
+                i = par[i]
+            return i
+
+        for i in range(n):
+            j = i + 1
+            while j < n and a0[j] - a0[i] < tol:
+                if abs(a1[j] - a1[i]) < tol:
+                    par[find(j)] = find(i)
+                j += 1
+        groups = defaultdict(list)
+        for i in range(n):
+            groups[find(i)].append(i)
+        for g in groups.values():
+            if len(g) < 6:
+                continue
+            p = np.unique(np.round(np.sort(pos[g]) * s / 0.03).astype(int)) * 0.03 / s  # dedupe double lines
+            if len(p) < 6:
+                continue
+            dif = np.diff(p) * s
+            ok = (dif >= 0.18) & (dif <= 0.38)
+            start = 0
+            for k in range(len(ok) + 1):
+                if k == len(ok) or not ok[k] or (k > start and abs(dif[k] - np.median(dif[start:k])) > 0.06):
+                    if k - start >= 5:  # >= 6 treads
+                        lo, hi = float(np.median(a0[g])), float(np.median(a1[g]))
+                        if horiz:
+                            out.append((lo, float(p[start]), hi, float(p[k])))
+                        else:
+                            out.append((float(p[start]), lo, float(p[k]), hi))
+                    start = k + 1
+    return out
+
+
+FACADE_DIRS = ("top", "bottom", "left", "right")
+UPDN = re.compile(r"^(UP|DN|DOWN|U\.P|D\.N)\b\.?", re.I)
+
+
+def _poly_coords(poly):
+    return [[round(float(x), 2), round(float(y), 2)] for x, y in list(poly.exterior.coords)[:-1]]
+
+
+def _finish_page(name, pno, marker, seeds, sp, res, pieces, s, ctx=None):
+    from scipy.ndimage import binary_fill_holes, find_objects, label
+    from shapely import affinity
+    from shapely.geometry import Polygon as _P
+    from shapely.geometry import box
+    from shapely.ops import unary_union
+
+    ctx = ctx or {}
     lab, n, regions, grid, rho = res["lab"], res["n"], res["regions"], res["grid"], res["rho"]
+    outside, dt = res.get("outside"), res.get("dt")
     px_m = s / rho  # metres per pixel
+    page_h = float(ctx.get("page_h", 0.0))
+
+    def m_poly(poly_px):
+        """Pixel polygon -> page metres (rotation-corrected drawing frame, x right, y up)."""
+        p = affinity.affine_transform(poly_px, [s / rho, 0, 0, -s / rho, grid.x0 * s, (page_h - grid.y0) * s])
+        return p
+
+    def m_pt(x, y):
+        return round((x / rho + grid.x0) * s, 2), round((page_h - (y / rho + grid.y0)) * s, 2)
+
     # ---- per-room geometry
     rooms = []
     idmap = {}
@@ -1165,53 +1705,263 @@ def _finish_page(name, pno, marker, seeds, sp, res, pieces, s):
         return [{**marker, "status": "too_few_rooms"}]
     if fid25 < 0.5:  # page-level fidelity gate: skip garbage pages
         return [{**marker, "status": "low_fidelity"}]
-    _ghost_rooms(lab, n, px_m, rooms, idmap)
-    for r in rooms:
-        r["common"] = is_common(r)
+    n_seed_rooms = len(rooms)
+    _ghost_rooms(lab, n, px_m, rooms, idmap, outside)
+    lab_of = {rid: key + 1 for key, rid in idmap.items()}
+    objs = find_objects(lab)
 
-    # ---- adjacency
+    # ---- room polygons (page metres) and inscribed clear width
+    tol = 0.05 / px_m
+    for r in rooms:
+        lb = lab_of[r["id"]]
+        sl = objs[lb - 1] if lb - 1 < len(objs) else None
+        if sl is None:
+            continue
+        m = lab[sl] == lb
+        pg = region_polygon(m, tol)
+        if pg is None or pg.is_empty or pg.geom_type != "Polygon":
+            continue
+        pg = affinity.translate(pg, sl[1].start, sl[0].start)
+        r["_poly_px"] = pg
+        pm = m_poly(pg)
+        r["poly"] = _poly_coords(pm)
+        r["perim"] = round(pm.length, 2)
+        c = pm.centroid
+        r["cxm"], r["cym"] = round(c.x, 2), round(c.y, 2)
+        if dt is not None:
+            r["wclear"] = round(2.0 * float(dt[sl][m].max()) * px_m, 2)
+
+    # ---- building outline: everything not reachable from outside the outer walls, plus labelled rooms
+    outline = []
+    xlab = int(lab.max()) + 1
+    if outside is not None:
+        seedroom = np.zeros(xlab + 1, bool)
+        for r in rooms[:n_seed_rooms]:
+            if r["type"] not in ("chajja",):
+                seedroom[lab_of[r["id"]]] = True
+        fp = ~outside | seedroom[lab]
+        k = max(3, int(round(0.25 / px_m)) | 1)
+        fp = binary_fill_holes(open_free(fp, k))
+        comp, _nc = label(fp)
+        spx, spy = grid.px(sp)
+        hh, ww = fp.shape
+        cnt = Counter()
+        for x, y in zip(spx, spy, strict=True):
+            x, y = int(round(float(x))), int(round(float(y)))
+            if 0 <= x < ww and 0 <= y < hh and comp[y, x]:
+                cnt[int(comp[y, x])] += 1
+        cobj = find_objects(comp)
+        for cid, c in cnt.items():
+            sl = cobj[cid - 1]
+            m = comp[sl] == cid
+            area = float(m.sum()) * px_m * px_m
+            if c < 2 or area < 25:
+                continue
+            f = max(1, int(round(0.08 / px_m)))
+            ms = m[::f, ::f]
+            pg = region_polygon(ms, 0.12 / (px_m * f))
+            if pg is None or pg.geom_type != "Polygon" or pg.is_empty:
+                continue
+            pg = affinity.affine_transform(pg, [f, 0, 0, f, sl[1].start, sl[0].start])
+            pm = m_poly(pg)
+            clipped = sl[0].start == 0 or sl[1].start == 0 or sl[0].stop >= hh or sl[1].stop >= ww
+            outline.append({"polygon": _poly_coords(pm), "area": round(pm.area, 1), "n_labels": c,
+                            "clipped": bool(clipped)})
+        outline.sort(key=lambda o: -o["area"])
+        del comp, fp
+
+    # ---- unlabelled cells holding an UP / DN arrow text are stairs
+    toks = []
+    for t, x, y, w, h in ctx.get("lines") or []:
+        if UPDN.match(t.strip()):
+            toks.append((x + w / 2, y + h / 2))
+    vert = ctx.get("vert")
+    if vert:
+        vx0, vy0, vx1, vy1 = vert[1]
+        for t, x, y, w, h in vert[0]:
+            if UPDN.match(t.strip()):
+                toks.append((vx0 + (y + h / 2), vy0 + (vy1 - vy0) - (x + w / 2)))
+    if toks:
+        tp = np.asarray(toks, dtype=np.float64)
+        if ctx.get("theta"):
+            tp = rotate_pts(tp, ctx["theta"], ctx["cen"])
+        txs, tys = grid.px(tp)
+        rev = {lb: rid for rid, lb in lab_of.items()}
+        hh, ww = lab.shape
+        for x, y in zip(txs, tys, strict=True):
+            x, y = int(round(float(x))), int(round(float(y)))
+            if 0 <= x < ww and 0 <= y < hh and int(lab[y, x]) in rev:
+                r = rooms[rev[int(lab[y, x])]]
+                if r["type"] in ("unlabeled", "unknown"):
+                    r["type"], r["type_src"] = "stair", "up_dn_text"
+    marker["n_updn_tokens"] = len(toks)
+
+    # ---- stairs from tread runs; unnamed cells mostly covered by a stair become the stair
+    stair_polys = []
+    flights = stair_flights(ctx.get("osegs", np.zeros((0, 4))), s)
+    if flights:
+        boxes = [box(x0_ * s, (page_h - y1_) * s, x1_ * s, (page_h - y0_) * s) for x0_, y0_, x1_, y1_ in flights]
+        if outline:
+            ol = unary_union([_P(o["polygon"]).buffer(0.5) for o in outline])
+            boxes = [b for b in boxes if b.intersection(ol).area >= 0.5 * b.area]
+        grp = list(range(len(boxes)))
+
+        def gfind(i):
+            while grp[i] != i:
+                grp[i] = grp[grp[i]]
+                i = grp[i]
+            return i
+
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                if boxes[i].distance(boxes[j]) <= 0.8:
+                    grp[gfind(i)] = gfind(j)
+        sg = defaultdict(list)
+        for i, b in enumerate(boxes):
+            sg[gfind(i)].append(b)
+        stair_polys = [unary_union(g).convex_hull for g in sg.values()]
+        stair_polys = [p for p in stair_polys if 2.0 <= p.area <= 40.0]
+        for r in rooms:
+            if r["type"] in ("unlabeled", "unknown") and r.get("poly"):
+                rp = _P(r["poly"])
+                if rp.area > 0 and sum(rp.intersection(p).area for p in stair_polys) >= 0.4 * rp.area:
+                    r["type"], r["type_src"] = "stair", "tread_lines"
+    for r in rooms:
+        if r.get("poly") and stair_polys and r["type"] in ("unlabeled", "unknown"):
+            rp = _P(r["poly"])
+            r["_near_stair"] = any(rp.distance(p) <= 0.5 for p in stair_polys)
+    marker["n_stair_flights"] = len(flights)
+    # ---- adjacency, openings and outer-wall (facade) contact
     gap_px = max(2, int(round(0.42 / s * rho)))
-    ncode = int(lab.max()) + 2
-    touch, wall = adjacency(lab, gap_px, ncode)
-    ext_id = n  # label n+1 -> index n
+    xlab = int(lab.max()) + 1
+    isroom = np.zeros(xlab + 1, bool)
+    ischajja = np.zeros(xlab + 1, bool)
+    for r in rooms:
+        if r["type"] != "chajja":
+            isroom[lab_of[r["id"]]] = True
+        elif r["area"] < 6.0 or r["short"] < 2.0:  # a strip; a room-sized "chajja" is a room with a lost label
+            ischajja[lab_of[r["id"]]] = True
+    lab2 = lab.copy()
+    if outside is not None:
+        lab2[outside & ~isroom[lab]] = xlab
+    # a chajja (weather shade outside the window) is drawn as a closed strip, so its free space is not reached
+    # from the sheet border; the wall behind it is still a facade
+    lab2[ischajja[lab] & (lab > 0)] = xlab
+    acc, fac = adjacency_pos(lab2, gap_px, xlab)
+    ext_mask = lab2 == xlab
+    del lab2
+    # facades: the outside reached within 1.6 m across walls, chajjas, ledges and ducts, but never through a
+    # room (the window wall often has a chajja, boxing or ODU ledge cell in front of it)
+    block = np.zeros(int(lab.max()) + 2, bool)
+    for r in rooms:
+        if r["type"] != "chajja" and not (r["type"] == "unlabeled" and r["short"] < 1.25):
+            block[lab_of[r["id"]]] = True
+    fac = facade_reach(lab, ext_mask, block, max(2, int(round(1.6 / px_m))))
+    del ext_mask
     min_wall_px = max(3, int(round(0.30 / px_m)))
     min_open_px = max(3, int(round(0.55 / px_m)))
-    links = {}
-    for (a, b), c in wall.items():
-        if c < min_wall_px:
+    links, link_pos, wall_info, touch_len = {}, {}, {}, {}
+    for (la_, lb_), e in acc.items():
+        if la_ == xlab or lb_ == xlab or (la_ - 1) not in idmap or (lb_ - 1) not in idmap:
             continue
-        if b == ext_id and a in idmap:
-            rooms[idmap[a]]["exterior"] = True
-        elif a in idmap and b in idmap:
-            ra, rb = rooms[idmap[a]], rooms[idmap[b]]
+        nt, nw = e[0], e[1]
+        ra, rb = rooms[idmap[la_ - 1]], rooms[idmap[lb_ - 1]]
+        key = (min(ra["id"], rb["id"]), max(ra["id"], rb["id"]))
+        if nw >= min_wall_px or nt >= min_open_px:
             ra["neighbours"].append(rb["id"])
             rb["neighbours"].append(ra["id"])
-    for (a, b), c in touch.items():
-        if b == ext_id and a in idmap:
-            rooms[idmap[a]]["exterior"] = True
-            continue
-        if a in idmap and b in idmap and c >= min_open_px:
-            ra, rb = rooms[idmap[a]], rooms[idmap[b]]
+            thick = (e[6] / nw - 1) * px_m if nw else 0.0
+            wall_info[key] = ((nt + nw) * px_m, max(0.0, thick))
+        touch_len[key] = nt * px_m
+        if nt >= min_open_px:
             ra["open"].append(rb["id"])
             rb["open"].append(ra["id"])
-            ra["neighbours"].append(rb["id"])
-            rb["neighbours"].append(ra["id"])
-            links[(min(ra["id"], rb["id"]), max(ra["id"], rb["id"]))] = "open"
+            links[key] = "open"
+            link_pos[key] = m_pt(e[2] / nt, e[3] / nt)
+        elif nw >= min_wall_px:
+            link_pos.setdefault(("wall",) + key, m_pt(e[4] / nw, e[5] / nw))
+    for r in rooms:
+        cnt = fac[lab_of[r["id"]]] if lab_of[r["id"]] < len(fac) else np.zeros(4)
+        lens = {d: round(float(c) * px_m, 2) for d, c in zip(FACADE_DIRS, cnt, strict=True) if c * px_m >= 0.3}
+        r["facade"] = lens
+        r["facade_sides"] = [d for d, v in lens.items() if v >= 0.6]
+        r["exterior"] = bool(r["facade_sides"])
+    # ---- unnamed cells crossed corner to corner by a diagonal (the drawn lift-well / duct X)
+    segs_all = ctx.get("segs")
+    n_x = 0
+    if segs_all is not None and len(segs_all):
+        d = segs_all[:, 2:] - segs_all[:, :2]
+        ln = np.hypot(d[:, 0], d[:, 1]) * s
+        ang = np.degrees(np.arctan2(np.abs(d[:, 1]), np.abs(d[:, 0])))
+        ds = segs_all[(ln >= 1.0) & (ln <= 5.0) & (ang > 20) & (ang < 70)]
+        dP = np.stack([ds[:, 0] * s, (page_h - ds[:, 1]) * s, ds[:, 2] * s, (page_h - ds[:, 3]) * s], 1)
+        core_t = {"lobby", "lift", "fire_lift", "stair", "passage"}
+        for r in rooms:
+            if r["type"] not in ("unlabeled", "unknown") or r.get("name") or not r.get("poly") or not len(dP):
+                continue
+            pg = _P(r["poly"])
+            if not 1.0 <= pg.area <= 12.0:
+                continue
+            x0_, y0_, x1_, y1_ = pg.bounds
+            hit = False
+            for (ax_, ay_), (bx_, by_) in (((x0_, y0_), (x1_, y1_)), ((x0_, y1_), (x1_, y0_))):
+                da = np.hypot(dP[:, 0] - ax_, dP[:, 1] - ay_) < 0.45
+                db = np.hypot(dP[:, 2] - bx_, dP[:, 3] - by_) < 0.45
+                da2 = np.hypot(dP[:, 0] - bx_, dP[:, 1] - by_) < 0.45
+                db2 = np.hypot(dP[:, 2] - ax_, dP[:, 3] - ay_) < 0.45
+                hit |= bool(((da & db) | (da2 & db2)).any())
+            if hit:
+                near_core = any(rooms[v]["type"] in core_t for v in r["neighbours"])
+                r["type"] = "lift" if pg.area >= 2.5 and near_core else "shaft_cell"
+                r["type_src"] = "x_cross"
+                n_x += 1
+    marker["n_x_cells"] = n_x
     # ---- doors from swing arcs
     arcs = fit_door_arcs(cluster_pieces(pieces), s)
-    dl = door_links(arcs, lab, grid, s, n)
+    dpos: dict = {}
+    dl = door_links(arcs, lab, grid, s, n, dpos)
     n_doors = 0
     for (a, b), _c in dl.items():
         if a in idmap and b in idmap:
             ra, rb = rooms[idmap[a]], rooms[idmap[b]]
+            key = (min(ra["id"], rb["id"]), max(ra["id"], rb["id"]))
             ra["doors"].append(rb["id"])
             rb["doors"].append(ra["id"])
-            links[(min(ra["id"], rb["id"]), max(ra["id"], rb["id"]))] = "door"
+            if rb["id"] not in ra["neighbours"]:
+                ra["neighbours"].append(rb["id"])
+                rb["neighbours"].append(ra["id"])
+            links[key] = "door"
+            px_, py_ = grid.px(dpos[(a, b)])
+            link_pos[key] = m_pt(float(px_), float(py_))
             n_doors += 1
     marker["n_door_arcs"] = len(arcs)
     marker["n_door_links"] = n_doors
+    # ---- a lift region much larger than its printed size has flooded the lobby in front of it (no wall
+    # drawn across the lift door): it stands for that lobby when a flat door opens on it
+    for r in rooms:
+        if r["type"] in LIFTS and (r.get("area_ratio") or 0) >= 1.4:
+            r["leaky"] = True
+    # ---- a "chajja" region the size of a room that opens into a room is a room whose own label was lost
+    # (the chajja label outside its window flooded it): keep it as an unnamed room
+    for r in rooms:
+        if r["type"] == "chajja" and r["area"] >= 6.0 and r["short"] >= 2.0 and \
+                any(rooms[v]["type"] not in NOT_PRIVATE | ROOM_TYPES_COMMON for v in r["open"] + r["doors"]):
+            r["type"], r["demoted_from"] = "unlabeled", "chajja"
+    # ---- drop links between room types that are never joined by a door (audit failure mode 2)
+    n_rej = 0
+    for key in list(links):
+        ra, rb = rooms[key[0]], rooms[key[1]]
+        leaky = (ra.get("leaky") and rb["type"] in ENTRY_TYPES) or (rb.get("leaky") and ra["type"] in ENTRY_TYPES)
+        if bad_link(ra["type"], rb["type"]) and not leaky:
+            del links[key]
+            n_rej += 1
+            for x, y in ((ra, rb), (rb, ra)):
+                x["doors"] = [v for v in x["doors"] if v != y["id"]]
+                x["open"] = [v for v in x["open"] if v != y["id"]]
+    marker["n_links_rejected"] = n_rej
     # ---- shaft / duct labels near rooms
     wrad = max(2, int(round(0.75 / px_m)))
+    shafts = []
     for i in range(n):
         if seeds[i]["type"] != "shaft":
             continue
@@ -1221,11 +1971,112 @@ def _finish_page(name, pno, marker, seeds, sp, res, pieces, s):
         for lb in np.unique(win):
             if lb > 0 and (int(lb) - 1) in idmap:
                 rooms[idmap[int(lb) - 1]]["shaft"] = True
+        st = regions.get(i)
+        sl = objs[i] if i < len(objs) else None
+        if st is not None and sl is not None and st["area_px"] * px_m * px_m <= 8.0:
+            pg = region_polygon(lab[sl] == i + 1, tol)
+            if pg is not None and pg.geom_type == "Polygon" and not pg.is_empty:
+                shafts.append({"name": seeds[i]["name"],
+                               "poly_m": m_poly(affinity.translate(pg, sl[1].start, sl[0].start))})
     for r in rooms:
         r["neighbours"] = sorted(set(r["neighbours"]))
         r["doors"] = sorted(set(r["doors"]))
         r["open"] = sorted(set(r["open"]))
-    flats, dropped = build_flats(rooms, links, name, pno)
+    mark_common(rooms, links, touch_len)
+    # unnamed lift-sized cells (1.4-3.3 m a side) opening only on to the lobby are lifts whose label was lost
+    # (one pass over the lifts named before it, so corridor cells cannot chain into a row of "lifts";
+    # a lift opens on the lobby through a door, never over more than 1.25 m)
+    named_lifts = {r["id"] for r in rooms if r["type"] in LIFTS}
+    for r in rooms:
+        if r["type"] not in ("unknown", "unlabeled") or r.get("common") or not r.get("poly"):
+            continue
+        a, b = (sorted(r["ocr_dims"]) if r.get("ocr_dims") else (r["short"], r["long"]))
+        lk = set(r["doors"]) | set(r["open"])
+        if 1.4 <= a <= 3.3 and 1.4 <= b <= 3.3 and lk and \
+                all(rooms[v]["type"] in ("lobby",) or (rooms[v].get("common") and rooms[v]["type"] not in LIFTS)
+                    for v in lk) and any(v in named_lifts for v in r["neighbours"]) and \
+                max(touch_len.get((min(r["id"], v), max(r["id"], v)), 0.0) for v in lk) <= 1.25:
+            r["type"], r["type_src"], r["common"] = "lift", "size_next_to_lifts", True
+    lp = {k: v for k, v in link_pos.items() if len(k) == 2}
+    for k, v in link_pos.items():  # wall midpoints serve as the entrance point of wall-only entrances
+        if len(k) == 3:
+            lp.setdefault(k[1:], v)
+    flats, dropped = build_flats(rooms, links, name, pno, wall_info, lp)
+
+    # ---- cores: common rooms, stairs and shafts lying within 0.7 m of each other, holding a lift or stair
+    els = []
+    for r in rooms:
+        if r.get("common") and r.get("poly"):
+            els.append({"type": r["type"], "room_id": r["id"], "poly_m": _P(r["poly"]).buffer(0), "name": r["name"]})
+    for p in stair_polys:
+        if not any(e["type"] == "stair" and e["poly_m"].intersection(p).area > 0.3 * p.area for e in els):
+            els.append({"type": "stair", "room_id": None, "poly_m": p, "name": "tread_lines"})
+    lift_like = [e for e in els if e["type"] in LIFTS | {"stair", "lobby"}]
+    for sh in shafts:
+        if any(sh["poly_m"].distance(e["poly_m"]) <= 0.6 for e in lift_like):
+            els.append({"type": "shaft", "room_id": None, "poly_m": sh["poly_m"], "name": sh["name"]})
+    grp = list(range(len(els)))
+
+    def cfind(i):
+        while grp[i] != i:
+            grp[i] = grp[grp[i]]
+            i = grp[i]
+        return i
+
+    for i in range(len(els)):
+        for j in range(i + 1, len(els)):
+            # tread hulls stop short of the landings, so a stair joins the core over up to 1.6 m
+            lim = 1.6 if "stair" in (els[i]["type"], els[j]["type"]) else 0.7
+            if els[i]["poly_m"].distance(els[j]["poly_m"]) <= lim:
+                grp[cfind(i)] = cfind(j)
+    cgroups = defaultdict(list)
+    for i, e in enumerate(els):
+        cgroups[cfind(i)].append(e)
+    cores = []
+    for g in sorted(cgroups.values(), key=lambda g: -sum(e["poly_m"].area for e in g)):
+        types = Counter(e["type"] for e in g)
+        if not (types["lift"] + types["fire_lift"] + types["stair"]):
+            continue
+        un = unary_union([e["poly_m"].buffer(0.35, join_style="mitre") for e in g]).buffer(-0.35, join_style="mitre")
+        parts = [un] if un.geom_type == "Polygon" else sorted(getattr(un, "geoms", []), key=lambda p: -p.area)
+        parts = [p for p in parts if p.geom_type == "Polygon" and p.area > 0.5]
+        if not parts:
+            continue
+        cen = un.centroid
+        k = len(cores)
+        stairs = [e["poly_m"] for e in g if e["type"] == "stair"]  # flights within 1.5 m = one stair
+        sp_ = list(range(len(stairs)))
+        for i in range(len(stairs)):
+            for j in range(i + 1, len(stairs)):
+                if stairs[i].distance(stairs[j]) <= 1.5:
+                    a_, b_ = sp_[i], sp_[j]
+                    sp_ = [a_ if x == b_ else x for x in sp_]
+        types["stair"] = len(set(sp_))
+        for e in g:
+            if e["room_id"] is not None:
+                rooms[e["room_id"]]["core_id"] = k
+        x0, y0, x1, y1 = un.bounds
+        cores.append({"id": k, "polygon": _poly_coords(parts[0]), "parts": [_poly_coords(p) for p in parts[1:]],
+                      "centroid": [round(cen.x, 2), round(cen.y, 2)], "area": round(un.area, 1),
+                      "bbox": [round(x0, 2), round(y0, 2), round(x1, 2), round(y1, 2)],
+                      "n_lifts": types["lift"], "n_fire_lifts": types["fire_lift"], "n_stairs": types["stair"],
+                      "n_lobby": types["lobby"] + types["passage"] + types["unlabeled"] + types["unknown"],
+                      "elements": [{"type": e["type"], "room_id": e["room_id"], "name": e["name"],
+                                    "area": round(e["poly_m"].area, 2),
+                                    "polygon": _poly_coords(e["poly_m"]) if e["poly_m"].geom_type == "Polygon" else None,
+                                    "centroid": [round(e["poly_m"].centroid.x, 2), round(e["poly_m"].centroid.y, 2)]}
+                                   for e in g]})
+    for f in flats:  # core id of the rooms, now that cores are known
+        for c in f["common_rooms"]:
+            c["core_id"] = rooms[c["id"]].get("core_id")
+        if f.get("entrance"):
+            f["entrance"]["core_id"] = rooms[f["entrance"]["common"]].get("core_id")
+    common_out = [{"id": r["id"], "type": r["type"], "name": r["name"], "area": r["area"], "poly": r.get("poly"),
+                   "c": [r.get("cxm"), r.get("cym")], "core_id": r.get("core_id"), "why": r.get("common_why")}
+                  for r in rooms if r.get("common")]
+    if os.environ.get("TOPO_DEBUG"):
+        _DEBUG.update(rooms=rooms, lab_of=lab_of, outside=outside, outline=outline, cores=cores, links=links,
+                      link_pos=link_pos, m_pt=m_pt)
     for k, f in enumerate(flats):
         f["flat_id"] = f"{name}:p{pno}:F{k + 1}"
         f["title"] = marker["title"]
@@ -1233,6 +2084,11 @@ def _finish_page(name, pno, marker, seeds, sp, res, pieces, s):
     marker["status"] = "ok"
     marker["n_flats"] = len(flats)
     marker["n_flats_dropped"] = dropped
+    marker["page_h_m"] = round(page_h * s, 2)
+    marker["outline"] = outline
+    marker["cores"] = cores
+    marker["common_rooms"] = common_out
+    marker["n_rooms_total"] = len(rooms)
     return [*flats, marker]
 
 
