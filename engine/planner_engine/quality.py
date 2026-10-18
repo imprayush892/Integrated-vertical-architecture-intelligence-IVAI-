@@ -21,6 +21,7 @@ from __future__ import annotations
 import heapq
 import itertools
 import math
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -46,7 +47,8 @@ STRICTNESS = 1.5  # score = 100 - STRICTNESS x (100 - weighted satisfaction): on
 # (a flat with 57 % wasted floor is not a 70 because its doors are fine; a bed that does not fit costs less than that).
 GATE = {"waste_share": 0.70, "circ_share": 0.30, "entry_seq": 0.55, "privacy": 0.55, "through_wet": 0.55, "kitchen_near": 0.45,
         "fit_sleep": 0.40, "fit_living": 0.35, "fit_kitchen": 0.40, "fit_toilet": 0.30, "hab_window": 0.40, "room_size": 0.30,
-        "room_shape": 0.30, "room_aspect": 0.25, "corridor_len": 0.25, "common_toilet": 0.25, "efficiency": 0.25, "hub_spread": 0.20}
+        "room_shape": 0.30, "room_aspect": 0.25, "corridor_len": 0.25, "common_toilet": 0.25, "efficiency": 0.25, "hub_spread": 0.20,
+        "entry_privacy": 0.40, "toilet_door": 0.35, "orphan": 0.30, "zone_order": 0.20, "dining_kitchen": 0.20}
 CRITICAL_PENALTY = 10.0
 CRITICAL_CAP = 40.0
 GRADES = [(85, "A"), (70, "B"), (55, "C"), (40, "D"), (0, "F")]
@@ -74,10 +76,10 @@ METRICS: dict[str, Metric] = {m.key: m for m in [
        "approved plans: p90 = 5 % (topology_v1, 986 clean flats; median 0 %); practice: <= 8 %"),
     _m("corridor_len", "circulation", 3, 2.5, 7.0, "m", "length of corridor-like circulation (area / clear width)",
        "practice: a flat passage over ~3 m is a corridor; > 7 m is a gallery"),
-    _m("hub_spread", "circulation", 3, 4.5, 10.0, "m", "max distance between bedroom / common-toilet doors",
-       "approved plans: bedroom centroids p50 = 3.7 m, p75 = 6.7 m apart; compact hub wanted by the owner"),
-    _m("hub_share", "circulation", 3, 0.75, 0.40, "share", "share of private doors that open onto one space",
-       "owner brief: one compact hub where bedroom/toilet doors open"),
+    _m("hub_spread", "circulation", 3, 4.5, 8.0, "m", "max distance between bedroom / common-toilet doors (1-2 BHK; 3 BHK 8.5 / 14, 4+ 10 / 16)",
+       "approved plans (graphs_v2, by BHK): 1-2 BHK p88 = 4.5 m, 3 BHK p50 = 6.7 m p88 = 11 m; compact hub wanted by the owner"),
+    _m("hub_share", "circulation", 3, 0.50, 0.25, "share", "share of private doors that open onto one space",
+       "owner brief: one compact hub where bedroom/toilet doors open; fitted to approved plans (p10 = 0.40, median 0.75)"),
     _m("dead_end", "circulation", 2, 1.0, 2.5, "m", "passage length beyond its last door (dead end)",
        "practice: dead-end stub <= 1 m"),
     _m("travel_to_exit", "circulation", 3, 22.5, 40.0, "m", "farthest habitable room -> flat door -> nearest stair",
@@ -91,6 +93,8 @@ METRICS: dict[str, Metric] = {m.key: m for m in [
        "practice: 0.80-0.85 carpet/gross for flats excluding the core"),
     _m("room_size", "waste", 3, 1.0, 0.5, "score", "rooms below the comfortable size for their type",
        "approved plans p10 and p25 per type (topology_v1)"),
+    _m("orphan", "waste", 3, 0.0, 2.0, "count", "orphan pockets: passage / store without a door, passage joining < 2 spaces, room outside the flat",
+       "owner review of generator v2; approved plans (approved_bench)"),
     # ---- indian sequence (27)
     _m("entry_seq", "sequence", 6, 1.0, 0.0, "score", "front door opens into living (or foyer -> living)",
        "approved plans: 95 % of entrances are the living room (topology_v1)"),
@@ -101,11 +105,22 @@ METRICS: dict[str, Metric] = {m.key: m for m in [
     _m("privacy", "sequence", 4, 1.0, 0.0, "score", "bedrooms not entered from kitchen, another bedroom or a toilet",
        "practice; approved plans: 94 % of bedrooms reachable without crossing another bedroom (rest mostly link-extraction gaps)"),
     _m("through_wet", "sequence", 2, 1.0, 0.0, "score", "no room reachable only through a toilet", "practice; NBC habitability"),
-    _m("attached_share", "sequence", 2, 0.60, 0.20, "share", "bedrooms with an attached toilet",
-       "approved plans: master 88 %, other bedrooms 53 % (1BHK 83 %, 2BHK 51 %, 3BHK 62 %)"),
+    _m("attached_share", "sequence", 2, 0.50, -0.50, "share", "bedrooms with an attached toilet (none at all costs half)",
+       "approved plans: master 88 %, other bedrooms 53 %; 17-20 % of approved flats have no attached toilet (common toilets serve them)"),
     _m("master_attached", "sequence", 2, 1.0, 0.0, "score", "master bedroom has an attached toilet", "approved plans: 88 %"),
-    _m("wet_cluster", "sequence", 2, 0.60, 0.30, "share", "share of wet rooms in the largest wet cluster (shared shaft/wall)",
-       "approved plans: median 0.5-0.67 (topology_v1)"),
+    _m("wet_cluster", "sequence", 2, 0.45, 0.15, "share", "share of wet rooms in the largest wet cluster (shared shaft/wall)",
+       "approved plans (graphs_v2): p10 0.25, p25 0.33, median 0.5, p75 0.67"),
+    # ---- realism rules added after the generator-v2 review (docs/quality/critic.md section 8)
+    _m("entry_privacy", "sequence", 4, 1.0, 0.0, "score", "no bedroom at the front door: door off the entry foyer, near the door or on its wall",
+       "owner review of generator v2; approved plans: bedroom off the living-room entry within 2 m in 2 % of flats"),
+    _m("entry_sight", "sequence", 2, 1.0, 0.0, "score", "no bedroom door in the line of sight from the front door",
+       "owner review of generator v2; calibrated on approved plans (approved_bench)"),
+    _m("zone_order", "sequence", 2, 1.0, 0.0, "score", "hop depth from the entry rises public -> hub -> private",
+       "approved hop medians (graphs_v2): living 0, dining 1, passage 1, kitchen 2, bedroom 2, master 3, toilet 3"),
+    _m("toilet_door", "sequence", 3, 1.0, 0.0, "score", "attached toilet opens into its bedroom; common toilet not into dining / kitchen",
+       "owner review of generator v2; approved plans (approved_bench)"),
+    _m("dining_kitchen", "sequence", 2, 1.0, 0.0, "score", "dining reaches the kitchen directly or through the living room (serving route)",
+       "owner review of generator v2; approved plans (approved_bench)"),
     # ---- furniture fit (22)
     _m("fit_sleep", "furniture", 6, 1.0, 0.0, "score", "bed + wardrobe fit with clearances", "practice; see FURNITURE"),
     _m("fit_living", "furniture", 4, 1.0, 0.0, "score", "sofa set + TV wall + dining table fit", "practice"),
@@ -115,6 +130,8 @@ METRICS: dict[str, Metric] = {m.key: m for m in [
     _m("hab_window", "daylight", 3, 1.0, 0.5, "share", "habitable rooms with a window on the facade", "DCPR 2034 Reg 39(1)"),
     _m("window_ratio", "daylight", 1, 0.1667, 0.10, "ratio", "smallest window / floor area among habitable rooms", "DCPR 2034 Reg 39(1): 1/6"),
     _m("wet_vent", "daylight", 3, 1.0, 0.5, "share", "toilets ventilated to facade or shaft", "DCPR 2034 Reg 39(2)"),
+    _m("wet_duct", "daylight", 3, 0.0, 3.0, "count", "wet rooms on a mechanical duct instead of the facade or a shaft",
+       "owner review of generator v2; DCPR 2034 Reg 39(2) prefers windows / AVS"),
     # ---- doors (5)
     _m("swing_clash", "doors", 2, 0, 3, "count", "door swings that overlap each other", "practice"),
     _m("swing_free", "doors", 1, 0, 3, "count", "doors whose swing does not fit in the room", "practice"),
@@ -128,8 +145,12 @@ ASPECT = {"living": (2.0, 3.2), "dining": (2.0, 3.2), "kitchen": (2.3, 3.6), "ma
           "study": (1.8, 2.8), "toilet": (2.3, 3.4), "bath": (2.3, 3.4), "wc": (2.6, 4.0), "utility": (2.6, 4.0),
           "pooja": (2.0, 3.0), "dress": (2.8, 4.5)}
 # (good, bad) rectangularity = area / minimum-rotated-rectangle area
-SHAPE = {"living": (0.82, 0.62), "dining": (0.85, 0.65), "kitchen": (0.9, 0.7), "master": (0.93, 0.78), "bedroom": (0.93, 0.78),
+SHAPE = {"living": (0.78, 0.55), "dining": (0.75, 0.55), "kitchen": (0.9, 0.7), "master": (0.85, 0.62), "bedroom": (0.85, 0.62),
          "study": (0.93, 0.78), "toilet": (0.95, 0.8), "bath": (0.95, 0.8), "wc": (0.95, 0.8), "utility": (0.93, 0.75)}
+# corners a room may have before it counts as a notched / odd shape (approved p90: living 13, master 10, bedroom 8.6, kitchen 8)
+VERTS = {"living": 14, "dining": 12, "master": 10, "bedroom": 10, "kitchen": 8}
+# max distance between private doors (good, bad) by number of bedrooms (approved p60 / p88 per BHK: 1-2: 2.5-3.8 / 4.5; 3: 8 / 11)
+HUB_SPREAD = {2: (4.5, 8.0), 3: (8.5, 14.0), 4: (10.0, 16.0)}
 # generous upper size (m2) per type: beyond it the extra area is counted as waste (approved p90 x ~1.3)
 OVERSIZE = {"master": 20.0, "bedroom": 16.0, "living": 32.0, "dining": 16.0, "kitchen": 11.0, "toilet": 5.5, "bath": 4.0,
             "wc": 2.5, "foyer": 5.5, "passage": 6.5, "utility": 5.0, "study": 10.0, "dress": 6.0, "pooja": 3.0}
@@ -227,8 +248,9 @@ def _swing_poly(hinge: np.ndarray, t: np.ndarray, n: np.ndarray, w: float) -> Po
 class _Ctx:
     """Parsed plan: cleaned room polygons, doors with swings, door graph, wall-touch map."""
 
-    def __init__(self, plan: Plan, unit: Unit | None, plate: Plate | None):
+    def __init__(self, plan: Plan, unit: Unit | None, plate: Plate | None, imported: bool = False):
         self.plan, self.unit, self.plate = plan, unit, plate
+        self.imported = imported
         self.room: dict[str, PlanRoom] = {r.id: r for r in plan.rooms}
         self.poly: dict[str, Polygon] = {r.id: _clean(r.polygon) for r in plan.rooms}
         self.type: dict[str, str] = {r.id: r.type for r in plan.rooms}
@@ -536,6 +558,8 @@ def _door_obstacles(ctx: _Ctx, rid: str, land: float = 0.6, swing: bool = True):
     """Swing sectors / landings of every door of this room, as no-furniture polygons, plus landing points."""
     obs: list[Polygon] = []
     pts: list[np.ndarray] = []
+    if ctx.imported:  # door leaf, hinge and swing side are unknown in a plan imported from a drawing
+        return obs, pts
     poly = ctx.poly[rid]
     for d in ctx.doors_of(rid):
         # normal pointing into THIS room
@@ -669,7 +693,7 @@ def _run_tiers(ctx: _Ctx, rid: str, kind: str, build, tiers=(("full", 1.0), ("ti
             continue
         total_w = sum(it.weight for it in items)
         got_w = sum(it.weight for it in sub_items)
-        score = got_w / total_w * (1.0 if tier == "full" else 0.75)
+        score = got_w / total_w * {"full": 1.0, "compact": 0.6}.get(tier, 0.75)
         missing = [it.name for it in items if it not in sub_items]
         cur = RoomFit(rid, kind, "full" if (tier == "full" and not missing) else "tight", round(score, 3),
                       _placed_json(sub_items, sol), missing,
@@ -772,13 +796,14 @@ def _fit_toilet(ctx: _Ctx, rid: str, rtype: str) -> RoomFit:
 
     def build(scale, tier, placer, pts):
         full = tier == "full"
-        sd = 0.2 if full else 0.15
-        fz = 0.6 if full else 0.45
+        compact = tier == "compact"
+        sd = 0.2 if full else 0.1 if compact else 0.15
+        fz = 0.6 if full else 0.3 if compact else 0.45
         wc = _Item("WC", 0.4, 0.7, zones=[(-sd, 0.4 + sd, 0, 0.7 + fz)], weight=1.0)
         # (zones include the sides: they must lie in the room, i.e. WC centre >= 0.4 m from a side wall)
         wc.zones = [(-sd, 0.4 + sd, 0.7, 0.7 + fz), (-sd, 0, 0, 0.7), (0.4, 0.4 + sd, 0, 0.7)]
-        bw = _Item("basin", 0.5, 0.4, zones=[(0, 0.5, 0.4, 0.4 + (0.5 if full else 0.4))], weight=0.5)
-        sh = _Item("shower 0.9x0.9", 0.9, 0.9, weight=0.7)
+        bw = _Item("basin", 0.5, 0.4, zones=[(0, 0.5, 0.4, 0.4 + (0.5 if full else 0.3 if compact else 0.4))], weight=0.5)
+        sh = _Item("shower 0.9x0.9", 0.8 if compact else 0.9, 0.8 if compact else 0.9, weight=0.7)
         if rtype == "wc":
             items = [wc]
         elif rtype == "bath":
@@ -787,7 +812,8 @@ def _fit_toilet(ctx: _Ctx, rid: str, rtype: str) -> RoomFit:
             items = [wc, sh, bw]
         return items, [_simple_pref(poly, pts) for _ in items], None, None
 
-    return _run_tiers(ctx, rid, rtype, build, tight_outward=True)
+    # "compact": the 2.0-2.4 m2 toilets of approved flats (25 % of them) only fit with a 0.8 m shower tray and 0.3 m in front of the WC
+    return _run_tiers(ctx, rid, rtype, build, tiers=(("full", 1.0), ("tight", 0.75), ("compact", 0.6)), tight_outward=True)
 
 
 def _fit_utility(ctx: _Ctx, rid: str) -> RoomFit:
@@ -874,6 +900,8 @@ def place_furniture(ctx_or_plan, unit: Unit | None = None, plate: Plate | None =
             elif r.type == "living":
                 out[r.id] = _fit_living(ctx, r.id)
             elif r.type == "dining":
+                if ctx.imported:
+                    continue
                 out[r.id] = _fit_dining(ctx, r.id, 6 if bhk >= 3 else 4)
             elif r.type == "kitchen":
                 out[r.id] = _fit_kitchen(ctx, r.id)
@@ -909,7 +937,7 @@ class _Out:
         self.values[key] = round(float(value), 3)
         self.sat[key] = _ramp(float(value), m.good, m.bad) if sat is None else float(sat)
 
-    def issue(self, code: str, sev: str, metric: str | None, msg: str, rooms: list[str] | None = None, at=None):
+    def issue(self, code: str, sev: str, metric: str | None, msg: str, rooms: list[str] | None = None, at=None, line=None):
         cat = METRICS[metric].cat if metric in METRICS else "general"
         pt = None
         if at is not None:
@@ -918,8 +946,10 @@ class _Out:
             ps = [self.ctx.rep[r] for r in rooms if r in self.ctx.rep]
             if ps:
                 pt = [round(sum(p[0] for p in ps) / len(ps), 3), round(sum(p[1] for p in ps) / len(ps), 3)]
-        self.issues.append({"code": code, "severity": sev, "category": cat, "metric": metric, "message": msg,
-                            "rooms": rooms or [], "at": pt})
+        rec = {"code": code, "severity": sev, "category": cat, "metric": metric, "message": msg, "rooms": rooms or [], "at": pt}
+        if line is not None:  # a sight line / route the renderer draws: [[x0, y0], [x1, y1]]
+            rec["line"] = [[round(float(q[0]), 3), round(float(q[1]), 3)] for q in line]
+        self.issues.append(rec)
 
 
 def _name(ctx: _Ctx, rid: str) -> str:
@@ -994,11 +1024,14 @@ def _circulation(o: _Out, net: float):
             cnt[other] = cnt.get(other, 0) + 1
         top, k = max(cnt.items(), key=lambda kv: kv[1])
         share_h = k / len(priv)
-        o.set("hub_spread", spread)
+        nb = sum(1 for r in ctx.plan.rooms if r.type in BED)
+        g, b = HUB_SPREAD[min(4, max(2, nb))]
+        o.set("hub_spread", spread, _ramp(spread, g, b))
+        o.stats["hub_spread_limits"] = [g, b]
         o.set("hub_share", share_h)
         o.stats.update(hub_room=top, hub_doors=len(priv))
-        if spread > 8:
-            o.issue("hub_spread", "major" if spread > 10 else "minor", "hub_spread",
+        if spread > (g + b) / 2:
+            o.issue("hub_spread", "major" if spread > b else "minor", "hub_spread",
                     f"Bedroom/toilet doors are spread over {spread:.1f} m: no compact hub", list(cnt))
         if share_h < 0.5:
             o.issue("hub_split", "minor", "hub_share",
@@ -1058,7 +1091,7 @@ def _waste(o: _Out, net: float):
         if r.type in SHAPE:
             g, b = SHAPE[r.type]
             s = _ramp(rect, g, b)
-            if verts > 8:
+            if verts > VERTS.get(r.type, 8):
                 s = min(s, 0.5)
             shp_num += s * r.area
             shp_den += r.area
@@ -1182,22 +1215,26 @@ def _sequence(o: _Out):
             lv = living + by_type.get("dining", [])
             if any(x in lv for x in ctx.adj[k]):
                 best = 1.0
-            elif any(ctx.touch(k, x) >= 0.6 for x in lv):
-                best = 0.7
+            elif any(ctx.touch(k, x) >= 1.0 for x in lv):
+                best = 0.85  # shares a wall, door elsewhere (approved: door-linked in only 82 %)
+            elif any(ctx.touch(k, x) >= 0.4 for x in lv):
+                best = 0.5  # touches only at a corner / a sliver of wall
+                o.issue("kitchen_sliver", "minor", "kitchen_near",
+                        f"{_name(ctx, k)} meets the living/dining room only along a sliver of wall (under 1 m): no real contact", [k])
             else:
                 for x in lv:
                     pl = ctx.path_len(k, x, forbid=set(beds) | set(toilets))
                     if pl is not None:
-                        best = max(best, 0.55 if pl <= 8 else 0.25)
+                        best = max(best, 0.4 if pl <= 8 else 0.2)
             # kitchen only reachable through a bedroom
             if e is not None and k not in ctx.reach(e, set(beds) | set(toilets)) - {e} and k != e:
                 best = 0.0
                 o.issue("kitchen_via_room", "critical", "kitchen_near",
                         f"{_name(ctx, k)} can only be reached through a bedroom or toilet", [k])
-            elif best < 0.6:
+            elif best < 0.45:
                 o.issue("kitchen_far", "major", "kitchen_near",
-                        f"{_name(ctx, k)} is not next to the living/dining room (needs to be close, with the door to dining or living)", [k])
-            elif best < 1.0:
+                        f"{_name(ctx, k)} shares no wall or opening with the dining or living room (the kitchen must be next to them, with its door onto dining or living)", [k])
+            elif best < 1.0 and best != 0.5:
                 o.issue("kitchen_door", "minor", "kitchen_near",
                         f"{_name(ctx, k)} shares a wall with living/dining but its door opens elsewhere", [k])
             scores.append(best)
@@ -1215,9 +1252,10 @@ def _sequence(o: _Out):
                     s = 1.0 if pl is not None and pl <= 9.0 else 0.6
                     best = max(best, s)
         if best == 0.0:
-            o.issue("no_common_toilet", "major", "common_toilet",
+            small = len(toilets) <= len(beds) and len(beds) <= 2  # compact flat, every toilet belongs to a bedroom: approved pattern
+            o.issue("no_common_toilet", "minor" if small else "major", "common_toilet",
                     "No toilet a guest can reach from the living room without entering a bedroom (add a powder room or open a toilet to the passage)")
-            best = 0.2 if toilets else 0.0
+            best = (0.55 if small else 0.2) if toilets else 0.0
         elif best < 1.0:
             o.issue("common_toilet_far", "minor", "common_toilet", "The common toilet is far from the living room (more than 9 m of walking)")
         o.set("common_toilet", best)
@@ -1231,21 +1269,11 @@ def _sequence(o: _Out):
                 o.issue("unreachable", "major" if sealed else "critical", "through_wet",
                         f"{_name(ctx, r.id)} has no door route from the flat entry", [r.id])
         ok_priv = 0
-        priv_pen = 0.0
-        entry_pt = ctx.entry_door.mid if ctx.entry_door is not None else None
         no_bed = set(beds) | set(kitchens) | set(toilets) | set(by_type.get("utility", []))
         reach_priv = ctx.reach(e, no_bed) | {e}
         for b in beds:
             if b in reach_priv:
                 ok_priv += 1
-                # bedroom door right next to the front door
-                if entry_pt is not None:
-                    for d in ctx.doors_of(b):
-                        if d.kind != "entry" and ctx.entry in d.rooms and float(np.hypot(*(d.mid - entry_pt))) < 2.0:
-                            priv_pen += 0.25
-                            o.issue("bedroom_at_entry", "minor", "privacy",
-                                    f"{_name(ctx, b)} door is within 2 m of the front door: bedrooms should be away from the entry", [b])
-                            break
             elif b in reach_all:
                 before = ctx.reach(e, {b})  # rooms reachable without walking through this bedroom
                 via = [x for x in ctx.adj[b] if x in before and (types[x] in BED or types[x] == "kitchen" or x in toilets)]
@@ -1253,7 +1281,7 @@ def _sequence(o: _Out):
                         f"{_name(ctx, b)} is entered only through {', '.join(_name(ctx, x) for x in via) or 'another room'} "
                         f"(bedroom behind a bedroom, kitchen or toilet)", [b] + via)
         if beds:
-            o.set("privacy", max(0.0, (ok_priv - priv_pen) / len(beds)))
+            o.set("privacy", ok_priv / len(beds))
         # rooms that can only be reached through a toilet (dress rooms and balconies off a bedroom are fine)
         reach_dry = ctx.reach(e, set(toilets))
         bad = [r.id for r in rooms if r.id in reach_all and r.id not in reach_dry and r.type not in WET | {"dress", "balcony"}]
@@ -1266,9 +1294,6 @@ def _sequence(o: _Out):
             others = [x for x in ctx.adj[t] if types[x] not in WET | {"dress"}]
             if len(others) >= 2 and not (all(types[x] in BED for x in others) and len(others) == 2):
                 o.issue("toilet_through", "minor", "through_wet", f"{_name(ctx, t)} has doors to {len(others)} different rooms", [t])
-            # toilet door straight into the kitchen / dining
-            if any(types[x] in {"kitchen"} for x in ctx.adj[t]):
-                o.issue("toilet_to_kitchen", "major", "through_wet", f"{_name(ctx, t)} opens directly into the kitchen", [t])
 
     # --- attached toilets
     if beds:
@@ -1306,9 +1331,233 @@ def _sequence(o: _Out):
         share = max(len(v) for v in comp.values()) / len(wet)
         o.set("wet_cluster", share)
         o.stats["wet_clusters"] = len(comp)
-        if share < 0.45 and len(wet) >= 3:
+        if share < 0.3 and len(wet) >= 3:
             o.issue("wet_scatter", "minor", "wet_cluster",
                     f"Wet rooms form {len(comp)} separate groups: cluster toilets and kitchen on shared shafts/walls", wet)
+
+
+# ------------------------------------------------------------------------------------------------ realism rules (generator-v2 review)
+
+PUBLIC_ZONE = {"living", "dining", "kitchen", "foyer"}
+ATTACHED_HINT = re.compile(r"\((master|bed\s*\d*)\)|^toilet_(m|\d+|bed\w*)$|attached", re.I)
+ENTRY_ADJ = 1.8  # m: a bedroom wall this close to the front door counts as "against the entrance" (approved flats: 8.5 % have one that close)
+COMMON_HINT = re.compile(r"^toilet_c$|common|powder|guest", re.I)
+ORPHAN_TYPES = {"passage", "store", "utility", "pooja", "dress", "foyer"}
+
+
+def _bfs_depth(ctx: _Ctx, src: str) -> dict[str, int]:
+    depth = {src: 0}
+    queue = [src]
+    for u in queue:
+        for v in ctx.adj.get(u, ()):
+            if v not in depth:
+                depth[v] = depth[u] + 1
+                queue.append(v)
+    return depth
+
+
+def _march(poly: Polygon, p: np.ndarray, n: np.ndarray, maxlen: float = 16.0, step: float = 0.1, skip: float = 0.6):
+    """Walk from p along n while inside ``poly`` (a gap of up to ``skip`` m at the start, e.g. a wall, is crossed).
+    Returns the last inside point, or None when the ray never enters the polygon."""
+    ts = np.arange(0.0, maxlen, step)
+    pts = p[None, :] + ts[:, None] * n[None, :]
+    inside = shapely.contains_xy(poly.buffer(0.04), pts[:, 0], pts[:, 1])
+    first = np.flatnonzero(inside[: int(skip / step) + 1])
+    if len(first) == 0:
+        return None
+    i = int(first[0])
+    while i + 1 < len(ts) and inside[i + 1]:
+        i += 1
+    return pts[i]
+
+
+def sight_hits(ctx: _Ctx, offsets=(-0.3, 0.0, 0.3), max_hops: int = 4) -> dict[str, list[float]]:
+    """Bedrooms whose door lies in the straight line of sight from the front door (rays offset sideways by ``offsets``
+    through the entry room and, via doors / openings in line, the rooms behind it). {bedroom id: [ray offsets that reach it]}"""
+    ed = ctx.entry_door
+    hits: dict[str, list[float]] = {}
+    if ed is None or ctx.entry is None:
+        return hits
+    for off in offsets:
+        p = ed.mid + ed.t * off + ed.n * 0.05
+        cur = ctx.entry
+        for _hop in range(max_hops):
+            q = _march(ctx.poly[cur], p, ed.n)
+            if q is None:
+                break
+            nxt = None
+            for d in ctx.doors_of(cur):
+                if d.kind == "entry" or LineString([d.a, d.b]).distance(Point(*q)) > 0.35:
+                    continue
+                other = [r for r in d.rooms if r != cur and r in ctx.room]
+                if other:
+                    nxt = other[0]
+                    break
+            if nxt is None:
+                break
+            if ctx.type[nxt] in BED:
+                hits.setdefault(nxt, []).append(off)
+                break
+            p, cur = q + ed.n * 0.1, nxt
+    return hits
+
+
+def _realism(o: _Out):
+    """The seven findings of the generator-v2 review: entry privacy and sight line, zone order, toilet doors, dining-kitchen
+    route and orphan pockets (kitchen contact and wet ducts live in the kitchen / daylight checks)."""
+    ctx = o.ctx
+    rooms = ctx.plan.rooms
+    types = ctx.type
+    beds = [r.id for r in rooms if r.type in BED]
+    wets = [r.id for r in rooms if r.type in WET]
+    e, ed = ctx.entry, ctx.entry_door
+
+    # (1) bedroom at the front door ------------------------------------------------------------------------------
+    if e is not None and ed is not None and beds and types[e] not in BED:
+        et = types[e]
+        pen = 0.0
+        ep = Point(*ed.mid)
+        for b in beds:
+            p, sev, why = 0.0, "minor", ""
+            doors = [d for d in ctx.doors_of(b) if d.kind != "entry" and e in d.rooms]
+            if doors:
+                dmin = min(float(np.hypot(*(d.mid - ed.mid))) for d in doors)
+                if et not in ("living", "dining"):
+                    p, sev, why = 0.7, "major", f"opens straight off the entry {et}"
+                elif dmin < 2.0:
+                    p, why = 0.4, f"has its door {dmin:.1f} m from the front door"
+            if not p and ctx.poly[b].distance(ep) < ENTRY_ADJ:
+                p, why = 0.4, "sits against the front door wall"
+            if p:
+                pen += p
+                o.issue("bedroom_at_entry", sev, "entry_privacy", f"{_name(ctx, b)} {why}: the private zone starts at the flat entrance, "
+                        "bedrooms belong away from it", [b], at=tuple(ed.mid))
+        o.set("entry_privacy", max(0.0, 1.0 - pen))
+
+    # (6b) bedrooms visible straight from the front door --------------------------------------------------------
+    if e is not None and ed is not None and beds and types[e] not in BED:
+        hits = sight_hits(ctx)
+        pen = 0.0
+        for b, offs in hits.items():
+            centre = 0.0 in offs
+            pen += 0.7 if centre else 0.3
+            o.issue("bedroom_in_sight", "major" if centre else "minor", "entry_sight",
+                    f"{_name(ctx, b)} is visible straight from the front door (its door is in the line of sight from the entry)",
+                    [b], at=tuple(ctx.rep.get(b, ed.mid)), line=[ed.mid, ctx.rep.get(b, ed.mid)])
+        o.set("entry_sight", max(0.0, 1.0 - pen))
+
+    # (6a) zone order: hop depth rises public -> hub -> private ---------------------------------------------------
+    if e is not None and beds:
+        depth = _bfs_depth(ctx, e)
+        liv = [depth[r.id] for r in rooms if r.type == "living" and r.id in depth]
+        bds = [b for b in beds if b in depth]
+        pubs = [r.id for r in rooms if r.type in ("dining", "kitchen") and r.id in depth]
+        if liv and bds:
+            dl = min(liv)
+            bad = [b for b in bds if depth[b] <= dl]
+            dmin = min(depth[b] for b in bds)
+            deep = [p for p in pubs if depth[p] > dmin + 1]
+            for b in bad:
+                o.issue("zone_order", "minor", "zone_order",
+                        f"{_name(ctx, b)} is as close to the entry as the living room (hop {depth[b]}): private rooms should lie behind the public ones", [b])
+            for p in deep:
+                o.issue("zone_order", "minor", "zone_order",
+                        f"{_name(ctx, p)} lies {depth[p]} doors from the entry, deeper than the bedrooms: the public zone should come first", [p])
+            o.set("zone_order", 1.0 - (len(bad) + len(deep)) / (len(bds) + len(pubs)))
+            hubs = [depth[r.id] for r in rooms if r.type == "passage" and r.id in depth]
+            o.stats["zone_depth"] = {"public": round(float(np.mean([depth[r.id] for r in rooms if r.type in ("living", "dining") and r.id in depth])), 2),
+                                     "hub": round(float(np.mean(hubs)), 2) if hubs else None,
+                                     "private": round(float(np.mean([depth[b] for b in bds])), 2)}
+
+    # (2) toilet doors ----------------------------------------------------------------------------------------------
+    if wets:
+        pen = 0.0
+        beds_with_wc = {b for b in beds if any(types[x] in WET for x in ctx.adj[b])}
+        for t in wets:
+            others = [x for x in ctx.adj[t] if x in ctx.room]
+            into_bed = [x for x in others if types[x] in BED]
+            public = [x for x in others if types[x] in PUBLIC_ZONE]
+            if into_bed:
+                continue
+            hint = bool(ATTACHED_HINT.search(ctx.room[t].id) or ATTACHED_HINT.search(ctx.room[t].name or ""))
+            common = bool(COMMON_HINT.search(ctx.room[t].id) or COMMON_HINT.search(ctx.room[t].name or ""))
+            nearby = [] if common else [b for b in beds if ctx.touch(t, b) >= 1.0 and b not in beds_with_wc]
+            if public and len(public) == len(others) and (hint or nearby):
+                pen += 0.7
+                o.issue("toilet_door_public", "major", "toilet_door",
+                        f"{_name(ctx, t)} belongs to a bedroom but opens into {_name(ctx, public[0])}: an attached toilet must open into its bedroom",
+                        [t, public[0]])
+            elif hint and others and all(types[x] == "passage" for x in others):
+                pen += 0.25
+                o.issue("toilet_door_hub", "minor", "toilet_door",
+                        f"{_name(ctx, t)} is an attached toilet but opens onto the passage instead of its bedroom", [t])
+            for x in public:
+                if types[x] == "dining":
+                    # the table stands near the middle of the dining room: a door within 2.5 m of it (or any door of a small dining room)
+                    # faces the table; in a large dining room a door at the far edge is only a minor flaw
+                    dist = min([float(np.hypot(*(d.mid - np.array(ctx.rep[x])))) for d in ctx.doors_of(t) if x in d.rooms and x in ctx.rep] or [0.0])
+                    near = dist <= 2.5 or ctx.room[x].area <= 12.0
+                    pen += 0.5 if near else 0.25
+                    o.issue("toilet_to_dining", "major" if near else "minor", "toilet_door",
+                            f"{_name(ctx, t)} opens directly into the dining room: the toilet door must not face the dining table", [t, x])
+                elif types[x] == "kitchen":
+                    pen += 0.7
+                    o.issue("toilet_to_kitchen", "major", "toilet_door", f"{_name(ctx, t)} opens directly into the kitchen", [t, x])
+        o.set("toilet_door", max(0.0, 1.0 - pen))
+
+    # (7) dining on a serving route to the kitchen ---------------------------------------------------------------------
+    dinings = [r.id for r in rooms if r.type == "dining"]
+    kitchens = [r.id for r in rooms if r.type == "kitchen"]
+    if dinings and kitchens:
+        priv = set(beds) | set(wets)
+        best, bk, bd = 0.0, kitchens[0], dinings[0]
+        for k in kitchens:
+            for d in dinings:
+                if d in ctx.adj[k]:
+                    sc = 1.0
+                elif ctx.touch(k, d) >= 0.8:
+                    sc = 0.7
+                else:
+                    pl = ctx.path_len(k, d, forbid=priv)
+                    sc = 0.1 if pl is None else 0.6 if pl <= 10.0 else 0.35  # approved: dining beside living, via-living route 7.3-8.4 m (p25-p90)
+                if sc > best:
+                    best, bk, bd = sc, k, d
+        o.set("dining_kitchen", best)
+        if best < 0.5:
+            o.issue("dining_isolated", "major", "dining_kitchen",
+                    f"{_name(ctx, bd)} is cut off from {_name(ctx, bk)}: no direct door or short route for serving food", [bd, bk])
+        elif best < 1.0:
+            o.issue("dining_kitchen_link", "minor", "dining_kitchen",
+                    f"{_name(ctx, bd)} and {_name(ctx, bk)} are not joined by a door: food has to be carried through another room", [bd, bk])
+
+    # (4) orphan pockets --------------------------------------------------------------------------------------------
+    n_orphan = 0
+    ids = [r.id for r in rooms]
+    out_poly = None
+    if ctx.unit is not None and ctx.unit.polygon:
+        try:
+            out_poly = Polygon(ctx.unit.polygon).buffer(0.3)
+        except Exception:
+            out_poly = None
+    for r in rooms:
+        if r.type not in ORPHAN_TYPES or ctx.poly[r.id].is_empty:
+            continue
+        links = len([d for d in ctx.doors_of(r.id)])  # includes the entry door
+        why = None
+        if links == 0:
+            why = "has no door"
+        elif r.type in ("passage", "foyer") and links < 2 and r.id != e:
+            why = "connects nothing (one door only)"
+        elif out_poly is not None and ctx.poly[r.id].intersection(out_poly).area < 0.6 * ctx.poly[r.id].area:
+            why = "lies outside the flat outline"
+        elif out_poly is None and len(ids) > 2:
+            others = shapely.union_all([ctx.poly[x] for x in ids if x != r.id and not ctx.poly[x].is_empty])
+            if ctx.poly[r.id].distance(others) > 0.8:
+                why = "is detached from the rest of the flat"
+        if why:
+            n_orphan += 1
+            o.issue("orphan_pocket", "major", "orphan", f"{_name(ctx, r.id)} ({r.type}, {r.area:.1f} m2) {why}: a useless pocket", [r.id])
+    o.set("orphan", n_orphan)
 
 
 def _furniture(o: _Out, fits: dict[str, RoomFit]):
@@ -1375,6 +1624,12 @@ def _daylight(o: _Out):
             else:
                 o.issue("wet_unvent", "major", "wet_vent", f"{_name(ctx, r.id)} has no window or shaft", [r.id])
         o.set("wet_vent", s / len(wet))
+        duct = [r for r in wet if r.vent_via == "duct" and not r.ventilated]
+        o.set("wet_duct", len(duct))
+        if duct:
+            o.issue("wet_duct", "major" if len(duct) >= 3 else "minor", "wet_duct",
+                    f"{len(duct)} wet room{'s' if len(duct) > 1 else ''} on a mechanical duct ({', '.join(_name(ctx, r.id) for r in duct[:4])}"
+                    f"{'...' if len(duct) > 4 else ''}): put them on the facade or a shaft", [r.id for r in duct])
 
 
 def _doors(o: _Out):
@@ -1423,22 +1678,26 @@ def _doors(o: _Out):
 
 
 def critique(plan: Plan | dict, unit: Unit | dict | None = None, plate: Plate | dict | None = None, *,
-             furniture: bool = True) -> dict[str, Any]:
+             furniture: bool = True, exclude: tuple[str, ...] | set[str] | list[str] = (), imported: bool = False) -> dict[str, Any]:
     """Score one solved flat. ``unit`` (gross area, programme, core door) and ``plate`` (stairs) are optional:
-    metrics that need them are skipped and the weights renormalised."""
+    metrics that need them are skipped and the weights renormalised. ``exclude`` lists metric keys to leave out of the
+    score (and their findings out of the report) when the input cannot support them, e.g. door swings of a plan
+    imported from a drawing (see ``approved_bench``). ``imported=True`` marks such a plan: furniture is placed without
+    door swings / landings (hinges are unknown) and the dining table is not fitted (open-plan zone split is arbitrary)."""
     if isinstance(plan, dict):
         plan = Plan.model_validate(plan)
     if isinstance(unit, dict):
         unit = Unit.model_validate(unit)
     if isinstance(plate, dict):
         plate = Plate.model_validate(plate)
-    ctx = _Ctx(plan, unit, plate)
+    ctx = _Ctx(plan, unit, plate, imported)
     o = _Out(ctx)
     net = sum(r.area for r in plan.rooms if r.type != "balcony")
     o.stats["net_area"] = round(net, 2)
     fits: dict[str, RoomFit] = {}
     steps = [("circulation", lambda: _circulation(o, net)), ("waste", lambda: _waste(o, net)),
-             ("sequence", lambda: _sequence(o)), ("daylight", lambda: _daylight(o)), ("doors", lambda: _doors(o))]
+             ("sequence", lambda: _sequence(o)), ("realism", lambda: _realism(o)), ("daylight", lambda: _daylight(o)),
+             ("doors", lambda: _doors(o))]
     for name, fn in steps:
         try:
             fn()
@@ -1450,6 +1709,11 @@ def critique(plan: Plan | dict, unit: Unit | dict | None = None, plate: Plate | 
             _furniture(o, fits)
         except Exception as e:
             o.errors.append(f"furniture: {type(e).__name__}: {e}")
+    if exclude:
+        for k in exclude:
+            o.values.pop(k, None)
+            o.sat.pop(k, None)
+        o.issues = [i for i in o.issues if i.get("metric") not in exclude]
     # score
     num = den = 0.0
     cat_n: dict[str, float] = {}
@@ -1661,8 +1925,9 @@ def solve_golden(workers: int = 2) -> dict[str, Any]:
     return {"plates": plates, "flats": flats}
 
 
-def baseline(out_dir: str, resolve: bool = False, workers: int = 2, render: bool = True) -> list[dict[str, Any]]:
-    """Critique (and render) every golden flat into ``out_dir``; returns one row per flat (also written to scores.json).
+def baseline(out_dir: str, resolve: bool = False, workers: int = 2, render: bool = True,
+             scores_name: str = "scores.json") -> list[dict[str, Any]]:
+    """Critique (and render) every golden flat into ``out_dir``; returns one row per flat (also written to ``scores_name``).
 
     Solved plans are cached in ``out_dir/golden_plans.json.gz`` so the report can be rebuilt without the solver;
     ``resolve=True`` solves again (CP-SAT with several workers is not bit-for-bit repeatable)."""
@@ -1701,18 +1966,19 @@ def baseline(out_dir: str, resolve: bool = False, workers: int = 2, render: bool
                    metrics={k: m["value"] for k, m in res["metrics"].items()},
                    issue_codes=sorted({i["code"] for i in res["issues"] if i["severity"] != "info"}))
         rows.append(row)
-    (out / "scores.json").write_text(json.dumps(rows, indent=1))
+    (out / scores_name).write_text(json.dumps(rows, indent=1))
     return rows
 
 
-if __name__ == "__main__":  # python -m planner_engine.quality [--approved | --baseline DIR [--resolve] | plan.json]
+if __name__ == "__main__":  # python -m planner_engine.quality [--approved | --baseline DIR [--resolve] [--scores NAME] [--no-render] | plan.json]
     import json
     import sys
 
     if len(sys.argv) > 1 and sys.argv[1] == "--approved":
         print(json.dumps(approved_stats(*sys.argv[2:3]), indent=1))
     elif len(sys.argv) > 2 and sys.argv[1] == "--baseline":
-        rows = baseline(sys.argv[2], resolve="--resolve" in sys.argv)
+        name = sys.argv[sys.argv.index("--scores") + 1] if "--scores" in sys.argv else "scores.json"
+        rows = baseline(sys.argv[2], resolve="--resolve" in sys.argv, render="--no-render" not in sys.argv, scores_name=name)
         ok = [r for r in rows if r["solved"]]
         print(f"{len(ok)}/{len(rows)} flats solved; mean score {sum(r['score'] for r in ok) / max(1, len(ok)):.1f}")
     elif len(sys.argv) > 1:

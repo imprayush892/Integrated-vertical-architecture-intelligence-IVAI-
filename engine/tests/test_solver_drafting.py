@@ -56,8 +56,13 @@ def test_precheck_catches_impossible_area(footprint):
     assert conflicts and conflicts[0].kind in ("area", "window")
 
 
+# generator v3: these two tests used to put a 4BHK into central_core APT-1, a 163 m2 flat behind a 15 m façade. v3 cuts
+# an exterior chowk beside that flat (plate.py), which gives it 30 m of façade, and a 4BHK now fits there. The tests
+# are about an impossible brief, so they now use flats where a 4BHK still cannot fit: h_shape APT-1 (100 m2, 15.8 m of
+# façade) for the explanation, and the 87 m2 t_shape 40x22 APT-1 for the fix ladder (4BHK -> 3BHK -> 2BHK; in the
+# 100 m2 h_shape flat the 3BHK attempt can use up the 9.5 s budget before the ladder reaches a programme that fits).
 def test_infeasible_core_names_rooms(footprint):
-    p = _plate(footprint, "central_core")
+    p = _plate(footprint, "h_shape")
     u = split_units(p)[0]
     d = from_programme(u, presets()["4bhk"])
     ug = unit_grid(p, u)
@@ -66,7 +71,7 @@ def test_infeasible_core_names_rooms(footprint):
 
 
 def test_fix_ladder_finishes_the_plan(footprint):
-    p = _plate(footprint, "central_core")
+    p = _plate(footprint, "t_shape", 40.0, 22.0)
     u = split_units(p)[0]
     u.programme = presets()["4bhk"]
     fr = solve_flat(p, u)

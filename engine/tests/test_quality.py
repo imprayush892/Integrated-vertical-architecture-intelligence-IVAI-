@@ -87,7 +87,7 @@ def test_result_shape_and_determinism():
     for k, m in a["metrics"].items():
         assert k in Q.METRICS and 0 <= m["satisfaction"] <= 1
     assert set(a["subscores"]) == set(Q.CATEGORIES)
-    assert sum(mt.weight for mt in Q.METRICS.values()) == pytest.approx(100.0)
+    assert sum(mt.weight for mt in Q.METRICS.values()) == pytest.approx(119.0)  # relative weights (100 before the realism rules)
     for i in a["issues"]:
         assert i["severity"] in Q.SEV_ORDER
 
@@ -235,7 +235,7 @@ def test_wardrobe_and_door_swing_clear():
 
 
 @pytest.mark.parametrize("w,h,rtype,expect", [(1.5, 2.2, "toilet", True), (1.3, 2.4, "toilet", True), (1.5, 2.0, "toilet", True),
-                                              (1.2, 2.4, "toilet", False),  # 4'x8': all three fixtures + clearances do not fit
+                                              (1.2, 2.4, "toilet", True),  # 4'x8': fits in the compact tier (approved flats have 2.0-2.4 m2 toilets)
                                               (0.9, 1.3, "toilet", False), (1.0, 1.2, "toilet", False), (1.0, 1.4, "wc", True)])
 def test_toilet_fixtures(w, h, rtype, expect):
     ctx = _single(rtype, w, h, door=((0.1, 0.0), (0.85, 0.0)) if w >= 0.95 else ((0.1, 0.0), (0.8, 0.0)))
@@ -321,3 +321,236 @@ def test_real_solved_flat_is_critiqued():
     assert res["furniture"]
     again = Q.critique(copy.deepcopy(fr.plan), unit, plate)
     assert again["score"] == res["score"]
+
+
+# ------------------------------------------------------------------------------------------------ realism rules (generator-v2 review)
+
+
+def swap(rooms, name, box):
+    return [(r[0], r[1], box) if r[0] == name else r for r in rooms]
+
+
+def test_good_plan_has_none_of_the_realism_defects():
+    res = Q.critique(good_plan())
+    for k in ("entry_privacy", "entry_sight", "zone_order", "toilet_door", "dining_kitchen", "orphan"):
+        assert res["metrics"][k]["value"] == (0 if k == "orphan" else 1.0), k
+    assert not codes(res) & {"bedroom_at_entry", "bedroom_in_sight", "zone_order", "toilet_door_public", "toilet_to_dining",
+                             "dining_isolated", "orphan_pocket", "wet_duct", "kitchen_far", "kitchen_sliver"}
+
+
+def test_rule1_bedroom_opening_off_the_entry_foyer_or_beside_the_front_door():
+    rooms = GOOD_ROOMS + [("foyer", "foyer", (3.4, -2.0, 5.0, 0)), ("bed3", "bedroom", (5.0, -2.0, 8.6, 0))]
+    doors = [d for d in GOOD_DOORS if d[0] != "D-entry"] + [
+        ("D-entry", (3.7, -2.0), (4.7, -2.0), ["foyer"], "foyer"), ("DF1", (3.7, 0.0), (4.6, 0.0), ["foyer", "living"], "living"),
+        ("DF2", (5.0, -1.5), (5.0, -0.6), ["foyer", "bed3"], "bed3")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS + [("bed3", 8.6, -1.6, 8.6, -0.4)]))
+    bad = [i for i in res["issues"] if i["code"] == "bedroom_at_entry"]
+    assert bad and bad[0]["severity"] == "major" and "bed3" in bad[0]["rooms"]
+    assert res["metrics"]["entry_privacy"]["value"] <= 0.3 + 1e-9
+    ok = Q.critique(build(GOOD_ROOMS + [("foyer", "foyer", (3.4, -2.0, 5.0, 0))], doors[:-2] + [doors[-2]], GOOD_WINDOWS))
+    assert ok["metrics"]["entry_privacy"]["value"] == 1.0 and "bedroom_at_entry" not in codes(ok)
+    # a bedroom wall right at the front door, even with its door elsewhere (door into the dining room)
+    rooms2 = GOOD_ROOMS + [("bed3", "bedroom", (5.0, -3.0, 8.6, 0))]
+    doors2 = GOOD_DOORS + [("DB", (6.0, 0.0), (6.9, 0.0), ["dining", "bed3"], "bed3")]
+    r2 = Q.critique(build(rooms2, doors2, GOOD_WINDOWS))
+    assert any(i["code"] == "bedroom_at_entry" and i["severity"] == "minor" for i in r2["issues"])
+    assert 0.5 < r2["metrics"]["entry_privacy"]["value"] < 1.0
+    assert r2["score"] < Q.critique(good_plan())["score"]
+
+
+def test_rule2_attached_toilet_must_open_into_its_bedroom():
+    doors = [d for d in GOOD_DOORS if d[0] != "D7"] + [("D7", (0.4, 8.2), (1.15, 8.2), ["dining", "toilet_m"], "toilet_m")]
+    res = Q.critique(build(GOOD_ROOMS, doors, GOOD_WINDOWS))
+    bad = [i for i in res["issues"] if i["code"] == "toilet_door_public"]
+    assert bad and bad[0]["severity"] == "major" and "toilet_m" in bad[0]["rooms"]
+    assert res["metrics"]["toilet_door"]["value"] < 0.5
+    assert res["score"] < Q.critique(good_plan())["score"] - 5
+
+
+def test_rule2_common_toilet_into_dining_or_kitchen():
+    for room, code in (("dining", "toilet_to_dining"), ("kitchen", "toilet_to_kitchen")):
+        doors = [d for d in GOOD_DOORS if d[0] != "D6"] + [("D6", (3.7, 6.4), (4.45, 6.4), [room, "toilet_c"], "toilet_c")]
+        res = Q.critique(build(GOOD_ROOMS, doors, GOOD_WINDOWS))
+        assert code in codes(res), code
+        assert res["metrics"]["toilet_door"]["value"] <= 0.5 + 1e-9
+    # the powder room off the living room is the approved pattern: no finding
+    doors = [d for d in GOOD_DOORS if d[0] != "D6"] + [("D6", (3.7, 6.4), (4.45, 6.4), ["living", "toilet_c"], "toilet_c")]
+    assert Q.critique(build(GOOD_ROOMS, doors, GOOD_WINDOWS))["metrics"]["toilet_door"]["value"] == 1.0
+
+
+def test_rule3_kitchen_must_share_a_wall_or_opening_with_dining_or_living():
+    rooms = swap(swap(GOOD_ROOMS, "kitchen", (5.0, 4.6, 8.6, 8.2)), "bed2", (5.0, 2.8, 8.6, 4.6))
+    doors = [d for d in GOOD_DOORS if d[0] not in ("D2", "D5")] + [("D2", (5.5, 4.6), (6.4, 4.6), ["kitchen", "bed2"], "kitchen"),
+                                                                  ("D5", (5.0, 5.0), (5.0, 5.9), ["hub", "kitchen"], "kitchen")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    assert "kitchen_far" in codes(res)
+    assert res["metrics"]["kitchen_near"]["value"] <= 0.4
+    # a sliver of shared wall (under 1 m) is not contact either
+    rooms = swap(GOOD_ROOMS, "kitchen", (4.2, 4.6, 7.8, 6.4))
+    rooms = swap(rooms, "bed2", (5.0, 6.4, 8.6, 9.0))
+    doors = [d for d in GOOD_DOORS if d[0] not in ("D2", "D5")] + [("D2", (5.0, 5.0), (5.0, 5.9), ["hub", "kitchen"], "kitchen"),
+                                                                  ("D5", (5.3, 6.4), (6.2, 6.4), ["kitchen", "bed2"], "bed2")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    assert "kitchen_sliver" in codes(res) and res["metrics"]["kitchen_near"]["value"] <= 0.5
+
+
+def test_rule4_orphan_pockets():
+    rooms = GOOD_ROOMS + [("store1", "store", (-2.5, 0, 0, 2.0)), ("pass2", "passage", (8.6, 4.6, 9.8, 8.2))]
+    doors = GOOD_DOORS + [("DP", (8.6, 5.0), (8.6, 5.9), ["bed2", "pass2"], "pass2")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    why = {i["rooms"][0]: i["message"] for i in res["issues"] if i["code"] == "orphan_pocket"}
+    assert "has no door" in why["store1"] and "connects nothing" in why["pass2"]
+    assert res["metrics"]["orphan"]["value"] == 2 and res["metrics"]["orphan"]["satisfaction"] == 0.0
+    assert res["score"] < Q.critique(good_plan())["score"] - 10
+    # outside the flat outline (when the unit polygon is known): a passage that lies beyond it
+    from planner_engine.models import Unit
+
+    unit = Unit(id="U", polygon=[(0, 0), (8.6, 0), (8.6, 9.8), (0, 9.8)], area=84.0, core_link=(4.3, 0.0))
+    rooms = GOOD_ROOMS + [("pass3", "passage", (12.0, 0, 14.0, 2.0))]
+    doors = GOOD_DOORS + [("DQ", (12.0, 0.5), (12.0, 1.4), ["dining", "pass3"], "pass3"), ("DQ2", (12.5, 2.0), (13.4, 2.0), ["pass3", "kitchen"], "pass3")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS), unit)
+    assert any("outside the flat outline" in i["message"] for i in res["issues"] if i["code"] == "orphan_pocket")
+
+
+def test_rule5_wet_rooms_on_ducts_are_counted():
+    plan = good_plan()
+    for r in plan.rooms:
+        if r.type == "toilet":
+            r.ventilated, r.vent_via = False, "duct"
+    res = Q.critique(plan)
+    assert res["metrics"]["wet_duct"]["value"] == 2 and "wet_duct" in codes(res)
+    assert res["metrics"]["wet_duct"]["satisfaction"] == pytest.approx(1 / 3, abs=0.01)
+    assert res["score"] < Q.critique(good_plan())["score"] - 3
+    assert "wet_duct" not in Q.critique(good_plan())["metrics"] or Q.critique(good_plan())["metrics"]["wet_duct"]["value"] == 0
+
+
+def test_rule6_zone_order_and_bedroom_in_the_line_of_sight():
+    # bedroom door straight ahead of the front door: entry -> living -> hub -> bed3
+    rooms = [(r[0], "bedroom", r[2]) if r[0] == "toilet_c" else r for r in GOOD_ROOMS]
+    doors = [d for d in GOOD_DOORS]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    sight = [i for i in res["issues"] if i["code"] == "bedroom_in_sight"]
+    assert sight and sight[0]["severity"] == "major" and sight[0]["rooms"] == ["toilet_c"] and sight[0]["line"]
+    assert res["metrics"]["entry_sight"]["value"] <= 0.3 + 1e-9
+    assert Q.critique(good_plan())["metrics"]["entry_sight"]["value"] == 1.0
+    # zone order: a bedroom as shallow as the living room (it hangs off the entry foyer)
+    rooms = GOOD_ROOMS + [("foyer", "foyer", (3.4, -2.0, 5.0, 0)), ("bed3", "bedroom", (5.0, -2.0, 8.6, 0))]
+    doors = [d for d in GOOD_DOORS if d[0] != "D-entry"] + [
+        ("D-entry", (3.7, -2.0), (4.7, -2.0), ["foyer"], "foyer"), ("DF1", (3.7, 0.0), (4.6, 0.0), ["foyer", "living"], "living"),
+        ("DF2", (5.0, -1.5), (5.0, -0.6), ["foyer", "bed3"], "bed3")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    assert "zone_order" in codes(res) and res["metrics"]["zone_order"]["value"] < 1.0
+    z = Q.critique(good_plan())["stats"]["zone_depth"]
+    assert z["public"] < z["private"]  # living 0 / dining 1 < bedrooms 2
+
+
+def test_rule7_dining_must_be_on_a_serving_route_to_the_kitchen():
+    # no door between them but a shared wall: carried through another room
+    doors = [d for d in GOOD_DOORS if d[0] != "D2"] + [("D2", (5.3, 2.8), (6.0, 2.8), ["dining", "kitchen"], "dining")]
+    assert Q.critique(build(GOOD_ROOMS, doors, GOOD_WINDOWS))["metrics"]["dining_kitchen"]["value"] == 1.0
+    doors = [d for d in GOOD_DOORS if d[0] != "D2"]
+    res = Q.critique(build(GOOD_ROOMS, doors, GOOD_WINDOWS))
+    assert res["metrics"]["dining_kitchen"]["value"] == 0.7 and "dining_kitchen_link" in codes(res)
+    # a dining room reachable only through the master bedroom is cut off from the kitchen
+    rooms = swap(GOOD_ROOMS, "dining", (-3.4, 4.6, 0, 8.2))
+    doors = [d for d in GOOD_DOORS if d[0] not in ("D1", "D2")] + [("D1", (0.0, 5.0), (0.0, 5.9), ["master", "dining"], "dining"),
+                                                                  ("D2", (5.0, 3.2), (5.0, 4.1), ["living", "kitchen"], "kitchen")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    assert res["metrics"]["dining_kitchen"]["value"] <= 0.1 + 1e-9 and "dining_isolated" in codes(res)
+
+
+def test_hub_spread_limit_grows_with_the_number_of_bedrooms():
+    res = Q.critique(good_plan())
+    assert res["stats"]["hub_spread_limits"] == [4.5, 8.0]
+    plan = good_plan()
+    extra = [("bed3", "bedroom", (9.0, 0, 11.0, 3.0))]
+    plan2 = build(GOOD_ROOMS + extra, GOOD_DOORS + [("DX", (8.6, 1.0), (8.6, 1.9), ["dining", "bed3"], "bed3")], GOOD_WINDOWS)
+    assert Q.critique(plan2)["stats"]["hub_spread_limits"] == [8.5, 14.0]
+    assert plan.rooms
+
+
+def test_compact_toilet_tier_and_imported_plans():
+    # 1.2 x 2.2 m (2.6 m2): fits only with the compact tier (0.8 m shower tray, 0.3 m in front of the WC); 1.2 x 2.0 does not
+    fit = Q._fit_toilet(_single("toilet", 1.2, 2.2, door=((0.1, 0.0), (0.85, 0.0))), "toilet", "toilet")
+    assert fit.tier == "tight" and fit.score == pytest.approx(0.6)
+    assert Q._fit_toilet(_single("toilet", 1.2, 2.0, door=((0.1, 0.0), (0.85, 0.0))), "toilet", "toilet").tier == "none"
+    assert Q._fit_toilet(_single("toilet", 1.5, 2.4), "toilet", "toilet").tier == "full"
+    # imported plans: no door swings in the furniture placement, no dining table fit, excluded metrics removed
+    res = Q.critique(good_plan(), exclude=("hab_window", "privacy"), imported=True)
+    assert "hab_window" not in res["metrics"] and "privacy" not in res["metrics"]
+    assert not [r for r in res["furniture"] if r == "dining"]
+    assert res["score"] >= 85
+
+
+# ------------------------------------------------------------------------------------------------ approved-plan benchmark
+
+
+def _record():
+    """A minimal graph-dataset flat: living (entrance) - dining - kitchen, passage - 2 bedrooms - toilet, in metres."""
+    def node(i, t, x0, y0, x1, y1, fac=1.0):
+        return {"id": i, "type": t, "name": t, "area": (x1 - x0) * (y1 - y0), "centroid": [(x0 + x1) / 2, (y0 + y1) / 2],
+                "polygon": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], "facade_sides": ["top"], "facade_len": fac,
+                "facade_via_balcony": [], "clear_width": min(x1 - x0, y1 - y0), "shaft": False}
+    nodes = [node(1, "living", 0, 0, 5, 4.6), node(2, "dining", 5.1, 0, 8.6, 2.8), node(3, "kitchen", 5.1, 2.9, 8.6, 4.6),
+             node(4, "passage", 3.4, 4.7, 5, 6.4, 0), node(5, "master", 0, 4.7, 3.3, 8.2), node(6, "bedroom", 5.1, 4.7, 8.6, 8.2),
+             node(7, "toilet", 3.4, 6.5, 5, 8.8, 0), node(8, "unknown", 0.2, 8.3, 1.0, 8.9, 0)]
+    edges = [{"kind": "open", "a": 1, "b": 2, "point": [5.05, 1.4]}, {"kind": "door", "a": 2, "b": 3, "point": [6.5, 2.85]},
+             {"kind": "door", "a": 1, "b": 4, "point": [4.2, 4.65]}, {"kind": "door", "a": 4, "b": 5, "point": [3.35, 5.5]},
+             {"kind": "door", "a": 4, "b": 6, "point": [5.05, 5.5]}, {"kind": "door", "a": 4, "b": 7, "point": [4.2, 6.45]},
+             {"kind": "wall", "a": 3, "b": 6, "len": 3.5, "thick": 0.15}]
+    return {"flat": {"flat_id": "T:p0:F1", "bhk": 2, "nodes": nodes, "edges": edges, "signature": "x",
+                     "entrance": {"room": 1, "room_type": "living", "point": [4.3, 0.0], "kind": "door"}}, "project": "T", "page": 0}
+
+
+def test_approved_bench_converts_a_graph_record_and_scores_it():
+    from planner_engine import approved_bench as B
+
+    plan, info = B.convert(_record())
+    assert info["unresolved"] == 0 and info["dropped_share"] < 0.08 and B.usable(info)
+    types = {r.type for r in plan.rooms}
+    assert {"living", "dining", "kitchen", "passage", "master", "bedroom", "toilet"} <= types
+    assert len(plan.rooms) == 7  # the 0.5 m2 untyped sliver is dropped
+    assert sum(1 for d in plan.doors if d.kind == "entry") == 1 and sum(1 for d in plan.doors if d.kind == "door") == 6
+    res = Q.critique(plan, exclude=B.EXCLUDE, imported=True)
+    assert not res["errors"] and res["score"] >= 70
+    for k in B.EXCLUDE:
+        assert k not in res["metrics"]
+    for k in ("entry_privacy", "entry_sight", "zone_order", "toilet_door", "orphan"):
+        assert k in res["metrics"], k
+
+
+def test_approved_bench_repairs_a_missing_link_and_rejects_untrustworthy_flats():
+    from planner_engine import approved_bench as B
+
+    rec = _record()
+    rec["flat"]["edges"] = [e for e in rec["flat"]["edges"] if not (e["a"] == 4 and e["b"] == 6)] + [
+        {"kind": "wall", "a": 4, "b": 6, "len": 1.7, "thick": 0.15}]
+    plan, info = B.convert(rec)
+    assert info["repaired"] >= 1 and info["unresolved"] == 0  # bedroom 6 gets its door to the passage back
+    rec2 = _record()
+    rec2["flat"]["nodes"].append({**rec2["flat"]["nodes"][5], "id": 9, "polygon": [[20, 20], [23, 20], [23, 23], [20, 23]], "centroid": [21.5, 21.5]})
+    plan2, info2 = B.convert(rec2)
+    assert info2["unresolved"] >= 1 and not B.usable(info2)
+
+
+def test_approved_flats_mostly_grade_a_or_b():
+    from pathlib import Path
+
+    from planner_engine import approved_bench as B
+
+    if not B.DATA.exists() or not Path(B.DATA).stat().st_size:
+        pytest.skip("graph dataset not present")
+    import time
+
+    recs = B.stratified_sample(B.load_flats(), n=30, seed=3)
+    assert len(recs) >= 25
+    grades, worst = [], 0.0
+    for _r, (plan, _info) in recs:
+        t0 = time.perf_counter()
+        res = Q.critique(plan, exclude=B.EXCLUDE, imported=True)
+        worst = max(worst, time.perf_counter() - t0)
+        grades.append(res["grade"])
+        assert not res["errors"]
+    assert sum(g in "AB" for g in grades) / len(grades) >= 0.6, grades
+    assert "F" not in grades
+    assert worst < 1.5  # 1 s budget with a margin for a shared CPU

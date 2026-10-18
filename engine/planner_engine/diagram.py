@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 from collections import deque
+from functools import lru_cache
 
 from . import rules
 from .models import Conflict, Diagram, DiagramRoom, Programme, Unit
@@ -536,3 +537,94 @@ def zone_programme(diagram: Diagram, interior_area: float, overrides: dict | Non
     if unit is not None and len(d.rooms) != len(diagram.rooms):
         _bubble_layout(d.rooms, d.links, d.entry, _entrance_dir(unit))
     return d
+
+
+# ------------------------------------------------------------------------------------------ v3 layout patterns
+# Generator v3 (docs/quality/generator-v3.md). data/rules/approved_layout_patterns.json counts, on 967 approved Mumbai
+# flats, where rooms lie relative to the living room (entrance-façade frame), how many doors deep they are and what
+# bedrooms open onto. A figure is used only when it is backed by PATTERN_MIN_PROJECTS projects; it then becomes a soft
+# cost in the solver of PATTERN_W x ln(p_best / p) - the cost of choosing a pattern p times rarer than the usual one.
+
+PATTERN_MIN_PROJECTS = 5
+PATTERN_W = 1500  # objective units per natural-log step of rarity (~0.15 m2 of wasted floor)
+PATTERN_FLOOR = 0.03  # shares below this count as this (one rare flat must not make a choice forbidden)
+TOILET_DINING_COST = 40000  # critic toilet_door: a toilet door facing the dining table costs ~10-15 points
+KITCHEN_LIVING_COST = 40000  # critic dining_kitchen: the kitchen should open onto the dining (serving route)
+FORWARD = ("E_deep", "NE", "SE")  # sectors further from the entrance than the living room
+
+
+@lru_cache(maxsize=1)
+def layout_patterns() -> dict:
+    """approved_layout_patterns.json (rules override directory first); {} when missing, so v2 costs stand."""
+    import json
+
+    rel = "approved_layout_patterns.json"
+    o = rules._override_dir()
+    p = o / rel if o and (o / rel).exists() else rules._data_dir() / rel
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def _group(bhk: int) -> dict | None:
+    g = layout_patterns().get("bhk", {})
+    key = "4+" if bhk >= 4 else str(max(1, bhk))
+    grp = g.get(key) or g.get("all")
+    return grp if grp and grp.get("n_projects", 0) >= PATTERN_MIN_PROJECTS else None
+
+
+def _rarity(p: float, best: float) -> int:
+    return int(round(PATTERN_W * math.log(max(best, PATTERN_FLOOR) / max(p, PATTERN_FLOOR))))
+
+
+def bedroom_hub_costs(bhk: int) -> dict[str, int]:
+    """Cost of a bedroom door onto each hub type, from what approved bedrooms open onto (an unnamed hub is a passage
+    whose label was lost, so it counts as passage). {} when the figure is not strong enough."""
+    grp = _group(bhk)
+    fig = (grp or {}).get("hub_patterns", {}).get("bedroom_opens_onto")
+    if not fig or fig.get("n_projects", 0) < PATTERN_MIN_PROJECTS:
+        return {}
+    sh = fig["share"]
+    p = {"passage": sh.get("passage", 0.0) + sh.get("unnamed", 0.0), "living": sh.get("living", 0.0),
+         "dining": sh.get("dining", 0.0)}
+    best = max(p.values())
+    return {k: _rarity(v, best) for k, v in p.items()}
+
+
+def hub_door_cost(room_type: str, hub_type: str, bhk: int) -> int | None:
+    """v3 price of room ``room_type`` opening onto hub ``hub_type`` (None: no opinion, keep the v2 order cost)."""
+    if room_type in ("master", "bedroom", "study"):
+        c = bedroom_hub_costs(bhk)
+        return c.get(hub_type) if c else None
+    if room_type in ("toilet", "bath", "wc"):
+        # guest toilet off the living room or the passage, never facing the dining table (critic toilet_door)
+        return TOILET_DINING_COST if hub_type == "dining" else 0
+    if room_type == "kitchen":
+        return KITCHEN_LIVING_COST if hub_type == "living" else 0
+    return None
+
+
+def direction_cost(room_type: str, bhk: int) -> int:
+    """Cost of a room lying no further from the entrance than the living room, when approved flats put it further
+    (towards the deep façade: E_deep / NE / SE sectors) in a clear majority. 0 when the figure is weak."""
+    grp = _group(bhk)
+    key = "any_bedroom" if room_type in ("master", "bedroom") else room_type
+    fig = (grp or {}).get("direction_from_living", {}).get(key)
+    if not fig or fig.get("n_projects", 0) < PATTERN_MIN_PROJECTS:
+        return 0
+    fwd = sum(fig["angle_hist_8"].get(s, 0.0) for s in FORWARD)
+    if fwd < 0.6:
+        return 0
+    return _rarity(1.0 - fwd, fwd)
+
+
+def entry_room_share(bhk: int) -> dict[str, float]:
+    grp = _group(bhk)
+    fig = (grp or {}).get("entrance_room")
+    return dict(fig["share"]) if fig and fig.get("n_projects", 0) >= PATTERN_MIN_PROJECTS else {}
+
+
+FOYER_CARPET = 110.0  # m2: an entrance foyer only for large / premium flats (owner brief)
+
+
+def wants_foyer(bhk: int, carpet: float) -> bool:
+    """Owner brief: enter into the living room; a short foyer only in large / premium flats (3BHK+ or > 110 m2)."""
+    return bhk >= 3 or carpet > FOYER_CARPET

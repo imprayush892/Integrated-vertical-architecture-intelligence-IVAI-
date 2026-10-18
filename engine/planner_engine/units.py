@@ -368,17 +368,12 @@ def _cut_wings(h, k: int, access, outer) -> list | None:
     return None if _slivers(out, access) else out
 
 
-def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] | None = None) -> list[Unit]:
-    flats = zones_geom(plate, "flats")
-    passage = zones_geom(plate, "passage")
-    core = zones_geom(plate, "core")
+def split_pieces(flats, passage, core, n: int, outer) -> tuple[list, list]:
+    """Cut the flat zone of a core plate into ``n`` flats: equal-area cuts either side of the core line, balanced by
+    façade (``outer``) when a cut leaves a flat too narrow to light two rooms, wings cut at the passage ends.
+    Returns (pieces, fragments). Shared by plate.py (chowks and party-wall shafts sit on these cuts) and
+    ``split_units``, so both cut in the same places."""
     access = shapely.union(passage, core)
-    n = int(n or plate.params.get("units", 6))
-    if flats.is_empty or n <= 0:
-        return []
-    if plate.shape.value == "triangle":
-        return _finish_units(plate, _split_by_sides(plate, flats, n), [], flats, access, keep_programmes,
-                             lobby=passage)
     # core line: horizontal through the core centre
     cy = core.centroid.y if not core.is_empty else 0.0
     minx, miny, maxx, maxy = flats.bounds
@@ -401,7 +396,6 @@ def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] 
             contact = (tb[0], tb[2])
         pieces = _cut_equal(h, k, "x", contact)
         if k > 1:
-            outer = outline_ring_free(plate)
             fronts = [p.boundary.intersection(outer).length if not p.is_empty else 0.0 for p in pieces]
             if min(fronts) < MIN_FRONTAGE and sum(fronts) >= MIN_FRONTAGE * k:
                 pieces = _cut_equal(h, k, "x", contact,
@@ -414,6 +408,49 @@ def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] 
                 continue
             raw.append(parts[0])
             fragments.extend(parts[1:])
+    return raw, fragments
+
+
+def cut_geometry(plate: Plate):
+    """(flat zone as it was cut, outer face the cut balances on): the flats plus the shafts and chowks that plate.py
+    carved out of them after placing them on the cuts (v3), so the cuts land where the plate drew them."""
+    from .plate import base_outline
+
+    flats = zones_geom(plate, "flats")
+    shafts = zones_geom(plate, "shaft")
+    outline0 = base_outline(plate)
+    chowks = outline0.difference(Polygon(plate.outline).buffer(0))
+    parts = [flats] + ([shafts] if not shafts.is_empty else []) + ([chowks] if chowks.area > 1e-3 else [])
+    whole = shapely.union_all(parts) if len(parts) > 1 else flats
+    ring = outline0.exterior
+    outer = ring.difference(shafts.buffer(0.05)) if not shafts.is_empty else ring
+    return whole, outer
+
+
+def split_units(plate: Plate, n: int | None = None, keep_programmes: list[Unit] | None = None) -> list[Unit]:
+    flats = zones_geom(plate, "flats")
+    passage = zones_geom(plate, "passage")
+    core = zones_geom(plate, "core")
+    access = shapely.union(passage, core)
+    n = int(n or plate.params.get("units", 6))
+    if flats.is_empty or n <= 0:
+        return []
+    if plate.shape.value == "triangle":
+        return _finish_units(plate, _split_by_sides(plate, flats, n), [], flats, access, keep_programmes,
+                             lobby=passage)
+    whole, outer = cut_geometry(plate)
+    raw0, frag0 = split_pieces(whole, passage, core, n, outer)
+    raw: list[Polygon] = []
+    fragments: list[Polygon] = []
+    for i, g in enumerate(raw0 + frag0):
+        parts = sorted(geo.polygons_of(g.intersection(flats)), key=lambda q: -q.area)
+        if not parts:
+            continue
+        if i < len(raw0):
+            raw.append(parts[0])
+            fragments.extend(parts[1:])
+        else:
+            fragments.extend(parts)
     return _finish_units(plate, raw, fragments, flats, access, keep_programmes)
 
 

@@ -1,8 +1,9 @@
 # Plan critic (quality-control harness)
 
 Deterministic scorer that looks at a solved flat the way an Indian architect does and says what is wrong with it.
-Code: `engine/planner_engine/quality.py` (critic), `engine/planner_engine/render.py` (PNG), tests in
-`engine/tests/test_quality.py`. Baseline of today's generator: section 6 and `docs/quality/baseline/`.
+Code: `engine/planner_engine/quality.py` (critic), `engine/planner_engine/render.py` (PNG), `engine/planner_engine/approved_bench.py`
+(scores the approved flats, section 11), tests in `engine/tests/test_quality.py`. Baseline of the first generator: section 6 and
+`docs/quality/baseline/`; generator v2 re-scored with the realism rules: section 10.
 
 ## 1. What and why
 
@@ -21,11 +22,16 @@ plan_png(plan, "flat.png", furniture=True, issues=res, unit=unit)
 ```
 
 CLI: `python -m planner_engine.quality plan.json`, `--baseline DIR [--resolve]` (rebuild scorecard and PNGs; uses the
-cached solved plans unless `--resolve`), `--approved` (re-derive the calibration figures from the mined approved plans).
+cached solved plans unless `--resolve`; `--scores NAME` writes the scorecard under another name, `--no-render` skips the PNGs, e.g.
+`--baseline docs/quality/after --scores scores_critic_v2.json --no-render`), `--approved` (re-derive the calibration figures from
+the mined approved plans). `python -m planner_engine.approved_bench [--n 240 | --all] [--json OUT] [--render DIR]` runs the
+approved-plan benchmark. `critique(..., exclude=(metric keys), imported=True)` leaves metrics out of a plan that was imported
+from a drawing (no door swings, no dining fit).
 
 `unit` (gross area, programme) and `plate` (stairs, for travel distance) are optional; metrics that need a missing input are
 skipped and the weights renormalised. Everything is metres in the plan's own frame; rotation does not matter because all
-geometry is derived from room edges. Cost: about 0.2 s per flat (max 0.9 s). Same input gives the same output (tested).
+geometry is derived from room edges. Cost: about 0.18 s per flat (max 0.50 s on the 78 generated flats, mean 0.13 s / max 0.38 s on approved flats). Same input
+gives the same output (tested).
 
 ## 2. How the score is made
 
@@ -35,12 +41,12 @@ geometry is derived from room edges. Cost: about 0.2 s per flat (max 0.9 s). Sam
 3. `linear = 100 - 1.5 x (100 - base) - critical penalty`. The factor 1.5 (`STRICTNESS`) exists because an architect does
    not average a sealed 30 m2 store against nice door widths; a critical finding (front door into a bedroom, bedroom
    only through another bedroom or a toilet, room nobody can reach) takes 10 points off, capped at 40.
-4. **Weakest link:** the worst *gate* metric multiplies the score by `(1 - G) + G x satisfaction`. Gates (G): `waste_share` 0.7, `circ_share` 0.3, `entry_seq` 0.55, `privacy` 0.55, `through_wet` 0.55, `kitchen_near` 0.45, `fit_sleep` 0.4, `fit_living` 0.35, `fit_kitchen` 0.4, `fit_toilet` 0.3, `hab_window` 0.4, `room_size` 0.3, `room_shape` 0.3, `room_aspect` 0.25, `corridor_len` 0.25, `common_toilet` 0.25, `efficiency` 0.25, `hub_spread` 0.2.
+4. **Weakest link:** the worst *gate* metric multiplies the score by `(1 - G) + G x satisfaction`. Gates (G): `waste_share` 0.7, `circ_share` 0.3, `entry_seq` 0.55, `privacy` 0.55, `through_wet` 0.55, `kitchen_near` 0.45, `fit_sleep` 0.4, `fit_living` 0.35, `fit_kitchen` 0.4, `fit_toilet` 0.3, `hab_window` 0.4, `room_size` 0.3, `room_shape` 0.3, `room_aspect` 0.25, `corridor_len` 0.25, `common_toilet` 0.25, `efficiency` 0.25, `hub_spread` 0.2, and the realism rules `entry_privacy` 0.4, `toilet_door` 0.35, `orphan` 0.3, `zone_order` 0.2, `dining_kitchen` 0.2.
    A flat with 57 % wasted floor cannot be a 70 because its doors are fine.
 5. Grades: A >= 85, B >= 70, C >= 55, D >= 40, F below. The score is reported to 0.1.
 
-Weights add up to circulation 20, waste 22, sequence 26, furniture 20,
-daylight 7, doors 5 (total 100).
+Weights are relative (every score renormalises over the metrics it could compute). They add up to circulation 20, waste 25,
+sequence 39, furniture 20, daylight 10, doors 5 (total 119; 100 before the realism rules of section 10 added 19).
 
 ## 3. Metrics, thresholds, weights, sources
 
@@ -53,8 +59,8 @@ is architectural rule of thumb, not statute, and is meant to be tuned by the own
 |---|---|---|---|---|---|---|
 | `circ_share` | 6 | 6 | 15 | % of net | passage + foyer area as % of net room area | approved plans: p90 = 5 % (topology_v1, 986 clean flats; median 0 %); practice: <= 8 % |
 | `corridor_len` | 3 | 2.5 | 7 | m | length of corridor-like circulation (area / clear width) | practice: a flat passage over ~3 m is a corridor; > 7 m is a gallery |
-| `hub_spread` | 3 | 4.5 | 10 | m | max distance between bedroom / common-toilet doors | approved plans: bedroom centroids p50 = 3.7 m, p75 = 6.7 m apart; compact hub wanted by the owner |
-| `hub_share` | 3 | 0.75 | 0.4 | share | share of private doors that open onto one space | owner brief: one compact hub where bedroom/toilet doors open |
+| `hub_spread` | 3 | 4.5 | 8 | m | max distance between bedroom / common-toilet doors; limit grows with the bedrooms (3 BHK 8.5 / 14, 4+ BHK 10 / 16, `HUB_SPREAD`) | approved plans (graphs_v2, section 11): 1-2 BHK p88 = 4.5 m, 3 BHK p50 = 6.7 m, p88 = 11 m; compact hub wanted by the owner |
+| `hub_share` | 3 | 0.5 | 0.25 | share | share of private doors that open onto one space | owner brief: one compact hub; fitted to approved plans (p10 = 0.40, median 0.75; was 0.75 / 0.40) |
 | `dead_end` | 2 | 1 | 2.5 | m | passage length beyond its last door (dead end) | practice: dead-end stub <= 1 m |
 | `travel_to_exit` | 3 | 22.5 | 40 | m | farthest habitable room -> flat door -> nearest stair | NBC 2016 Part 4: residential travel distance 22.5 m (30 m sprinklered) |
 
@@ -66,9 +72,10 @@ is architectural rule of thumb, not statute, and is meant to be tuned by the own
 | `waste_share` | 9 | 4 | 30 | % of net | leftover rooms + area beyond 1.3 x the room's target | owner brief: no wasted space; approved area_ratio p50 = 1.0 |
 | `efficiency` | 3 | 0.8 | 0.65 | ratio | net room area / gross flat area | practice: 0.80-0.85 carpet/gross for flats excluding the core |
 | `room_size` | 3 | 1 | 0.5 | score | rooms below the comfortable size for their type | approved plans p10 and p25 per type (topology_v1) |
+| `orphan` | 3 | 0 | 2 | count | orphan pockets: passage / store / utility / dress / pooja with no door, a passage joining fewer than 2 spaces, a room outside the flat outline or detached from the flat (rule 4) | owner review; approved flats: none (clean flats) |
 
 Room-type tables inside `quality.py` hold the per-type numbers: `ASPECT` (good/bad aspect ratio, e.g. bedroom 1.6 / 2.5),
-`SHAPE` (rectangularity = area / minimum rotated rectangle, e.g. bedroom 0.93 / 0.78), `OVERSIZE` (area beyond which the
+`SHAPE` (rectangularity = area / minimum rotated rectangle, e.g. bedroom 0.85 / 0.62, living 0.78 / 0.55; fitted to the approved flats, section 11; `VERTS` = corners allowed before a room counts as notched: living 14, dining 12, master and bedroom 10, others 8), `OVERSIZE` (area beyond which the
 surplus counts as waste = approved p90 x ~1.3, e.g. master 20 m2, living 32 m2, passage 6.5 m2, foyer 5.5 m2) and `SIZE`
 (comfortable / unacceptable area = approved p25 / p10, e.g. master 11 / 9 m2, kitchen 5.8 / 4.5 m2). A "leftover" room
 (store, utility, alcove that is not in the brief) counts fully as waste. Passages, foyers, balconies, stores, dress and
@@ -82,15 +89,23 @@ pooja are exempt from the aspect and shape tests (passages are meant to be long)
 | `common_toilet` | 4 | 1 | 0 | score | powder / common toilet reachable from living without a bedroom | approved plans: 80 % of flats have one |
 | `privacy` | 4 | 1 | 0 | score | bedrooms not entered from kitchen, another bedroom or a toilet | practice; approved plans: 94 % of bedrooms reachable without crossing another bedroom (rest mostly link-extraction gaps) |
 | `through_wet` | 2 | 1 | 0 | score | no room reachable only through a toilet | practice; NBC habitability |
-| `attached_share` | 2 | 0.6 | 0.2 | share | bedrooms with an attached toilet | approved plans: master 88 %, other bedrooms 53 % (1BHK 83 %, 2BHK 51 %, 3BHK 62 %) |
+| `attached_share` | 2 | 0.5 | -0.5 | share | bedrooms with an attached toilet (none at all costs half the weight) | approved plans: master 88 %, other bedrooms 53 % (1BHK 83 %, 2BHK 51 %, 3BHK 62 %); 15-20 % of approved flats have no attached toilet |
 | `master_attached` | 2 | 1 | 0 | score | master bedroom has an attached toilet | approved plans: 88 % |
-| `wet_cluster` | 2 | 0.6 | 0.3 | share | share of wet rooms in the largest wet cluster (shared shaft/wall) | approved plans: median 0.5-0.67 (topology_v1) |
+| `wet_cluster` | 2 | 0.45 | 0.15 | share | share of wet rooms in the largest wet cluster (shared shaft/wall) | approved plans (graphs_v2): p10 0.25, p25 0.33, median 0.5, p75 0.67 (was 0.6 / 0.3) |
+| `entry_privacy` | 4 | 1 | 0 | score | no bedroom at the front door (section 10, rule 1) | owner review of generator v2; approved: 8.5 % of flats have a bedroom wall within 1.8 m of the door |
+| `entry_sight` | 2 | 1 | 0 | score | no bedroom door in the line of sight from the front door (rule 6b) | owner review; approved: 2 % of flats |
+| `zone_order` | 2 | 1 | 0 | score | hop depth from the entry rises public -> hub -> private (rule 6a) | approved hop medians: living 0, dining 1, passage 1, kitchen 2, bedroom 2, master 3, toilet 3 |
+| `toilet_door` | 3 | 1 | 0 | score | attached toilet opens into its bedroom; common toilet not into dining / kitchen (rule 2) | owner review; approved: 10 % of flats lose something, 3 % lose more than half |
+| `dining_kitchen` | 2 | 1 | 0 | score | dining joined to the kitchen by a door (1), a shared wall (0.7), a short route (0.6) (rule 7) | approved: 67 % of dining-kitchen pairs share a door, via-living route 7-8 m |
 
 Checks behind these: the flat door must open into the living room or into a foyer whose next room is the living room
 (a passage at the entry is major; any other room, e.g. bedroom or kitchen, is critical); the kitchen must touch or be one door
-from living / dining; a toilet must be reachable from the living room by a route that crosses no bedroom (powder room or
-common toilet); the door graph is searched for bedrooms entered from the kitchen, another bedroom or a toilet and for rooms
-reachable only through a toilet; bedroom doors within 2 m of the flat door are flagged ("bedrooms away from the entry").
+from living / dining and must share a wall of at least 1 m or an opening with it (a 0.4-1 m sliver scores 0.5, no contact at all
+at most 0.4 and a major finding; a shared wall with the door elsewhere scores 0.85 because approved kitchens are door-linked in only
+82 %); a toilet must be reachable from the living room by a route that crosses no bedroom (powder room or common toilet; in a flat
+of at most 2 bedrooms whose toilets are all attached this is minor, 0.55, because that is an approved pattern); the door graph is
+searched for bedrooms entered from the kitchen, another bedroom or a toilet and for rooms reachable only through a toilet. The
+"bedrooms away from the entry" check moved from `privacy` to `entry_privacy` (section 10).
 
 ### Furniture fit
 | Metric | Weight | Good | Bad | Unit | What it measures | Source / calibration |
@@ -121,6 +136,7 @@ the doors of the room are kept clear. The standard set:
 | `hab_window` | 3 | 1 | 0.5 | share | habitable rooms with a window on the facade | DCPR 2034 Reg 39(1) |
 | `window_ratio` | 1 | 0.1667 | 0.1 | ratio | smallest window / floor area among habitable rooms | DCPR 2034 Reg 39(1): 1/6 |
 | `wet_vent` | 3 | 1 | 0.5 | share | toilets ventilated to facade or shaft | DCPR 2034 Reg 39(2) |
+| `wet_duct` | 3 | 0 | 3 | count | wet rooms on a mechanical duct instead of the facade or a shaft (rule 5) | owner review of generator v2; DCPR 2034 Reg 39(2) |
 
 ### Doors
 | Metric | Weight | Good | Bad | Unit | What it measures | Source / calibration |
@@ -402,10 +418,9 @@ is attached to a bath that is also usable by guests* in the cases where that is 
 
 ## 9. Limits (stated honestly)
 
-* The thresholds for geometry (shape, aspect, furniture sizes, swing clearances) are architectural practice. They were checked
-  by eye on 14 renders and 30 unit tests, not fitted to approved-plan polygons, because the mined data has no polygons yet.
-  The planned approved-plan graph/geometry extraction should be used to re-calibrate `ASPECT`, `SHAPE`, `hub_*`, and to score the
-  approved flats themselves (a sanity check I could not run: an approved flat should score A/B).
+* The thresholds for geometry (aspect, furniture sizes, swing clearances) are architectural practice, checked by eye on 14 renders
+  and the unit tests. `SHAPE`, `VERTS`, `hub_*`, `attached_share` and `wet_cluster` are now fitted to the approved flats' polygons and
+  doors (section 11), through a lossy conversion (door swings, windows, ducts and some door links are not in the data).
 * Aspect ratios are deliberately looser than approved p90 (approved flats are rarely narrower than 1:1.8) because the plate
   geometry here forces long rooms; tighten once the generator can make squarer rooms.
 * The critic does not judge orientation (west glare, view), structure (columns, beams), plumbing stacks beyond the clustering
@@ -416,3 +431,111 @@ is attached to a bath that is also usable by guests* in the cases where that is 
   one such case turned up and was fixed (living tight tier); an architect's override list is the right next step.
 * Triangle plates are not scored specially (parked as experimental).
 * Scores are for ranking and regression, not for statutory compliance: statutory checks stay in `checks.py`.
+
+## 10. Realism rules added after the generator-v2 review
+
+The owner looked at the generator-v2 renders (`docs/quality/after/*.png`) and found defects the first critic did not weigh. Seven
+rules were added (all in `quality._realism` unless noted, each with a unit test in `tests/test_quality.py`):
+
+| # | Defect | Metric (weight, gate) | Detection | Issue codes |
+|---|---|---|---|---|
+| 1 | Bedroom at the front door | `entry_privacy` (4, 0.40) | per bedroom: door opening straight off an entry space that is a foyer / passage = 0.7 off the score (major); door into the living-room entry within 2 m of the front door = 0.4 (minor); otherwise a bedroom wall within 1.8 m of the front door point = 0.4 (minor) | `bedroom_at_entry` |
+| 2 | Toilet doors | `toilet_door` (3, 0.35) | an attached toilet (name / id says master or bed N, or it is the only toilet left against a bedroom without one) whose doors all open into living / dining / kitchen / foyer instead of its bedroom: -0.7 (major); a common toilet opening onto the dining room: -0.5 (major when the door is within 2.5 m of the room centre or the room is under 12 m2, else -0.25 minor); onto the kitchen: -0.7 (major). A powder room off the living room is fine | `toilet_door_public`, `toilet_door_hub`, `toilet_to_dining`, `toilet_to_kitchen` |
+| 3 | Kitchen without contact | `kitchen_near` (4, 0.45) | contact = door / opening, or shared wall >= 1 m; sliver 0.4-1 m = 0.5; none = at most 0.4 | `kitchen_far`, `kitchen_sliver`, `kitchen_door` |
+| 4 | Orphan / useless pockets | `orphan` (3, 0.30) | passage, foyer, store, utility, dress or pooja with no door; a passage or foyer with one door only (the entry foyer has the flat door); a room outside the unit outline (when the unit is known) or detached by > 0.8 m from every other room. Count: 0 good, 2 bad | `orphan_pocket` |
+| 5 | Wet rooms on ducts | `wet_duct` (3, no gate) | count of toilets / baths / wc whose `vent_via` is `duct`; 0 good, 3 bad (moderate weight; `wet_vent` still gives them 0.5) | `wet_duct` |
+| 6a | Zone order | `zone_order` (2, 0.20) | hop depth from the entry over the door graph; a bedroom no deeper than the shallowest living room, or a dining / kitchen deeper than the shallowest bedroom + 1, counts against it. Data: approved hop medians living 0, dining 1, passage 1, kitchen 2, bedroom 2, master 3, toilet 3 (`graph-dataset.md`); `stats.zone_depth` reports the mean depth of the public, hub and private zones | `zone_order` |
+| 6b | Bedroom in the entry line of sight | `entry_sight` (2, no gate) | three rays 0.3 m apart from the front door along its inward normal, followed through the entry room and the doors / openings in line (up to 4 rooms); a ray that reaches a bedroom door: centre ray -0.7 (major), side ray -0.3 (minor). The renderer draws the line (`line` in the issue) | `bedroom_in_sight` |
+| 7 | Dining cut off from the kitchen | `dining_kitchen` (2, 0.20) | door / opening = 1; shared wall >= 0.8 m without a door = 0.7; route through other rooms without crossing a bedroom or toilet, <= 10 m = 0.6, longer 0.35; no such route = 0.1 | `dining_kitchen_link`, `dining_isolated` |
+
+Other changes in the same pass: the first-pass thresholds that failed approved flats (section 11) were refitted, a compact toilet tier
+was added (0.8 m shower tray, 0.3 m in front of the WC, scores 0.6), and `critique()` gained `exclude=` and `imported=`.
+
+### Generator v2 re-scored
+
+`python -m planner_engine.quality --baseline docs/quality/after --scores scores_critic_v2.json --no-render` re-scores the cached plans
+(`after/golden_plans.json.gz`, 78 flats, all solved) into `docs/quality/after/scores_critic_v2.json`; the PNGs and `scores.json` of
+generator v2 were left as they were.
+
+| | Old critic (`scores.json`) | Critic with the realism rules (`scores_critic_v2.json`) |
+|---|---|---|
+| Mean / median score | 73.2 / 77.4 | 69.9 / 75.1 |
+| A / B / C / D / F | 26 / 26 / 14 / 4 / 8 | 13 / 33 / 22 / 2 / 8 |
+
+Findings on the 78 generator-v2 flats (flats affected): `wet_duct` 46 (59 %), `orphan_pocket` 41 (53 %), `dining_kitchen_link` 28 (36 %),
+`toilet_to_dining` 28 (36 %), `dining_isolated` 14 (18 %), `bedroom_in_sight` 12 (15 %), `bedroom_at_entry` 6 (8 %), `zone_order` 4 (5 %);
+no flat has an attached toilet opening into a public room or a kitchen without wall contact. Honest reading: the rules move the mean by 3 points
+and the A count in half, but they do not by themselves make v2 look bad; the owner's items 1 and 3 do not reproduce on these cached plans
+(`bedroom_at_entry` fires in 8 % of v2 flats against 8.5 % of approved flats, so it does not separate them), and the strongest new signals are
+ducts, orphan pockets, the toilet door onto the dining room and the dining-kitchen route. Note that 41 pockets are mostly the stores that
+`leftover` and `unreachable` already reported; `orphan` makes them count under their own gate instead of adding new floor area to the list.
+
+## 11. Approved-plan benchmark (`approved_bench.py`)
+
+Question: do the flats Mumbai approved come out A/B? Input: `data/mined/graphs_v2.jsonl.gz` (1,264 clean flats, `graph-dataset.md`).
+
+**Converter** (`approved_bench.convert`): graph record -> `Plan` the critic can score. Rooms = nodes with their polygons (closed with a 0.35 m
+buffer and simplified at 0.15 m, because the mined polygons are raster masks with door-gap and text notches: median corners 13 -> 5,
+rectangularity of bedrooms / living / kitchen p10 0.74 -> 0.78); doors = one opening per `door` / `open` edge at the edge point, laid
+along the shared wall (0.9 m, 0.75 m for a toilet, an opening as wide as the contact, 0.9-2.4 m); entry = the entrance point on the entrance
+room (a 1.0 m opening); `unknown` / `unlabeled` cells (15 % of nodes) are typed by rule (entrance cell = foyer, a cell joining two or more
+rooms = passage, a small cell off a bedroom = dress, others dropped); missing door links are repaired through the best shared wall (a room
+with no door route at all; a bedroom, passage or kitchen reachable only through a bedroom, kitchen or toilet). Metrics the record cannot
+support are excluded and the weights renormalised (`EXCLUDE`: the four door metrics, `window_ratio`, `wet_vent`, `wet_duct`, `efficiency`,
+`travel_to_exit`, `hab_window`, `privacy`); furniture is placed without door swings and the dining table is not fitted (`imported=True`).
+
+**Funnel.** 1,264 kept flats, all convertible; 823 "usable" (not more than 12 % of the floor guessed, 8 % dropped, and no room left unreachable or
+reachable only through a bedroom / kitchen / toilet after the repair); excluded 331 for unresolved links, 69 for dropped cells, 41 for guessed
+cells (first failing check). Of the usable flats 673 needed no repaired link, 127 one, 18 two and 5 three (0.22 on average). 595 are unique per
+(project, signature). The exclusion of 26 % of flats for door-graph gaps biases the benchmark towards flats whose links were extracted well.
+
+**Sample** (`stratified_sample`, seed 7): one flat per (project, signature), BHK strata 25 / 40 / 28 / 7 % for 1 / 2 / 3 / 4+ BHK, at most 10 flats per
+project: **231 flats from 39 projects** (BHK 0: 6, 1: 54, 2: 96, 3: 67, 4+: 8; only 15 usable 4+ BHK flats exist in all; entry room living 204,
+foyer 17, passage 9, dining 1). Cost 0.13 s per flat (max 0.38 s), no errors.
+
+| Grade | Sample (231) | Share | All usable flats (823, 44 projects) | Share |
+|---|---|---|---|---|
+| A | 61 | 26 % | 269 | 33 % |
+| B | 112 | 48 % | 365 | 44 % |
+| C | 50 | 22 % | 171 | 21 % |
+| D | 8 | 3 % | 18 | 2 % |
+| F | 0 | 0 % | 0 | 0 % |
+| A + B | **74.9 %** | | **77.0 %** | |
+
+Score mean 77.0, median 79.7, p10 58.8, p25 69.7 (all usable: 78.5 / 80.2). By BHK (sample): studio 75.5, 1 BHK 75.1, 2 BHK 80.9, 3 BHK 75.4,
+4+ BHK 56.7 (8 flats, all pulled down by `bloated`: `OVERSIZE` was set from p90 x 1.3 of ordinary flats, a luxury 4 BHK's rooms exceed it;
+not changed). Weakest-link metric over the sample: `fit_toilet` (compact tier 0.6) 59 flats, `room_shape` 32, `kitchen_near` 30, `toilet_door` 19, `common_toilet` 18, `circ_share` 17. Renders as
+the critic sees them: `approved-bench/*.png` (worst, low, middle, high, best of the sample).
+
+**What was refitted.** First pass = the thresholds of sections 3-9 on the first conversion (mean score 46.6, no A, 4 % B). "Fail" = satisfaction
+below 0.5; rates over the 240-flat first-pass sample. Decision rule: more than 15 % failing approved flats means either the threshold is wrong
+(fit to the approved distribution) or the conversion is lossy (exclude on approved, keep for generated plans).
+
+| Metric | First pass | Decision | Evidence | After |
+|---|---|---|---|---|
+| `room_shape` | 52 % | threshold wrong | the vertex rule (> 8 corners = 0.5) hit living rooms (median 9 corners, p90 13); living rectangularity p10 0.69, p50 0.81; bedroom p10 0.78. `VERTS` living 14 / dining 12 / bedroom 10 / master 10; `SHAPE` bedroom 0.85 / 0.62, living 0.78 / 0.55, dining 0.75 / 0.55 | 7 % |
+| `fit_toilet` | 56 % (30 % without door swings) | both | no door hinge / leaf in the data: furniture without swings lifts bedrooms 0.79 -> 0.94, toilets 0.46 -> 0.69, living 0.87 -> 1.0 (`imported`). 25 % of approved toilets are under 2.5 m2: added the compact tier | 3 % |
+| `fit_sleep`, `fit_living` | 10 %, 15 % | lossy (door swings) | as above | 0 %, 0 % |
+| dining fit | mean 0.04 | lossy | dining nodes are arbitrary zone splits of an open plan (graph-dataset.md); not fitted on imported plans | n/a |
+| `hab_window` | 22 % (32 % of flats) | lossy, excluded | living has no facade contact in 16 % of flats, kitchen in 22 % even after counting balconies: the exterior test of the extractor, not a real defect | excluded |
+| `wet_vent`, `wet_duct` | n/a | lossy, excluded | 62 % of toilets have no facade contact and only 20 % carry the shaft flag: ducts and AVS are not drawn | excluded |
+| `privacy` (`bedroom_via`) | 14 % (21 % of flats critical) | lossy, excluded | the flagged flats are door-link gaps (4 of 4 inspected flats: the passage or bedroom has wall contact with the living room but no `open` / `door` edge); the repair step and the "usable" filter handle the rest, `through_wet` stays on | excluded (`through_wet` 0 %) |
+| `hub_spread` | 20 % | threshold wrong | scales with bedrooms: 2 BHK p50 2.4 m, 3 BHK p50 6.7 m, p90 11.7 m; limits per bedroom count (`HUB_SPREAD`) | 4 % |
+| `hub_share` | 34 % | threshold wrong | owner's preference, approved p10 = 0.40: 0.50 / 0.25 (was 0.75 / 0.40) | 6 % |
+| `common_toilet` | 26 % | partly real, partly threshold | approved has one in ~80 %: the 19 % without it are mostly compact flats (<= 2 bedrooms, every toilet attached): minor, 0.55 | 6 % (19 % not full) |
+| `attached_share` | 20 % | threshold wrong | 15-20 % of approved flats have no attached toilet at all: zero costs half | 0 % |
+| `wet_cluster` | 47 % | threshold wrong | p10 0.25, p25 0.33, median 0.5: 0.45 / 0.15 (was 0.6 / 0.3), `wet_scatter` below 0.3 | 12 % |
+| `kitchen_near` | 28 % not full | threshold wrong | shared wall with the door elsewhere is common (approved door-linked 82 %): 0.7 -> 0.85 | 4 % (35 % not full) |
+
+Still failing more than 15 % in the sample, by "not full": `fit_toilet` 71 % (compact tier is 0.6 by design), `room_shape` 82 %, `room_size` 72 % (p25 by
+construction), `kitchen_near` 35 %, `wet_cluster` 43 %, `dining_kitchen` 36 % (via-living route 0.6), `attached_share` 21 %, `fit_sleep` 32 %. By "fail below 0.5"
+the worst is `wet_cluster` (12 %); no metric is above 15 %. New rules on approved flats (fail below 0.5 / not full): `entry_privacy` 1 % / 10 %, `entry_sight` 2 % / 3 %,
+`zone_order` 0 % / 2 %, `toilet_door` 3 % / 10 %, `dining_kitchen` 4 % / 36 %, `orphan` 0 % / 0 %.
+
+**Limits of this benchmark.** (a) The approved flats are a control for false alarms: `orphan` is at 0 % because the converter types lost-label cells as passages
+and repairs missing links, so it cannot show that the rule would flag a real approved pocket; its true-positive behaviour rests on the unit tests and on the
+generator plans. (b) The `privacy` result is not calibrated at all (excluded), and `entry_sight` / `entry_privacy` rest on door positions that are edge points, not drawn
+doors. (c) Decisions were made on the same flats that are reported (the full usable set of 823, which contains the sample, gives 77.0 % A/B and a mean 1.5 points higher), so 74.9 % A/B is
+fitted to this data, not held out; and 22 % of the sample still grade C, mostly through `room_small` (35 % of flats), `room_shape` and `fit_toilet`. (d) 4+ BHK flats
+(15 usable) score 53.5 on average (`OVERSIZE`). (e) I looked at six approved renders (intermediate and final conversion) and three generator renders; the
+approved worst case (a rehab 1 BHK whose master opens off the entry passage, kitchen without wall contact) is a real defect, not a conversion error.

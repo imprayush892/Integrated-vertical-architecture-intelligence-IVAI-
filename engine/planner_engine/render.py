@@ -153,6 +153,11 @@ def plan_png(plan: Plan | dict, path: str | Path, furniture: bool = True, issues
         ax.add_patch(MPoly(r.polygon, closed=True, fc=SEV_COLOR[sev], ec=SEV_COLOR[sev], lw=1.6, alpha=0.20, zorder=2))
         xs_, ys_ = _ring_xy(r.polygon)
         ax.plot(xs_, ys_, color=SEV_COLOR[sev], lw=1.4, ls=(0, (4, 2)), zorder=9)
+    for _n, i in marks:  # sight lines / routes of an issue (bedroom visible from the front door ...)
+        ln = i.get("line")
+        if ln:
+            ax.annotate("", xy=tuple(ln[1]), xytext=tuple(ln[0]), zorder=9,
+                        arrowprops={"arrowstyle": "-|>", "color": SEV_COLOR[i["severity"]], "lw": 1.1, "ls": (0, (3, 2)), "shrinkA": 0, "shrinkB": 0})
     for n, i in marks:
         if i.get("at"):
             ax.text(i["at"][0], i["at"][1], str(n), fontsize=6.5, ha="center", va="center", color="white", fontweight="bold",

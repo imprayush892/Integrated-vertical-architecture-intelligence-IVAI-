@@ -162,7 +162,70 @@ PRIVATE_DOOR = ("master", "bedroom", "study", "toilet", "bath", "wc")
 WET_ROOMS = ("toilet", "bath", "wc")
 CLUSTER_DOORS = True
 SLIVER = 0.6
+DOOR_PREF = {"passage": 4, "foyer": 4, "dining": 4, "living": 3, "kitchen": 3, "utility": 3, "master": 2, "bedroom": 2,
+             "pooja": 0, "dress": 0}  # v3: which neighbour a doorless room opens onto, best first
+DUCT_MAX = 2.0  # m2: v3, a doorless pocket up to this size beside a toilet is drawn as a plumbing duct
 MERGE_SLIVERS = False  # v2: pockets under SLIVER m2 stay solid (duct) instead of notching a room
+
+
+def _on_grid(c: Polygon) -> Polygon:
+    """The polygon with its coordinates rounded to 1 mm (no precision model attached: shapely keeps a set_precision
+    grid on later results, which breaks the 1e-6 buffers geo.clear_width relies on)."""
+    parts = geo.polygons_of(c)
+    if not parts:
+        return c
+    p = max(parts, key=lambda q: q.area)
+
+    def rr(ring):
+        return [(round(x, 3), round(y, 3)) for x, y in ring.coords]
+
+    g = Polygon(rr(p.exterior), [rr(h) for h in p.interiors]).buffer(0)
+    gp = geo.polygons_of(g)
+    return max(gp, key=lambda q: q.area) if gp else p
+
+
+def _snap_pockets(cells: dict[str, Polygon], types: dict[str, str], interior: Polygon) -> dict[str, Polygon]:
+    """v3: leftover pockets were opened by 0.15 m (slivers stay wall), which can leave a hair gap between a store and
+    the rooms around it, so it shares no wall and gets no door. Grow each store / leftover wardrobe back into the free
+    floor within 0.3 m so it meets its neighbours again."""
+    for rid in [r for r in cells if types.get(r) in ("store", "dress") and (r.startswith("store") or r.startswith("wardrobe"))]:
+        others = [g for o, g in cells.items() if o != rid]
+        occ = shapely.union_all(others) if others else Polygon()
+        fill = cells[rid].buffer(0.32, join_style="mitre").intersection(interior).difference(occ)
+        u = shapely.union(cells[rid], fill).buffer(0)
+        parts = geo.polygons_of(u)
+        if parts:
+            g = _on_grid(max(parts, key=lambda q: q.area))
+            if g.geom_type == "Polygon" and g.area >= cells[rid].area:
+                cells[rid] = g
+    return cells
+
+
+def _seal_pockets(cells: dict[str, Polygon], types: dict[str, str]) -> dict[str, Polygon]:
+    """v3: a leftover store that no dry room can open onto (only toilets around it) would be a sealed pocket
+    (critic orphan). Up to DUCT_MAX it is a plumbing duct (solid); larger, it joins the toilet it backs onto when the
+    toilet stays near-rectangular (a bath with a dressing area), else it stays a store."""
+    for rid in [r for r in cells if types.get(r) == "store"]:
+        c = cells[rid]
+        nb = []
+        for o, g in cells.items():
+            if o != rid and g.distance(c) < 1e-6:
+                L = g.boundary.intersection(c.boundary).length
+                if L > 0.05:
+                    nb.append((o, L))
+        if any(types.get(o) not in WET_ROOMS + ("balcony",) and L >= 0.8 for o, L in nb):
+            continue
+        if c.area <= DUCT_MAX:
+            del cells[rid]
+            continue
+        wet = sorted((t for t in nb if types.get(t[0]) in WET_ROOMS), key=lambda t: -t[1])
+        for o, _L in wet:
+            u = shapely.union(cells[o], c).buffer(0)
+            if u.geom_type == "Polygon" and u.area / max(u.minimum_rotated_rectangle.area, 1e-6) >= 0.75:
+                cells[o] = u
+                del cells[rid]
+                break
+    return cells
 
 
 def _facade_side(ug: UnitGrid, x: int, y: int, w: int, h: int) -> int:
@@ -410,6 +473,32 @@ def _place_on_segment(seg, width: float, at: float | None = None, margin: float 
     return (round(a[0], 3), round(a[1], 3)), (round(b[0], 3), round(b[1], 3))
 
 
+BED = {"master", "bedroom"}
+SIGHT_OFF = 0.3  # m: the critic's sight rays either side of the front door's centre line
+SIGHT_CLEAR = 0.5  # m: a bedroom door keeps this far from every sight ray (critic reach 0.35 m)
+
+
+def _out_of_sight(seg, width: float, placed, sight: list[LineString]):
+    """v3: slide a bedroom door along its wall until it is out of the front door's line of sight (the position nearest
+    to where it was put); unchanged when the wall offers no such position."""
+    def clear(pl) -> float:
+        d = LineString(pl)
+        return min(d.distance(r) for r in sight)
+
+    if clear(placed) >= SIGHT_CLEAR:
+        return placed
+    L = math.dist(*seg)
+    t0 = LineString(seg).project(shapely.geometry.Point((placed[0][0] + placed[1][0]) / 2, (placed[0][1] + placed[1][1]) / 2))
+    best = None
+    k = 0.15 + width / 2
+    while k <= L - 0.15 - width / 2 + 1e-9:
+        pl = _place_on_segment(seg, width, at=k)
+        if pl and clear(pl) >= SIGHT_CLEAR and (best is None or abs(k - t0) < best[0]):
+            best = (abs(k - t0), pl)
+        k += 0.1
+    return best[1] if best else placed
+
+
 def _cut(a, b, depth: float, both: bool = True) -> Polygon:
     """Rectangle around segment a-b, `depth` either side (to cut a wall opening)."""
     return LineString([a, b]).buffer(depth, cap_style="flat") if both else LineString([a, b]).buffer(depth)
@@ -456,6 +545,11 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
                  for rid in cells if spec[rid].cap}  # net cap -> gross (half walls on the perimeter)
     owner: dict[str, str] = {}
     cells = _merge_leftover(cells, ug.interior, types, caps, waste_cap, owner, soft)
+    # v3: one coordinate grid for every room (1 mm): solver rectangles carry float noise (x.219999...) that leftover
+    # pockets do not, and two rooms whose walls differ by 1e-15 share no wall - hence no door (sealed stores in v2)
+    cells = {rid: _on_grid(c) for rid, c in cells.items()}
+    cells = _snap_pockets(cells, types, ug.interior)
+    cells = _seal_pockets(cells, types)
     links = list(links)
     for rid in cells:
         if rid not in spec:  # leftover turned into a wardrobe (off a bedroom) or a store
@@ -485,7 +579,7 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
     for rid, c in cells.items():
         n = c.difference(band) if not band.is_empty else c
         parts = geo.polygons_of(n)
-        nets[rid] = max(parts, key=lambda p: p.area) if parts else c
+        nets[rid] = _on_grid(max(parts, key=lambda p: p.area)) if parts else c
     # façade / shaft contact on the interior boundary
     facade_lines, shaft_lines = [], []
     for e in ug.edges:
@@ -519,6 +613,17 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         doors.append(Opening(id="D-entry", kind="entry", a=a, b=b, width=ENTRY_W, rooms=[entry], hinge=a, swing_into=entry))
     # internal doors on links
     linked: set[str] = {entry}
+    # v3: the straight line of sight from the front door (critic entry_sight): rays 0.3 m either side of its centre
+    sight: list[LineString] = []
+    if ug.door is not None and entry in cells:
+        e, along = ug.door
+        if e.horizontal:
+            p0, nv, tv = (ug.ox + along * G, ug.oy + e.pos * G), (0.0, -float(e.outward)), (1.0, 0.0)
+        else:
+            p0, nv, tv = (ug.ox + e.pos * G, ug.oy + along * G), (-float(e.outward), 0.0), (0.0, 1.0)
+        for off in (-SIGHT_OFF, 0.0, SIGHT_OFF):
+            q = (p0[0] + tv[0] * off, p0[1] + tv[1] * off)
+            sight.append(LineString([q, (q[0] + nv[0] * 30.0, q[1] + nv[1] * 30.0)]))
     if hub_point is None and CLUSTER_DOORS:
         # v2: cluster the private doors (bedrooms, study, guest toilet onto the hub): the point their walls are
         # closest to, found by two rounds of projecting a centre onto each wall
@@ -561,6 +666,8 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         placed = _place_on_segment(seg, w, at=at)
         if not placed:
             continue
+        if sight and BED & {types.get(ra), types.get(rb)}:
+            placed = _out_of_sight(seg, w, placed, sight)
         a, b = placed
         into = rb if types.get(rb) in ("toilet", "bath", "wc", "master", "bedroom", "study", "utility", "dress", "pooja") else ra
         doors.append(Opening(id=f"D{k + 1}", kind="door", a=a, b=b, width=round(math.dist(a, b), 3),
@@ -568,6 +675,7 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         cut_geoms.append(_cut(a, b, INT_WALL))
         linked.update((ra, rb))
     # rooms with no door get one onto their best neighbour
+    ducts: set[str] = set()
     for rid in ids:
         if rid in linked:
             continue
@@ -576,8 +684,17 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
             # v2: never a door through a toilet (a store reached only through a toilet is worse than a sealed one)
             cand = [(k, s) for k, s in cand if types.get(k[0] if k[1] == rid else k[1]) not in WET_ROOMS]
         if not cand:
+            # v3: a small doorless pocket against a toilet is a plumbing duct (solid), not a sealed store
+            if types.get(rid) == "store" and cells[rid].area <= DUCT_MAX and any(
+                    rid in k and types.get(k[0] if k[1] == rid else k[1]) in WET_ROOMS for k in shared):
+                ducts.add(rid)
             continue
-        k, seg = max(cand, key=lambda t: math.dist(*t[1]))
+        def pref(t, rid=rid):  # v3: a store opens off the hub / kitchen before a bedroom, never off a pooja room first
+            o = t[0][0] if t[0][1] == rid else t[0][1]
+            L = math.dist(*t[1])
+            return (L >= 0.8, DOOR_PREF.get(types.get(o, ""), 1), L)
+
+        k, seg = max(cand, key=pref)
         placed = _place_on_segment(seg, DOOR_W.get(types.get(rid, ""), 0.9))
         if placed:
             other = k[0] if k[1] == rid else k[1]
@@ -587,6 +704,7 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
             linked.add(rid)
     # windows and ventilators
     plan_rooms: list[PlanRoom] = []
+    ids = [rid for rid in ids if rid not in ducts]
     for rid in ids:
         s = spec[rid]
         net = nets[rid]

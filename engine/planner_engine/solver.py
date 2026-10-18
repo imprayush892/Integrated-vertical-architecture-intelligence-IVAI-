@@ -29,7 +29,7 @@ from shapely.geometry import Point as SPoint
 from shapely.geometry import Polygon, box
 
 from . import geo, rules
-from .diagram import room_minimums
+from .diagram import direction_cost, hub_door_cost, room_minimums, wants_foyer
 from .models import Diagram, Plate, Unit
 from .plate import zones_geom
 
@@ -65,18 +65,23 @@ UNCOVERED_W = 120  # floor no room covers (becomes a leftover pocket)
 PASSAGE_FIXED = 400  # having a passage / foyer at all (on top of OVER_W per cell)
 CIRC_FREE = 0.05  # share of the floor passage + foyer may take at the light rate (approved plans p90 = 4.7 %)
 CIRC_EXCESS_W = 100  # per cell of passage + foyer beyond that (priced like wasted floor)
+DOOR_SLIDE = True  # v3: the solver places the front door along the lobby edge
+DOOR_SLIDE_W = 0
 HUB_PEN = 300  # per step down a room's hub preference list (dining > passage > living)
 HUB_SPLIT = 12000  # each distinct space the private doors open onto (one compact hub wanted)
 PRIVATE_DOOR = ("master", "bedroom", "study", "toilet", "bath", "wc")  # doors the critic's hub metrics look at
 HUB_ZONE_R = 20  # cells (0 = off): private hub doors reach into a 4 m square around one point
 HUB_ZONE_W = 6000  # a private room whose hub door is outside that cluster
-BED_ENTRY_CLEAR = 20  # cells: bedrooms keep 2 m clear of the flat's front door
+BED_ENTRY_CLEAR = 22  # cells: bedrooms keep 2.2 m clear of the flat's front door
+BED_ENTRY_W = 30000  # v3: critic entry_privacy (gate 0.40): a bedroom against the front door costs ~15 points
+PASSAGE_MIN_DOORS = 2  # v3: a passage serves at least this many private doors (else it is an orphan pocket)
+FOYER_COMPACT_W = 50000  # v3: a foyer in a flat below 3BHK / 110 m2 (premium flats only, owner brief)
 ENTRY_DINING_PEN = 100000  # front door into the dining room (only when the flat's depth leaves no other way)
 POWDER_ABSENT = 80000  # a flat without a guest toilet loses ~15 critic points (common_toilet gate)
 NEAR_LIVING = 30  # cells: guest toilet within 3 m of the living room
 NEAR_LIVING_W = 8000
 WET_PAIR_W = 3000  # per pair of toilets that do not share a wall (critic wet_cluster)
-VENT_DUCT_W = 70000  # a wet room ventilated by mechanical duct instead of façade/shaft (DCPR "review")
+VENT_DUCT_W = 90000  # a wet room ventilated by mechanical duct instead of façade/shaft (DCPR "review")
 # a room too small for its furniture set: living / bedrooms are critic gates (a sofa or bed that does not fit
 # costs 17-35 % of the score), so they pay like ~12 m2 of waste
 FURN_W = {"living": 150000, "master": 150000, "bedroom": 150000}
@@ -146,6 +151,7 @@ class SolveResult:
     links: list[tuple[str, str]] | None = None  # v2: the door links the layout uses (fixed + chosen hub doors)
     entry: str | None = None  # v2: the room the front door opens into
     hub_point: tuple[int, int] | None = None  # v2: grid point the private doors cluster around
+    door_along: int | None = None  # v3: where the front door ended up along the flat's lobby edge (grid)
 
 
 # ------------------------------------------------------------------------------------- unit geometry
@@ -442,12 +448,21 @@ class _Builder:
         self.m = cp_model.CpModel()
         self.ug, self.specs, self.links, self.entry = ug, specs, links, entry
         self.alts = alts or []
+        self.zoned = alts is not None  # v3: the zoned brief (layout.solve_flat) even when no hub door is flexible (1BHK)
         self.guards: dict[str, cp_model.IntVar] = {}
         self.guard_mode = guards
         self.v: dict[str, dict] = {}
         self.choice: dict[str, list[tuple[str, cp_model.IntVar]]] = {}
         self.extra_cost: list = []
         self.duct: dict[str, cp_model.IntVar] = {}
+        self.bhk = sum(1 for s in specs if s.type in ("master", "bedroom"))
+        self.door_pos = None
+        if self.zoned and ug.door is not None and DOOR_SLIDE:
+            # v3: the front door may sit anywhere along the flat's frontage on the lobby (not only at the edge's middle),
+            # so the living room can reach it instead of a foyer or the dining room
+            e, along = ug.door
+            lo, hi = e.a + 5, e.b - 5
+            self.door_pos = self.m.new_int_var(min(lo, along), max(hi, along), "door_pos")
         self.build()
 
     def guard(self, label: str):
@@ -532,6 +547,10 @@ class _Builder:
                 cost = cost + CAP_W * oc
             if s.type in ("passage", "foyer"):
                 cost = cost + PASSAGE_FIXED * pres
+            if s.type == "foyer" and self.zoned and not wants_foyer(self.bhk, 0.92 * ug.interior.area):
+                # v3 owner brief: enter into the living room; a foyer in a compact flat only where the living room cannot
+                # reach the front door (cheaper than entering through the dining room, ENTRY_DINING_PEN)
+                cost = cost + FOYER_COMPACT_W * pres
             if s.absent:
                 cost = cost + s.absent * (1 - pres)
             if s.wfurn > s.wmin or s.afurn > s.amin:
@@ -555,6 +574,7 @@ class _Builder:
         for rid, cands in self.alts:
             self._adjacent_any(rid, cands)
         self._one_hub()
+        self._useful_passage()
         for s in self.specs:
             if s.type == "balcony":
                 self._touch(s.id, s.window_run, ("facade",), f"window:{s.id}", balcony=True)
@@ -562,22 +582,23 @@ class _Builder:
                 self._touch(s.id, s.window_run, ("facade",), f"window:{s.id}", glazing=True)
             elif s.vent_run:
                 self._touch(s.id, s.vent_run, ("facade", "shaft"), f"vent:{s.id}")
-        if self.alts and ug.door is not None and self.entry in self.v:
+        if self.zoned and ug.door is not None and self.entry in self.v:
             self._door_any()
         elif self.entry in self.v and ug.door is not None:
             fb = entry_fallback(self.specs, self.entry)
             self._door(self.entry, fallback=fb)
-        if self.alts and ug.door is not None and self.entry in self.v:  # v2 zoning: the private zone keeps away from the front door
+        if self.zoned and ug.door is not None and self.entry in self.v:  # v2 zoning: the private zone keeps away from the front door
                 for s in self.specs:
                     if s.type in ("master", "bedroom") and s.id != self.entry:
                         self._clear_of_door(s.id, BED_ENTRY_CLEAR)
+                self._direction()
         # objective: waste (uncovered floor, rooms above their cap) >> circulation >> target closeness
         total = W * H - sum((x1 - x0) * (y1 - y0) for x0, y0, x1, y1 in ug.blocked)
         covered = sum(v["e"] for v in self.v.values())
         m.add(covered <= total)  # tightens the bound: uncovered >= 0
         self.total = total
         circ = [v["e"] for v in self.v.values() if v["s"].type in CIRCULATION]
-        if circ and self.alts:
+        if circ and self.zoned:
             # v2: circulation up to 5 % of the flat is nearly free (approved plans p90 = 4.7 %); beyond it each cell
             # costs like wasted floor (the critic's circ_share gate)
             excess = m.new_int_var(0, total, "circ_excess")
@@ -676,8 +697,12 @@ class _Builder:
             m.add_implication(ch, self.v[c]["p"])
             m.add_implication(ch, R["p"])
             self._cases(rid, c, [ch], zone)
-            if k:
-                self.extra_cost.append(HUB_PEN * k * ch)
+            # v3: approved-plan pattern / critic price of this door (bedroom onto passage > living > dining, guest
+            # toilet never onto the dining, kitchen onto the dining); the v2 list order where there is no figure
+            pc = hub_door_cost(R["s"].type, self.v[c]["s"].type, self.bhk)
+            cost = HUB_PEN * k if pc is None else pc
+            if cost:
+                self.extra_cost.append(cost * ch)
             lits.append((c, ch))
         self.choice[rid] = lits
         g = self.guard(f"link:{rid}-hub")
@@ -700,10 +725,51 @@ class _Builder:
                 m.add_implication(ch, y)
             self.extra_cost.append(HUB_SPLIT * y)
 
+    def _useful_passage(self) -> None:
+        """v3: a passage exists only to serve private doors: at least PASSAGE_MIN_DOORS of them open onto it (fewer
+        if the flat has fewer), otherwise it is a one-door pocket (critic orphan)."""
+        m = self.m
+        for pid, v in self.v.items():
+            if v["s"].type != "passage":
+                continue
+            chs = [ch for rid, lits in self.choice.items() if self.v[rid]["s"].type in PRIVATE_DOOR + ("pooja",)
+                   for c, ch in lits if c == pid]
+            if not chs:
+                continue
+            m.add(sum(chs) >= min(PASSAGE_MIN_DOORS, len(chs))).only_enforce_if(v["p"])
+
+    def _direction(self) -> None:
+        """v3: rooms approved flats put further from the entrance than the living room (bedrooms, kitchen, toilets,
+        data/rules/approved_layout_patterns.json direction_from_living) pay when they lie no deeper than it."""
+        m = self.m
+        liv = next((v for v in self.v.values() if v["s"].type == "living"), None)
+        if liv is None or self.ug.door is None:
+            return
+        e, _along = self.ug.door
+        sgn = -e.outward  # inward along the door edge's normal axis
+        ax, sz = ("y", "h") if e.horizontal else ("x", "w")
+
+        def depth(v):
+            return sgn * (2 * v[ax] + v[sz])
+
+        for rid, v in self.v.items():
+            t = v["s"].type
+            if t not in ("master", "bedroom", "kitchen", "toilet", "bath") or v is liv:
+                continue
+            c = direction_cost(t, self.bhk)
+            if not c:
+                continue
+            deeper = m.new_bool_var(f"deep_{rid}")
+            m.add(depth(v) >= depth(liv) + 1).only_enforce_if(deeper)
+            m.add_implication(deeper, v["p"])
+            self.extra_cost.append(c * (v["p"] - deeper))
+
     def _clear_of_door(self, rid: str, d: int) -> None:
         """Room ``rid`` stays at least ``d`` cells from the flat's front door (either along or across the edge)."""
         m, R = self.m, self.v[rid]
         e, along = self.ug.door  # type: ignore[misc]
+        if self.door_pos is not None:
+            along = self.door_pos
         px, py = (along, e.pos) if e.horizontal else (e.pos, along)
         bs = [m.new_bool_var("") for _ in range(4)]
         m.add(R["x"] >= px + d).only_enforce_if(bs[0])
@@ -711,7 +777,7 @@ class _Builder:
         m.add(R["y"] >= py + d).only_enforce_if(bs[2])
         m.add(R["y"] + R["h"] <= py - d).only_enforce_if(bs[3])
         viol = m.new_bool_var("")  # soft: a tight flat may still put a bedroom by the door, at a price
-        self.extra_cost.append(2000 * viol)
+        self.extra_cost.append(BED_ENTRY_W * viol)
         m.add_bool_or([*bs, viol]).only_enforce_if(R["p"])
 
     def _door_any(self) -> None:
@@ -727,6 +793,8 @@ class _Builder:
             self._door_one(rid, [ch])
             if types[rid] == "dining":
                 self.extra_cost.append(ENTRY_DINING_PEN * ch)
+            if types[rid] == "foyer":  # v3: a foyer that is not the entrance is a one-door pocket (critic orphan)
+                self.m.add_implication(self.v[rid]["p"], ch)
             lits.append((rid, ch))
         self.entry_choice = lits
         self.m.add(sum(ch for _, ch in lits) == 1)
@@ -833,6 +901,8 @@ class _Builder:
     def _door_one(self, rid: str, enf: list) -> None:
         m, R = self.m, self.v[rid]
         e, along = self.ug.door  # type: ignore[misc]
+        if self.door_pos is not None:
+            along = self.door_pos
         half = 5
         if e.horizontal:
             if e.outward > 0:
@@ -922,7 +992,8 @@ def solve(ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], ent
         status = "optimal" if st == cp_model.OPTIMAL else ("feasible" if elapsed < time_limit * 0.98 else "timeout")
         return SolveResult(status, rects, dropped, solver.objective_value, round(elapsed, 3),
                            links=b.realized_links(solver), entry=b.realized_entry(solver),
-                           hub_point=(solver.value(b.hub_zone[0]), solver.value(b.hub_zone[1])) if b.hub_zone else None)
+                           hub_point=(solver.value(b.hub_zone[0]), solver.value(b.hub_zone[1])) if b.hub_zone else None,
+                           door_along=solver.value(b.door_pos) if b.door_pos is not None else None)
     if st == cp_model.INFEASIBLE or st == cp_model.MODEL_INVALID:
         core = explain_infeasible(ug, specs, links, entry, budget=min(3.0, max(0.3, time_limit - elapsed)),
                                   alts=alts) if explain else []

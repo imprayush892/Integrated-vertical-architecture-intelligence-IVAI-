@@ -9,6 +9,7 @@ may change later; the plan always finishes.
 from __future__ import annotations
 
 import copy
+import dataclasses
 import hashlib
 import json
 import time
@@ -196,6 +197,8 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
             s.amin += tight[1]
     fixed, alts = flex_links(diagram)
     res = solve(ug, specs, fixed, diagram.entry, time_limit=time_limit, explain=explain, alts=alts, seed=seed)
+    if res.door_along is not None and ug.door is not None:  # v3: draft the front door where the solver put it
+        ug = dataclasses.replace(ug, door=(ug.door[0], res.door_along))
     out = (res, {"ug": ug, "specs": specs, "diagram": diagram})
     if res.status != "timeout" or res.rects:
         _CACHE[key] = out

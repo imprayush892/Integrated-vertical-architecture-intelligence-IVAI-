@@ -68,6 +68,8 @@ def limits(shape: ShapeKind, env_w: float, env_d: float) -> dict[str, Limit]:
         "shafts": Limit(0, 4, 1),
         "shaft_size": Limit(1.2, 6.0),
         "end_depth": Limit(4.0, 20.0),
+        "chowks": Limit(0, 1, 1),
+        "party_shafts": Limit(0, 1, 1),
     }
     if shape == ShapeKind.cruciform:
         base |= {"arm_depth": Limit(8.0, env_d), "wing_width": Limit(8.0, env_w)}
@@ -95,6 +97,8 @@ def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float =
         "shafts": 0,
         "shaft_size": 3.0,
         "end_depth": round(min(9.0, max(5.0, W / 6)), 1),
+        "chowks": 1.0,  # v3: exterior chowks between flats deeper than their façade can light
+        "party_shafts": 1.0,  # v3: AVS on the party walls between flats, for the wet rooms
     }
     if shape == ShapeKind.cruciform:
         p["arm_depth"] = round(max(10.0, D * 0.55), 1)
@@ -561,6 +565,123 @@ def _core_parts(core: Polygon, height: float, p: dict[str, float], flip: bool = 
     return parts
 
 
+# ---- generator v3 (docs/quality/generator-v3.md): features placed on the cuts between flats
+CHOWK_RATIO = 10.0  # m: flat gross area / façade above which the flat is deeper than its façade can light
+CHOWK_MIN_CUT = 10.5  # m: only party walls at least this deep get a chowk
+CHOWK_W = 3.0  # m: exterior chowk (re-entrant notch open to the sky) width, half in each flat
+CHOWK_KEEP = 2.4  # m: party wall kept behind the chowk, towards the passage (entries, wet rooms)
+AVS_W, AVS_D = 1.6, 2.4  # m: party-wall air-ventilation shaft (DCPR AVS >= 3.0 m2, shorter side >= 1.5 m): 3.84 m2
+AVS_FRONT = 4.6  # m behind the façade: a habitable room's depth (+ wall) stays in front of the shaft
+AVS_MIN_CUT = 6.0  # m: party walls shorter than this keep no shaft (a flat that shallow reaches its façade)
+AVS_RATIO = 0.0  # m: flats with this little area per metre of façade keep their wet rooms on the façade
+AVS_DOOR_CLEAR = 3.5  # m: a shaft this close to a flat's entry door would cut the living room off from it
+
+
+def base_outline(plate: Plate) -> Polygon:
+    """The plate outline before v3 chowks were cut into it (pure function of the shape parameters)."""
+    shape = ShapeKind(plate.shape)
+    if shape == ShapeKind.triangle:
+        return Polygon(plate.outline).buffer(0)
+    return shapely.set_precision(_outline(shape, plate.params).buffer(0), 0.001)
+
+
+def _cut_segments(a: Polygon, b: Polygon) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    inter = a.boundary.intersection(b.boundary)
+    out = []
+    for g in getattr(inter, "geoms", [inter]):
+        if g.geom_type == "LineString" and g.length >= 3.0:
+            cs = list(g.coords)
+            out.append((cs[0], cs[-1]))
+        elif g.geom_type == "MultiLineString":
+            from shapely.ops import linemerge
+
+            m = linemerge(g)
+            for ln in getattr(m, "geoms", [m]):
+                if ln.length >= 3.0:
+                    cs = list(ln.coords)
+                    out.append((cs[0], cs[-1]))
+    if len(out) > 1:
+        from shapely.ops import linemerge
+
+        m = linemerge([LineString(sg) for sg in out])
+        out = [(list(ln.coords)[0], list(ln.coords)[-1]) for ln in getattr(m, "geoms", [m]) if ln.length >= 3.0]
+    return out
+
+
+def _cut_features(rest, passage, core, outline: Polygon, reflex: list, p: dict[str, float]) -> tuple[list, list]:
+    """v3: chowks and party-wall shafts on the cuts between flats (units.split_pieces gives the cuts).
+
+    * A cut whose flats are deeper than their façade can light (gross area / façade > CHOWK_RATIO) and that runs at
+      least CHOWK_MIN_CUT from the façade gets an exterior chowk: a CHOWK_W slot open to the sky from the façade to
+      CHOWK_KEEP short of the passage, half in each flat. The flats keep their party wall at the back and gain the
+      chowk's two sides as façade for bedrooms, kitchen and toilets. Flats are served greedily, deepest first, until
+      none is too deep.
+    * Every other cut of at least AVS_MIN_CUT gets an air-ventilation shaft (AVS) straddling the party wall behind
+      the façade rooms, so the wet rooms of both flats cluster on it instead of a mechanical duct (DCPR 39(2)).
+    Returns (shafts, chowks) clipped to the flat zone."""
+    from shapely.geometry import Point
+
+    from .units import _door, split_pieces
+
+    if int(p.get("chowks", 0)) <= 0 and int(p.get("party_shafts", 0)) <= 0:
+        return [], []
+    ring = outline.exterior
+    ref = shapely.union_all(reflex) if reflex else Polygon()
+    outer = ring.difference(ref.buffer(0.05)) if not ref.is_empty else ring
+    pieces, _frag = split_pieces(rest, passage, core, int(p["units"]), outer)
+    info = [{"area": g.area, "front": max(0.5, g.boundary.intersection(outer).length)} for g in pieces]
+    access = shapely.union(passage, core)
+    doors = []
+    for g in pieces:
+        dr = _door(g, access)
+        doors.append(dr[0] if dr else None)
+    cuts = []
+    for i in range(len(pieces)):
+        for j in range(i + 1, len(pieces)):
+            if pieces[i].distance(pieces[j]) > 1e-6:
+                continue
+            for a, b in _cut_segments(pieces[i], pieces[j]):
+                fa, fb = ring.distance(Point(a)) < 0.05, ring.distance(Point(b)) < 0.05
+                if fa == fb:
+                    continue
+                f, q = (a, b) if fa else (b, a)
+                cuts.append((i, j, f, q))
+
+    def ratio(k: int) -> float:
+        return info[k]["area"] / info[k]["front"]
+
+    cuts.sort(key=lambda c: -max(ratio(c[0]), ratio(c[1])))
+    shafts, chowks = [], []
+    for i, j, f, q in cuts:
+        L = math.dist(f, q)
+        dx, dy = (q[0] - f[0]) / L, (q[1] - f[1]) / L  # inward along the cut
+        nx, ny = -dy, dx
+
+        def slot(d0: float, d1: float, w: float, f=f, dx=dx, dy=dy, nx=nx, ny=ny) -> Polygon:
+            h = w / 2
+            pts = [(f[0] + dx * d0 + nx * h, f[1] + dy * d0 + ny * h), (f[0] + dx * d1 + nx * h, f[1] + dy * d1 + ny * h),
+                   (f[0] + dx * d1 - nx * h, f[1] + dy * d1 - ny * h), (f[0] + dx * d0 - nx * h, f[1] + dy * d0 - ny * h)]
+            return Polygon(pts).buffer(0).intersection(rest)
+
+        if int(p.get("chowks", 0)) > 0 and L >= CHOWK_MIN_CUT and max(ratio(i), ratio(j)) > CHOWK_RATIO:
+            g = slot(-1.0, L - CHOWK_KEEP, CHOWK_W)
+            if g.area > 1.0:
+                chowks.append(g)
+                for k in (i, j):
+                    info[k]["area"] -= g.area / 2
+                    info[k]["front"] += L - CHOWK_KEEP - CHOWK_W / 2
+                continue
+        if int(p.get("party_shafts", 0)) > 0 and L >= AVS_MIN_CUT and max(ratio(i), ratio(j)) >= AVS_RATIO:
+            s0 = min(AVS_FRONT, L - AVS_D)
+            if L - (s0 + AVS_D) < 1.5:
+                s0 = L - AVS_D  # flush with the passage wall: no sliver behind the shaft
+            g = slot(s0, s0 + AVS_D, AVS_W)
+            # the shaft keeps clear of both flats' entry doors (a living room must still reach the door)
+            if g.area > 0.5 and all(d is None or g.distance(Point(d)) >= AVS_DOOR_CLEAR for d in (doors[i], doors[j])):
+                shafts.append(g)
+    return shafts, chowks
+
+
 def _reflex_corners(outline: Polygon) -> list[tuple[float, float, float, float]]:
     """Reflex vertices with the bisector direction pointing into the solid."""
     ring = geo.ring_of(outline)
@@ -619,14 +740,22 @@ def build_plate(
         if n_sh > 0:
             shafts = _triangle_shafts(rest, passage, p)
         shafts += _triangle_corner_shafts(rest, p)
-    elif n_sh > 0:
-        s = p["shaft_size"]
-        for x, y, bx, by in _reflex_corners(outline)[:n_sh]:
-            sx = s if bx > 0 else -s
-            sy = s if by > 0 else -s
-            sq = box(min(x, x + sx), min(y, y + sy), max(x, x + sx), max(y, y + sy)).intersection(rest)
-            if sq.area > 0.5:
-                shafts.append(sq)
+    else:
+        if n_sh > 0:
+            s = p["shaft_size"]
+            for x, y, bx, by in _reflex_corners(outline)[:n_sh]:
+                sx = s if bx > 0 else -s
+                sy = s if by > 0 else -s
+                sq = box(min(x, x + sx), min(y, y + sy), max(x, x + sx), max(y, y + sy)).intersection(rest)
+                if sq.area > 0.5:
+                    shafts.append(sq)
+        # v3: chowks for flats deeper than their façade, AVS on the other party walls
+        avs, chowks = _cut_features(rest, passage, core, outline, list(shafts), p)
+        shafts += avs
+        if chowks:
+            cut = shapely.union_all(chowks)
+            outline = shapely.set_precision(outline.difference(cut), 0.001)
+            rest = rest.difference(cut)
     shaft_geom = shapely.union_all(shafts) if shafts else Polygon()
     flats = rest.difference(shaft_geom) if shafts else rest
     flats = shapely.set_precision(flats, 0.001)
