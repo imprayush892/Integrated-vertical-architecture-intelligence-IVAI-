@@ -539,3 +539,30 @@ doors. (c) Decisions were made on the same flats that are reported (the full usa
 fitted to this data, not held out; and 22 % of the sample still grade C, mostly through `room_small` (35 % of flats), `room_shape` and `fit_toilet`. (d) 4+ BHK flats
 (15 usable) score 53.5 on average (`OVERSIZE`). (e) I looked at six approved renders (intermediate and final conversion) and three generator renders; the
 approved worst case (a rehab 1 BHK whose master opens off the entry passage, kitchen without wall contact) is a real defect, not a conversion error.
+
+## 12. Critic v3 (review of generator v3, `side_core_52x29_APT-2`)
+
+By-eye review of `docs/quality/after-v3/side_core_52x29_APT-2.png` (scored 78 B, I would give C) found three things the critic let through:
+
+1. **Private zone at the entrance.** A bedroom whose attached toilet shares a wall (>= `ENTRY_WALL` 0.9 m) with the entry foyer, or sits within
+   `ENTRY_ADJ_WC` 1.5 m of the front door, now counts as `bedroom_at_entry` (penalty `ENTRY_SHARED_PEN` 0.4, same metric `entry_privacy`),
+   even when no door opens onto the foyer. The bedroom's own wall on the foyer counts too.
+2. **Dining in the far corner.** Without a shared wall, the serving route kitchen -> dining scores 0.6 up to `DINING_ROUTE_OK` 6 m, 0.45 up to
+   10 m, 0.2 beyond (was 0.6 / 0.35). `dining_isolated` is now raised below 0.4.
+3. **Leftover-shaped public rooms.** Living / dining with rectangularity < `PUBLIC_RECT` 0.8 get their `room_shape` satisfaction times 0.85 and
+   1.25x the area weight.
+
+Calibration (approved sample, `approved_bench --n 240`, 231 flats): first attempt (0.5 / 0.7 / 1.5x) gave 69.7 % A/B, too strict; ablation showed the
+shape change cost 3 points and the entry change 1.7, the dining change none. Final constants give **73.6 % A/B** (was 74.9 %), A/B/C/D 47 / 123 / 53 / 8.
+
+Re-score of `after-v3` (78 flats, cached plans; `python -m planner_engine.quality --baseline docs/quality/after-v3 --scores scores_critic_v3.json --no-render`):
+
+| | critic before (`scores.json`) | critic v3 (`scores_critic_v3.json`) |
+|---|---|---|
+| A / B / C / D | 37 / 24 / 15 / 2 | 36 / 25 / 15 / 2 |
+| mean | 81.0 | 80.4 |
+
+Honest reading: the net effect on the distribution is small. `side_core_52x29_APT-2` falls 77.9 -> 73.2 (still B; it now carries `bedroom_at_entry` and
+`dining_isolated`); flats flagged: `dining_kitchen_link` 11, `room_shape` 8, `bedroom_at_entry` 5, `dining_isolated` 3. Going harder on these rules costs
+approved flats more than it moves generated ones, so I stopped at the 70 % A/B guard. Tests: `test_v3_*` in `engine/tests/test_quality.py`.
+

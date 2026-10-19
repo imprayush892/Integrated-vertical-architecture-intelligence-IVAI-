@@ -459,6 +459,52 @@ def test_rule7_dining_must_be_on_a_serving_route_to_the_kitchen():
     assert res["metrics"]["dining_kitchen"]["value"] <= 0.1 + 1e-9 and "dining_isolated" in codes(res)
 
 
+def test_v3_bedroom_toilet_beside_the_entry_foyer_counts_as_private_zone_at_entry():
+    # attached toilet shares a wall with the foyer; no door onto it, the bedroom itself is 1.6 m away from the front door
+    rooms = GOOD_ROOMS + [("foyer", "foyer", (3.4, -2.0, 5.0, 0)), ("toilet_b3", "toilet", (5.0, -2.0, 6.6, 0)),
+                          ("bed3", "bedroom", (6.6, -2.0, 10.2, 0))]
+    doors = [d for d in GOOD_DOORS if d[0] != "D-entry"] + [
+        ("D-entry", (3.7, -2.0), (4.7, -2.0), ["foyer"], "foyer"), ("DF1", (3.7, 0.0), (4.6, 0.0), ["foyer", "living"], "living"),
+        ("DB", (6.6, -1.5), (6.6, -0.7), ["toilet_b3", "bed3"], "bed3"), ("DB2", (7.5, 0.0), (8.4, 0.0), ["dining", "bed3"], "bed3")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    bad = [i for i in res["issues"] if i["code"] == "bedroom_at_entry"]
+    assert bad and "bed3" in bad[0]["rooms"] and "foyer" in bad[0]["message"]
+    assert res["metrics"]["entry_privacy"]["value"] <= 1.0 - Q.ENTRY_SHARED_PEN + 1e-9
+    far = [r if r[0] != "toilet_b3" else ("toilet_b3", "toilet", (7.2, -2.0, 8.8, 0)) for r in rooms]
+    far = [r if r[0] != "bed3" else ("bed3", "bedroom", (8.8, -2.0, 12.4, 0)) for r in far]
+    far_doors = [d for d in doors if d[0] not in ("DB", "DB2")] + [("DB", (8.8, -1.5), (8.8, -0.7), ["toilet_b3", "bed3"], "bed3"),
+                                                                  ("DB2", (8.0, 0.0), (8.6, 0.0), ["dining", "toilet_b3"], "toilet_b3")]
+    ok = Q.critique(build(far, far_doors, GOOD_WINDOWS))
+    assert "bedroom_at_entry" not in codes(ok) and ok["metrics"]["entry_privacy"]["value"] == 1.0
+
+
+def test_v3_dining_in_the_far_corner_costs_more_than_one_beside_the_kitchen():
+    near = Q.critique(good_plan())["metrics"]["dining_kitchen"]["value"]
+    rooms = swap(GOOD_ROOMS, "dining", (-3.6, 0.0, 0, 2.8))
+    doors = [d for d in GOOD_DOORS if d[0] not in ("D1", "D2")] + [
+        ("D1", (0.0, 0.8), (0.0, 1.7), ["living", "dining"], "dining"), ("D2", (5.0, 3.2), (5.0, 4.1), ["living", "kitchen"], "kitchen")]
+    res = Q.critique(build(rooms, doors, GOOD_WINDOWS))
+    v = res["metrics"]["dining_kitchen"]["value"]
+    assert v < near and v < 0.6 and v >= 0.2  # no shared wall, route over 6 m through the living room
+    assert res["score"] < Q.critique(good_plan())["score"]
+
+
+def test_v3_notched_public_room_costs_more_than_a_rectangle():
+    plan = good_plan()
+    liv = next(r for r in plan.rooms if r.id == "living")
+    liv.polygon = [(0, 0), (5.0, 0), (5.0, 2.3), (2.5, 2.3), (2.5, 4.6), (0, 4.6)]
+    liv.area = 17.25
+    res = Q.critique(plan)
+    old = (Q.PUBLIC_NOTCH_MULT, Q.PUBLIC_NOTCH_WEIGHT)
+    try:
+        Q.PUBLIC_NOTCH_MULT = Q.PUBLIC_NOTCH_WEIGHT = 1.0
+        plain = Q.critique(plan)
+    finally:
+        Q.PUBLIC_NOTCH_MULT, Q.PUBLIC_NOTCH_WEIGHT = old
+    assert res["metrics"]["room_shape"]["value"] < plain["metrics"]["room_shape"]["value"]
+    assert res["metrics"]["room_shape"]["value"] < Q.critique(good_plan())["metrics"]["room_shape"]["value"]
+
+
 def test_hub_spread_limit_grows_with_the_number_of_bedrooms():
     res = Q.critique(good_plan())
     assert res["stats"]["hub_spread_limits"] == [4.5, 8.0]

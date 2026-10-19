@@ -16,6 +16,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import casebase
 from .checks import FloorContext, run_checks
 from .diagram import flex_links, from_programme, precheck, zone_programme
 from .drafting import draft
@@ -43,6 +44,8 @@ class FlatResult:
     conflicts: list[Conflict] = field(default_factory=list)
     message: str = ""
     validation: dict = field(default_factory=dict)  # validated/failed_checks/retries/extended
+    case_id: str | None = None  # v4: approved case whose arrangement the plan follows (None: the v3 layout won)
+    candidates: list[dict] = field(default_factory=list)  # v4: [{"case_id", "score"}] of the layouts the critic compared
 
 
 def _key(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict) -> str:
@@ -177,9 +180,11 @@ def room_check_fails(plan: Plan, plate: Plate) -> list[tuple[str, str, str]]:
 
 
 def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_limit: float, explain: bool,
-           tight: tuple[int, float, frozenset | None] | None = None, seed: int = 7):
+           tight: tuple[int, float, frozenset | None] | None = None, seed: int = 7, case: dict | None = None):
     key = _key(plate, unit, diagram, overrides) + (repr((tight[0], tight[1], sorted(tight[2] or ())) if tight else None))
     key += f"|seed={seed}"
+    if case is not None:
+        key += f"|case={case['case']['id']}|m={case['mirror']}"
     if key in _CACHE:
         return _CACHE[key]
     ug = unit_grid(plate, unit)
@@ -196,10 +201,13 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
             s.wmin += tight[0]  # tighter allowance: drafting may take more off a room than the solver assumed
             s.amin += tight[1]
     fixed, alts = flex_links(diagram)
-    res = solve(ug, specs, fixed, diagram.entry, time_limit=time_limit, explain=explain, alts=alts, seed=seed)
+    guide = None
+    if case is not None:  # v4: the approved case's arrangement as soft targets (casebase.adapt)
+        guide = casebase.adapt(case["case"], ug, specs, [tuple(l) for l in diagram.links], case["mirror"])
+    res = solve(ug, specs, fixed, diagram.entry, time_limit=time_limit, explain=explain, alts=alts, seed=seed, guide=guide)
     if res.door_along is not None and ug.door is not None:  # v3: draft the front door where the solver put it
         ug = dataclasses.replace(ug, door=(ug.door[0], res.door_along))
-    out = (res, {"ug": ug, "specs": specs, "diagram": diagram})
+    out = (res, {"ug": ug, "specs": specs, "diagram": diagram, "case_id": guide["case_id"] if guide else None})
     if res.status != "timeout" or res.rects:
         _CACHE[key] = out
     return out
@@ -207,28 +215,41 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
 
 CANDIDATES = 2  # v2: layouts solved per flat (different seeds), the critic picks one
 PICK_RESERVE = 1.0  # s kept for drafting and critiquing the candidates
+CASE_K = 3  # v4: approved cases tried per flat (casebase.retrieve), next to the v3 layout
+V3_SHARE = 0.4  # v4: share of the solving time the unguided v3 layout gets; the cases split the rest
+MIN_CASE = 0.8  # s: a guided solve shorter than this is not started
+SCORE_RESERVE = 0.35  # v4: s per candidate to draft it and run the full critic (furniture included) on it
 
 
-def _pick(plate: Plate, unit: Unit, overrides: dict, cands: list):
-    """Draft each candidate and keep the one the critic scores highest (furniture pass skipped for speed)."""
+def _score(plate: Plate, unit: Unit, overrides: dict, res: SolveResult, ctx: dict, furniture: bool = False) -> float:
+    """Draft a candidate and score it with the critic (recorded as ``ctx["pick_score"]``). Without the furniture pass
+    (v2/v3 speed path) a room below its furniture size costs the candidate 10 points instead."""
     from .quality import critique
 
-    best, best_s = cands[0], -1.0
-    for res, ctx in cands:
-        zd = ctx["diagram"]
-        links = res.links if res.links is not None else [tuple(l) for l in zd.links]
-        try:
-            plan = draft(ctx["ug"], ctx["specs"], res.rects, links, res.entry or zd.entry, overrides,
-                         hub_point=res.hub_point)
-            sc = critique(plan, unit, plate, furniture=False)["score"]
-            # the furniture pass is skipped for speed: a room below its furniture size costs the candidate instead
+    if "pick_score" in ctx and ctx.get("pick_furniture") == furniture:
+        return ctx["pick_score"]
+    zd = ctx["diagram"]
+    links = res.links if res.links is not None else [tuple(l) for l in zd.links]
+    try:
+        plan = draft(ctx["ug"], ctx["specs"], res.rects, links, res.entry or zd.entry, overrides, hub_point=res.hub_point)
+        sc = critique(plan, unit, plate, furniture=furniture)["score"]
+        if not furniture:
             for sp in ctx["specs"]:
                 if sp.id in res.rects and (sp.wfurn > sp.wmin or sp.afurn > sp.amin):
                     _x, _y, w, h = res.rects[sp.id]
                     if min(w, h) < sp.wfurn or w * h - 1.15 * (w + h) < 100 * sp.afurn - 1.32:
                         sc -= 10.0
-        except Exception:  # pragma: no cover - a candidate that cannot be drafted is not chosen
-            sc = -1.0
+    except Exception:  # pragma: no cover - a candidate that cannot be drafted is not chosen
+        sc = -1.0
+    ctx["pick_score"], ctx["pick_furniture"] = round(sc, 2), furniture
+    return sc
+
+
+def _pick(plate: Plate, unit: Unit, overrides: dict, cands: list, furniture: bool = False):
+    """Keep the candidate the critic scores highest (first one on a tie)."""
+    best, best_s = cands[0], -2.0
+    for res, ctx in cands:
+        sc = _score(plate, unit, overrides, res, ctx, furniture)
         if sc > best_s:
             best, best_s = (res, ctx), sc
     return best
@@ -258,9 +279,40 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
     fac = facade_length(plate, unit)
     conflicts = precheck(diagram, unit.area, fac, 0.0, unit.core_link is not None)
     two = CANDIDATES > 1 and budget >= 8.0 and time_limit >= 6.0
-    per = (budget - DRAFT_RESERVE - PICK_RESERVE) / 2 if two else time_limit
-    res, ctx = _solve(plate, unit, diagram, overrides, tl(min(time_limit, per)), explain=True)
-    if two and res.rects and remaining() > per - 0.3:
+    hits: list[dict] = []
+    if two and CASE_K:
+        bhk = sum(1 for r in diagram.rooms if r.placed and r.type in ("master", "bedroom"))
+        try:
+            hits = casebase.retrieve(unit, None, CASE_K, plate=plate, bhk=bhk)
+        except Exception:  # pragma: no cover - a broken case library must not stop the v3 generator
+            hits = []
+    cand_log: list[dict] = []
+    if hits:
+        # v4: the v3 layout and the same brief guided by each retrieved approved case, in equal time slices; each
+        # candidate is drafted and scored by the full critic, and the best one is kept. A proven-infeasible brief stops
+        # the loop (the cases add only soft costs); a v3 search that timed out empty still lets the cases try.
+        n = 1 + len(hits)
+        per = (budget - DRAFT_RESERVE - n * SCORE_RESERVE) / n
+        res, ctx = _solve(plate, unit, diagram, overrides, tl(min(time_limit, per)), explain=True)
+        cands = [(res, ctx)] if res.rects else []
+        if cands:
+            _score(plate, unit, overrides, res, ctx, furniture=True)
+        for i, h in enumerate(hits if res.rects or res.status == "timeout" else []):
+            left = len(hits) - i
+            share = (remaining() - left * SCORE_RESERVE) / left
+            if share < MIN_CASE:
+                break
+            r2, c2 = _solve(plate, unit, diagram, overrides, tl(min(time_limit, share)), explain=False, case=h)
+            if r2.rects:
+                _score(plate, unit, overrides, r2, c2, furniture=True)
+                cands.append((r2, c2))
+        if cands:
+            res, ctx = _pick(plate, unit, overrides, cands, furniture=True)
+        cand_log = [{"case_id": c.get("case_id"), "score": c.get("pick_score")} for _r, c in cands]
+    else:
+        per = (budget - DRAFT_RESERVE - PICK_RESERVE) / 2 if two else time_limit
+        res, ctx = _solve(plate, unit, diagram, overrides, tl(min(time_limit, per)), explain=True)
+    if not hits and two and res.rects and remaining() > per - 0.3:
         # v2: a second candidate from another seed; the critic (no furniture pass, ~0.1 s) keeps the better plan
         r2, c2 = _solve(plate, unit, diagram, overrides, tl(per), explain=False, seed=11)
         if r2.rects:
@@ -392,7 +444,12 @@ def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrid
     plan.solve_time_s = round(time.perf_counter() - t0, 3)
     plan.objective = res.objective
     cur_d.message = "This diagram can become a plan." if not applied else f"Solved after: {applied['label']}."
-    return FlatResult(plan, cur_d, res, applied, all_fixes, conflicts, cur_d.message, stats)
+    case_id = ctx.get("case_id")
+    if case_id:
+        plan.case_id = case_id
+        cur_d.message += f" Arrangement after approved case {case_id}."
+    return FlatResult(plan, cur_d, res, applied, all_fixes, conflicts, cur_d.message, stats, case_id=case_id,
+                      candidates=cand_log)
 
 
 def flat_overrides_from(diagram: Diagram) -> dict[str, Any]:

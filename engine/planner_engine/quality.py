@@ -148,6 +148,9 @@ ASPECT = {"living": (2.0, 3.2), "dining": (2.0, 3.2), "kitchen": (2.3, 3.6), "ma
 SHAPE = {"living": (0.78, 0.55), "dining": (0.75, 0.55), "kitchen": (0.9, 0.7), "master": (0.85, 0.62), "bedroom": (0.85, 0.62),
          "study": (0.93, 0.78), "toilet": (0.95, 0.8), "bath": (0.95, 0.8), "wc": (0.95, 0.8), "utility": (0.93, 0.75)}
 # corners a room may have before it counts as a notched / odd shape (approved p90: living 13, master 10, bedroom 8.6, kitchen 8)
+PUBLIC_RECT = 0.8  # living / dining below this rectangularity count as leftover-shaped
+PUBLIC_NOTCH_MULT = 0.85
+PUBLIC_NOTCH_WEIGHT = 1.25
 VERTS = {"living": 14, "dining": 12, "master": 10, "bedroom": 10, "kitchen": 8}
 # max distance between private doors (good, bad) by number of bedrooms (approved p60 / p88 per BHK: 1-2: 2.5-3.8 / 4.5; 3: 8 / 11)
 HUB_SPREAD = {2: (4.5, 8.0), 3: (8.5, 14.0), 4: (10.0, 16.0)}
@@ -1093,8 +1096,13 @@ def _waste(o: _Out, net: float):
             s = _ramp(rect, g, b)
             if verts > VERTS.get(r.type, 8):
                 s = min(s, 0.5)
-            shp_num += s * r.area
-            shp_den += r.area
+            wgt = r.area
+            if r.type in LIVING_LIKE and rect < PUBLIC_RECT:
+                # generator-v3 review: a notched, leftover-shaped living / dining room is the first thing the eye catches
+                s *= PUBLIC_NOTCH_MULT
+                wgt *= PUBLIC_NOTCH_WEIGHT
+            shp_num += s * wgt
+            shp_den += wgt
             if s < 0.5:
                 o.issue("room_shape", "major" if s < 0.2 else "minor", "room_shape",
                         f"{_name(ctx, r.id)}: odd shape ({verts} corners, fills {rect:.0%} of its bounding rectangle): notch or pocket",
@@ -1341,6 +1349,10 @@ def _sequence(o: _Out):
 PUBLIC_ZONE = {"living", "dining", "kitchen", "foyer"}
 ATTACHED_HINT = re.compile(r"\((master|bed\s*\d*)\)|^toilet_(m|\d+|bed\w*)$|attached", re.I)
 ENTRY_ADJ = 1.8  # m: a bedroom wall this close to the front door counts as "against the entrance" (approved flats: 8.5 % have one that close)
+ENTRY_WALL = 0.9  # m of shared wall with the entry foyer that makes a bedroom / its toilet "beside the entrance"
+ENTRY_ADJ_WC = 1.5  # m: an attached toilet this close to the front door
+ENTRY_SHARED_PEN = 0.4
+DINING_ROUTE_OK = 6.0  # m: serving route kitchen -> dining without a shared wall that is still fine
 COMMON_HINT = re.compile(r"^toilet_c$|common|powder|guest", re.I)
 ORPHAN_TYPES = {"passage", "store", "utility", "pooja", "dress", "foyer"}
 
@@ -1428,6 +1440,14 @@ def _realism(o: _Out):
                     p, why = 0.4, f"has its door {dmin:.1f} m from the front door"
             if not p and ctx.poly[b].distance(ep) < ENTRY_ADJ:
                 p, why = 0.4, "sits against the front door wall"
+            if not p:
+                # generator-v3 review: a bedroom whose attached toilet (or the bedroom itself) shares a wall with the entry foyer
+                # or sits beside the front door is the private zone at the entrance, even with every door elsewhere
+                wc = [x for x in ctx.adj[b] if types[x] in WET]
+                if et == "foyer" and (ctx.touch(b, e) >= ENTRY_WALL or any(ctx.touch(x, e) >= ENTRY_WALL for x in wc)):
+                    p, why = ENTRY_SHARED_PEN, "or its attached toilet shares a wall with the entry foyer"
+                elif any(ctx.poly[x].distance(ep) < ENTRY_ADJ_WC for x in wc):
+                    p, why = ENTRY_SHARED_PEN, "has its attached toilet beside the front door"
             if p:
                 pen += p
                 o.issue("bedroom_at_entry", sev, "entry_privacy", f"{_name(ctx, b)} {why}: the private zone starts at the flat entrance, "
@@ -1519,11 +1539,13 @@ def _realism(o: _Out):
                     sc = 0.7
                 else:
                     pl = ctx.path_len(k, d, forbid=priv)
-                    sc = 0.1 if pl is None else 0.6 if pl <= 10.0 else 0.35  # approved: dining beside living, via-living route 7.3-8.4 m (p25-p90)
+                    # approved: dining beside living, via-living route 7.3-8.4 m (p25-p90); generator-v3 review: a dining room in the far
+                    # corner (no shared wall, long carry) costs more
+                    sc = 0.1 if pl is None else 0.6 if pl <= DINING_ROUTE_OK else 0.45 if pl <= 10.0 else 0.2
                 if sc > best:
                     best, bk, bd = sc, k, d
         o.set("dining_kitchen", best)
-        if best < 0.5:
+        if best < 0.4:
             o.issue("dining_isolated", "major", "dining_kitchen",
                     f"{_name(ctx, bd)} is cut off from {_name(ctx, bk)}: no direct door or short route for serving food", [bd, bk])
         elif best < 1.0:

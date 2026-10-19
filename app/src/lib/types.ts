@@ -27,6 +27,29 @@ export interface Plate {
   corners: number; width: number; depth: number; area: number; zones: Zone[]; core_parts: CorePart[];
   passage_width: number; ratings: Record<string, number>; imported_from: string | null;
 }
+/** Library core types in the order of the engine's `core_type` parameter (0 = auto, 1.. = this list). */
+export const CORE_ORDER = ["central_compact", "linear_corridor", "scissor", "split_junction", "side_core", "end_core"] as const;
+export type CoreType = (typeof CORE_ORDER)[number];
+export interface CoreAlt {
+  type: CoreType; label: string; code: number; score: number; core_share: number; core_area_m2: number; flats_share?: number | null;
+  compliant: boolean; fits: boolean; placed: boolean; why_not: string; reasons: string[]; n_exits: number;
+  needs_authority_acceptance: boolean; recommended: boolean; chosen: boolean;
+}
+export interface CorePartInfo { kind: string; name: string; area_m2: number; polygon: Ring }
+/** `core_options` / the `core` key of set_plate and preview_plate. mode "template" = the template's own box core. */
+export interface CoreInfo {
+  mode: "library" | "template"; selected: CoreType | null; auto: CoreType | null; requested: string; note?: string;
+  alternatives: CoreAlt[]; parts: CorePartInfo[]; plate_type?: string; flats_per_floor?: number; height_m?: number;
+  label?: string; where?: string; reasons?: string[]; counts?: Record<string, number>; dims_m?: [number, number];
+  notes?: string[]; requirements?: { stairs: number; lifts: number; fire_lifts: number; smoke_lobby: boolean; clauses: string[] };
+}
+export interface QualityIssue { severity: "critical" | "major" | "minor" | "info"; code: string | null; metric: string | null; message: string; cost: number; rooms: string[]; at: Pt | null }
+/** `plan_quality(unit_id)`: the critic's verdict on one solved flat. */
+export interface PlanQuality {
+  unit_id: string; score: number; grade: "A" | "B" | "C" | "D" | "F"; base_score: number; n_critical: number;
+  weakest_link: string | null; weakest_factor: number; subscores: Record<string, number>; top_issues: QualityIssue[];
+  n_issues: number; stats: Record<string, number>; errors: string[]; elapsed_s: number;
+}
 export interface ProgrammeRoom { id: string; type: string; name: string; target_area: number; min_area: number; needs_window: boolean; optional: boolean }
 export interface Programme { id: string; name: string; bhk: number; area_range: [number, number]; rooms: ProgrammeRoom[]; links: [string, string][]; entry: string; note: string }
 export interface Unit { id: string; polygon: Ring; area: number; core_link: Pt | null; flags: string[]; programme: Programme | null }

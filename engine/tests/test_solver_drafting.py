@@ -12,8 +12,11 @@ def _plate(footprint, shape="cruciform", w=52.9, d=29.0):
 
 
 def test_solve_2bhk_passes_room_rules(footprint):
-    p = _plate(footprint)
-    u = next(u for u in split_units(p) if u.programme.bhk == 2)
+    # generator-v4 note: with the core library wired into the plates (plate.py, working tree), the cruciform 2BHK flats
+    # grew to 105 m2 (a 2BHK brief in a 3BHK-sized flat leaves > 5 m2 stores with the v3 code as well); the test now takes
+    # a 2BHK of ordinary size (<= 90 m2: h_shape 52.9x29 APT-4, 75 m2)
+    p = _plate(footprint, "h_shape")
+    u = next(u for u in split_units(p) if u.programme.bhk == 2 and u.area <= 90.0)
     fr = solve_flat(p, u)
     assert fr.plan is not None, fr.message
     assert fr.plan.solve_time_s < 30
@@ -70,8 +73,11 @@ def test_infeasible_core_names_rooms(footprint):
     assert core and all(":" in c for c in core)
 
 
+# generator-v4 note: with the core library wired into the plates (plate.py, working tree), t_shape 40x22 APT-1 changed
+# and a 4BHK fits there (the v3 code fails this test on those plates too). The test is about an impossible brief, so it
+# now uses the 53 m2 cruciform 34x24 APT-1, where the ladder runs 4BHK -> 3BHK -> 2BHK -> 1BHK in about 4 s.
 def test_fix_ladder_finishes_the_plan(footprint):
-    p = _plate(footprint, "t_shape", 40.0, 22.0)
+    p = _plate(footprint, "cruciform", 34.0, 24.0)
     u = split_units(p)[0]
     u.programme = presets()["4bhk"]
     fr = solve_flat(p, u)
@@ -245,8 +251,11 @@ def test_v2_plan_enters_living_with_little_circulation(footprint):
 
     from planner_engine.quality import critique
 
-    p = _plate(footprint)
-    u = next(u for u in split_units(p) if u.programme.bhk == 2)
+    # generator-v4 note: with the core library wired into the plates (plate.py, working tree), the cruciform 2BHK flats
+    # grew to 105 m2 (a 2BHK brief in a 3BHK-sized flat leaves > 5 m2 stores with the v3 code as well); the test now takes
+    # a 2BHK of ordinary size (<= 90 m2: h_shape 52.9x29 APT-4, 75 m2)
+    p = _plate(footprint, "h_shape")
+    u = next(u for u in split_units(p) if u.programme.bhk == 2 and u.area <= 90.0)
     fr = solve_flat(p, u)
     assert fr.plan is not None, fr.message
     res = critique(fr.plan, u, p, furniture=False)

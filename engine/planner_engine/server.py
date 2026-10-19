@@ -31,8 +31,8 @@ from .engine import Planner, PlannerError
 RPC_METHODS = {
     "create_project", "open_project", "get_project", "rename", "undo", "history", "summary", "search_place",
     "set_site", "site_info", "set_site_params", "measure", "place_towers", "choose_placement", "list_shapes",
-    "set_plate", "preview_plate", "import_plate_dxf", "split_units", "list_presets", "set_programme",
-    "propose_programme", "get_diagram", "update_diagram", "precheck", "solve_unit", "solve_all", "get_plan",
+    "set_plate", "preview_plate", "core_options", "import_plate_dxf", "split_units", "list_presets", "set_programme",
+    "propose_programme", "get_diagram", "update_diagram", "precheck", "solve_unit", "solve_all", "get_plan", "plan_quality",
     "apply_edit", "run_checks", "explain_check", "export_dxf", "import_drawing", "list_decisions",
     "answer_decision", "review_decision", "decision_stats", "compare_options", "geojson", "bridge_hello",
     "bridge_status", "claude_status", "claude_plan_link", "claude_link", "doctor", "get_settings", "set_settings",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { rpc, uploadDrawing } from "../lib/api";
 import { fmt } from "../lib/geom";
 import { useStore } from "../lib/store";
-import type { Plate, Project } from "../lib/types";
+import type { CoreAlt, CoreInfo, Plate, Project } from "../lib/types";
 import { zoneCss, type ZoneKind } from "../components/PlateCanvas";
 import { Channel, Chip, EmptyState, Field, Icon, Led, LatchButton, Panel, ProvenanceTag, Readout, Select, Skeleton } from "../ui";
 
@@ -56,7 +56,28 @@ const CSS = `
 .shp-exact summary:hover { color: var(--ink-1); }
 .shp-exact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
 .shp-tools { display: flex; flex-direction: column; gap: 8px; }
+.shp-core { display: flex; flex-direction: column; gap: 10px; }
+.shp-core-rows { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.shp-core-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 6px 8px; border-radius: var(--r-md); font-size: 11.5px; color: var(--ink-1); box-shadow: var(--neo-latched); }
+.shp-core-row.is-on { box-shadow: var(--neo-inset); outline: 1px solid var(--det); }
+.shp-core-row.is-off { color: var(--ink-3); }
+.shp-core-row b { font: 700 11.5px var(--f-sans); overflow-wrap: anywhere; }
+.shp-core-row .mono { font: 600 11px var(--f-mono); color: var(--ink-2); white-space: nowrap; }
+.shp-core-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--led-off); overflow: hidden; }
+.shp-core-bar > span { display: block; height: 100%; background: var(--det); }
+.shp-core-why { grid-column: 1 / -1; font-size: 11px; color: var(--ink-3); line-height: 1.4; overflow-wrap: anywhere; }
+.shp-reasons { margin: 0; padding-left: 16px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.shp-parts { display: flex; flex-wrap: wrap; gap: 6px; }
+.shp-part { display: inline-flex; align-items: center; gap: 5px; font: 600 10.5px var(--f-mono); color: var(--ink-2); }
+.shp-part i { width: 10px; height: 10px; border-radius: 3px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-3) 55%, transparent); }
+.shp-warn { font-size: 12px; line-height: 1.45; color: var(--warn-ink, var(--ink-1)); }
 `;
+
+const PART_SWATCH: Record<string, [string, string]> = {
+  stair: ["var(--cobalt)", "stair"], lift: ["var(--warn, #e0a000)", "lift"], fire_lift: ["var(--fail)", "fire lift"],
+  lobby: ["var(--zone-passage)", "lobby"], smoke_lobby: ["var(--det)", "smoke lobby"], shaft: ["var(--zone-shaft)", "shaft"],
+  refuge: ["var(--ai)", "refuge"],
+};
 
 const PARAM_LABEL: Record<string, string> = {
   W: "Plate width", D: "Plate depth", core_w: "Core width", core_d: "Core depth", passage: "Passage width",
@@ -156,6 +177,19 @@ export function ShapePanel({ draft }: { draft: Record<string, number> | null }) 
   const fileRef = useRef<HTMLInputElement>(null);
   const plate = project?.plates.find((p) => p.tower_id === tower);
   const plateId = plate?.tower_id;
+  const [core, setCore] = useState<CoreInfo | null>(null);
+  const [coreErr, setCoreErr] = useState("");
+  // the core alternatives follow the saved plate (shape, size, flats, height, chosen core), not a drag in progress
+  const coreKey = plate ? [plate.tower_id, plate.shape, plate.area, plate.params.units, plate.params.core_type, plate.params.core_type_used, plate.params.height_m, plate.params.refuge].join("|") : "";
+  useEffect(() => {
+    if (!plateId) { setCore(null); return; }
+    let live = true;
+    setCoreErr("");
+    rpc<CoreInfo>("core_options", { tower_id: plateId })
+      .then((r) => { if (live) setCore(r); })
+      .catch((e) => { if (live) { setCore(null); setCoreErr(e instanceof Error ? e.message : String(e)); } });
+    return () => { live = false; };
+  }, [coreKey, plateId]);
 
   const fetchShapes = useCallback(() => {
     setLoad("loading");
@@ -186,7 +220,10 @@ export function ShapePanel({ draft }: { draft: Record<string, number> | null }) 
   const efficiency = plate.area ? ((zones.flats ?? 0) / plate.area) * 100 : null;
   const isBusy = busy !== null || pending !== null;
   const has = (k: string) => k in plate.params;
-  const plateKeys = PLATE_KEYS.filter(has), coreKeys = CORE_KEYS.filter(has), shaftKeys = SHAFT_KEYS.filter(has);
+  // a library core is sized by the code (stairs, lifts, lobby), so its box is not a slider
+  const libraryCore = (plate.params.core_type_used ?? 0) > 0;
+  const plateKeys = PLATE_KEYS.filter(has), shaftKeys = SHAFT_KEYS.filter(has);
+  const coreKeys = CORE_KEYS.filter(has).filter((k) => !(libraryCore && (k === "core_w" || k === "core_d")));
   const towers = project?.plates ?? [];
 
   const setParam = (k: string, v: number) => { void run("Updating plate", () => rpc("set_plate", { tower_id: tower, params: { [k]: v } })); };
@@ -199,6 +236,19 @@ export function ShapePanel({ draft }: { draft: Record<string, number> | null }) 
       if (out !== undefined) setSaid(`${s.label} fitted. Flats were re-split.`);
     } finally { setPending(null); }
   };
+
+  const pickCore = async (value: string) => {
+    if (isBusy) return;
+    setPending("core");
+    try {
+      const out = await run("Changing core", () => rpc("set_plate", { tower_id: tower, params: { core_type: value } }));
+      if (out !== undefined) setSaid(value === "auto" ? "Core set to automatic." : "Core type changed. Flats were re-split.");
+    } finally { setPending(null); }
+  };
+  const alts: CoreAlt[] = core?.alternatives ?? [];
+  const chosenAlt = alts.find((a) => a.chosen);
+  const auto = alts.find((a) => a.recommended);
+  const pct = (v: number | null | undefined) => (v == null ? "–" : `${(v * 100).toFixed(1)}%`);
 
   const renderChannel = (k: string) => {
     const [lo, hi, step] = rangeFor(k, plate.params, env);
@@ -261,6 +311,52 @@ export function ShapePanel({ draft }: { draft: Record<string, number> | null }) 
         )}
         <p className="shp-note">Switching template refits the plate and re-splits the flats. Room lists are kept when the flat count stays the same.</p>
         {plate.imported_from && <Chip led="cobalt" title="The outline comes from your drawing">Outline from {plate.imported_from}</Chip>}
+      </Panel>
+
+      <Panel profile="well" pad="sm" title="Core"
+        actions={<ProvenanceTag by="engine" kind="derived" source="Ranked by code compliance, core share of the plate and fit to the plate type (cores.choose_core). Not chosen by Claude." compact />}>
+        {coreErr && <p className="shp-warn" role="alert">Could not load the core options. {coreErr}</p>}
+        {!core && !coreErr && <Skeleton height={36} radius={8} />}
+        {core && core.mode === "template" && (
+          <p className="shp-note">{core.note || "This template keeps its own core."}</p>
+        )}
+        {core && core.mode === "library" && (
+          <div className="shp-core">
+            <p className="shp-lede">The core is picked for a {core.plate_type} plate with {core.flats_per_floor} flats per floor at {core.height_m} m. Pick another type to compare.</p>
+            <Select label="Core type" aria-label="Core type" disabled={isBusy} value={core.requested === "auto" || !chosenAlt ? "auto" : chosenAlt.type}
+              onChange={(e) => void pickCore(e.target.value)}
+              options={[
+                { value: "auto", label: `Auto: ${auto?.label ?? "best ranked"}${auto ? ` (${pct(auto.core_share)})` : ""}` },
+                ...alts.map((a) => ({ value: a.type, label: `${a.label} (${pct(a.core_share)} core)${a.placed ? "" : " - does not fit"}`, disabled: !a.placed || !a.compliant })),
+              ]} />
+            {core.note && <p className="shp-warn" role="status">{core.note}.</p>}
+            <ul className="shp-core-rows" aria-label="Core alternatives">
+              {alts.map((a) => (
+                <li key={a.type} className={`shp-core-row${a.chosen ? " is-on" : ""}${a.placed ? "" : " is-off"}`}>
+                  <b>{a.label}</b>
+                  <span className="mono">{pct(a.core_share)} core{a.flats_share != null ? ` · ${(a.flats_share * 100).toFixed(0)}% flats` : ""}</span>
+                  <span className="shp-core-bar" aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, a.score * 100))}%` }} /></span>
+                  {a.chosen && <span className="shp-core-why">{a.recommended ? "Recommended and in use. " : "In use (your choice). "}Score {a.score.toFixed(2)}.</span>}
+                  {!a.chosen && (!a.placed || !a.compliant) && <span className="shp-core-why">{a.why_not || a.reasons.find((r) => r.startsWith("fails")) || "Not code compliant."}</span>}
+                </li>
+              ))}
+            </ul>
+            {core.reasons && core.reasons.length > 0 && (
+              <ul className="shp-reasons" aria-label="Why this core">{core.reasons.slice(0, 6).map((r, i) => <li key={i}>{r}</li>)}</ul>
+            )}
+            <div className="shp-zones">
+              <Readout label="Core box" value={core.dims_m ? `${fmt(core.dims_m[0], 1)} × ${fmt(core.dims_m[1], 1)}` : null} unit="m" tone="det" size="sm" />
+              <Readout label="Stairs / lifts" value={core.requirements ? `${core.requirements.stairs} / ${core.requirements.lifts}+${core.requirements.fire_lifts}` : null} tone="det" size="sm" />
+            </div>
+            <div className="shp-parts" aria-label="Core parts">
+              {Object.entries(core.counts ?? {}).map(([k, n]) => {
+                const sw = PART_SWATCH[k] ?? ["var(--ink-3)", k];
+                return <span key={k} className="shp-part"><i style={{ background: sw[0] }} />{n} {sw[1]}</span>;
+              })}
+            </div>
+            {core.where && <p className="shp-note">Placed {core.where}.</p>}
+          </div>
+        )}
       </Panel>
 
       <Panel profile="flat" pad="sm" small title="Zones"

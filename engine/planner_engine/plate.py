@@ -4,17 +4,26 @@ Six parametric templates (central core, cruciform, H, T, triangle, side core). E
 named parameters with limits. ``fit`` scales the defaults to the tower envelope from stage 4; every edit
 in the UI sends new parameters and gets the zones back. Zones are computed by geometric difference, so
 flats + core + passage + shafts == plate, always.
+
+Cores (Phase 2 of docs/quality/typology-cores.md): the core of a rectilinear template is chosen from the library in
+``cores.py`` (``choose_core`` ranks six parametric types for the plate type, flats per floor and height), placed per
+the template (central / at the wing junction / on the façade / at the slab end, with a satellite stair where the type
+has one) and its typed parts become ``core_parts``. ``core_type`` (plate parameter, 0 = auto) lets the user pick another
+type; ``core_info`` returns the ranked alternatives with reasons. The triangle keeps its own core (experimental).
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import get_args
 
 import shapely
+from shapely import affinity
 from shapely.geometry import LineString, Polygon, box
+from shapely.ops import unary_union
 
-from . import geo, rules
+from . import cores, geo, rules
 from .models import CorePart, Plate, PlateFootprint, ShapeKind, Zone
 
 # Ratings written by the architect: core efficiency, daylight, structure (1-5)
@@ -70,6 +79,8 @@ def limits(shape: ShapeKind, env_w: float, env_d: float) -> dict[str, Limit]:
         "end_depth": Limit(4.0, 20.0),
         "chowks": Limit(0, 1, 1),
         "party_shafts": Limit(0, 1, 1),
+        "core_type": Limit(0, 6, 1),  # 0 = auto, 1.. = cores.CORE_TYPES in order
+        "refuge": Limit(0, 1, 1),  # 1 = draw the core of a refuge floor (refuge area against the core)
     }
     if shape == ShapeKind.cruciform:
         base |= {"arm_depth": Limit(8.0, env_d), "wing_width": Limit(8.0, env_w)}
@@ -99,6 +110,8 @@ def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float =
         "end_depth": round(min(9.0, max(5.0, W / 6)), 1),
         "chowks": 1.0,  # v3: exterior chowks between flats deeper than their façade can light
         "party_shafts": 1.0,  # v3: AVS on the party walls between flats, for the wet rooms
+        "core_type": 0.0,  # 0 = auto (best ranked by cores.choose_core), 1.. = cores.CORE_TYPES in order
+        "refuge": 0.0,
     }
     if shape == ShapeKind.cruciform:
         p["arm_depth"] = round(max(10.0, D * 0.55), 1)
@@ -518,6 +531,393 @@ def _corridors(shape: ShapeKind, p: dict[str, float], core_c: tuple[float, float
     return lines
 
 
+# ---- core library wiring (docs/quality/cores-wired.md)
+CORE_ORDER: tuple[str, ...] = tuple(cores.CORE_TYPES)
+SLAB_ASPECT = 1.9  # bbox aspect from which a rectangle is a slab (typology.py uses the same)
+MARGIN = 0.02  # m: a core box may touch the outline
+
+
+def core_code(name: str | float | int | None) -> int:
+    """Plate parameter value of a core type: 0 = auto, 1.. = ``CORE_ORDER``. Accepts the name, the code or None."""
+    if name is None:
+        return 0
+    if isinstance(name, str):
+        n = name.strip().lower()
+        if n in ("", "auto", "0"):
+            return 0
+        if n not in CORE_ORDER:
+            raise ValueError(f"unknown core type {name!r}; use auto or one of {', '.join(CORE_ORDER)}")
+        return CORE_ORDER.index(n) + 1
+    c = int(round(float(name)))
+    return c if 0 <= c <= len(CORE_ORDER) else 0
+
+
+def core_name(code: float | int) -> str | None:
+    """Core type of a parameter value (None for auto)."""
+    c = int(round(float(code)))
+    return CORE_ORDER[c - 1] if 1 <= c <= len(CORE_ORDER) else None
+
+
+def plate_type_of(shape: ShapeKind, p: dict[str, float]) -> str:
+    """Typology name (``typology.classify`` vocabulary) of a template, for ``cores.choose_core``."""
+    if shape == ShapeKind.cruciform:
+        return "cruciform"
+    if shape == ShapeKind.h_shape:
+        return "H"
+    if shape == ShapeKind.t_shape:
+        return "T"
+    if shape == ShapeKind.side_core:
+        return "linear_slab"
+    long_s, short_s = max(p["W"], p["D"]), min(p["W"], p["D"])
+    return "linear_slab" if long_s / max(short_s, 1e-6) >= SLAB_ASPECT else "point_square"
+
+
+@dataclass
+class CorePlan:
+    """A library core placed in a plate (plate frame)."""
+
+    type: str
+    core: cores.Core
+    rot: int
+    parts: list[tuple[str, str, Polygon, dict]]  # (kind, name, polygon, meta) with the library's own kinds
+    boxes: list[Polygon]  # core zone: bbox of the main cluster + one box per satellite cluster
+    base: tuple[float, float]  # where the template's own corridors expect the core centre
+    dims: tuple[float, float]  # main cluster (width, depth) in the plate frame
+    where: str = ""  # one phrase: where it sits
+
+
+def _group(core: cores.Core):
+    """(main cluster parts, satellite parts). A corridor strip of a satellite is passage, not core."""
+    sat_names = set(core.satellites)
+    main = [q for q in core.parts if q.name not in sat_names]
+    sat = [q for q in core.parts if q.name in sat_names and not (q.kind == "lobby" and q.meta.get("corridor"))]
+    return main, sat
+
+
+def _rotated(parts, rot: int):
+    return [affinity.rotate(q.polygon, rot, origin=(0.0, 0.0)) for q in parts]
+
+
+def _anchor0(shape: ShapeKind, p: dict[str, float], mw: float, md: float) -> tuple[float, float]:
+    """Where the template's own corridors expect the core (what ``_core_center`` was for the old box core)."""
+    W, D = p["W"], p["D"]
+    if shape == ShapeKind.side_core:
+        return (-W / 2 + mw / 2, 0.0)
+    if shape == ShapeKind.t_shape:
+        return (0.0, D / 2 - p["bar_depth"] - md / 2 + p["passage"])
+    return (0.0, 0.0)
+
+
+def _slide(make_box, start, direction, ol: Polygon, limit: float = 80.0, step: float = 0.1):
+    """Move a box from ``start`` along ``direction`` until it would leave ``ol``; the last position inside (None if
+    it does not fit at ``start``)."""
+    if not ol.covers(make_box(start)):
+        return None
+    dx, dy = direction
+    last, t = start, step
+    while t <= limit:
+        c = (start[0] + dx * t, start[1] + dy * t)
+        if not ol.covers(make_box(c)):
+            break
+        last, t = c, t + step
+    return last
+
+
+def _slide_in(make_box, start, direction, ol: Polygon, limit: float = 12.0, step: float = 0.1):
+    """First position from ``start`` along ``direction`` where the box is inside ``ol`` (None within ``limit``)."""
+    dx, dy = direction
+    t = 0.0
+    while t <= limit:
+        c = (start[0] + dx * t, start[1] + dy * t)
+        if ol.covers(make_box(c)):
+            return c
+        t += step
+    return None
+
+
+def _place_core(core: cores.Core, ctype: str, shape: ShapeKind, p: dict[str, float], outline: Polygon,
+                rot: int) -> CorePlan | None:
+    """Place a library core in the plate, or None if it does not fit this template at this rotation.
+
+    Main cluster: ``central_compact`` / ``scissor`` / ``linear_corridor`` / ``split_junction`` at the template's core
+    position (the centre; the junction of a T; the left end of a side-core slab), ``side_core`` slid against an
+    exterior wall with its back to it, ``end_core`` slid to the end wall. A satellite cluster (second stair) goes to
+    the far end of the template's longest corridor, or to the other wing junction of an H."""
+    main, sat = _group(core)
+    if not main:
+        return None
+    mg = unary_union(_rotated(main, rot))
+    x0, y0, x1, y1 = mg.bounds
+    mw, md = x1 - x0, y1 - y0
+    W = p["W"]
+    pq = {**p, "core_w": mw, "core_d": md}
+    base = _anchor0(shape, pq, mw, md)
+    ol = outline.buffer(MARGIN, join_style="mitre")
+
+    def mbox(c, w=mw, d=md):
+        return box(c[0] - w / 2, c[1] - d / 2, c[0] + w / 2, c[1] + d / 2)
+
+    where = "at the template's core position"
+    pos: tuple[float, float] | None = base
+    xb = W / 2 - p.get("bar_width", 0.0) / 2
+    if ctype == "side_core":
+        if shape == ShapeKind.side_core:
+            where = "on the end wall (façade core)"
+        else:
+            pos = _slide(mbox, base, (0.0, -1.0), ol)
+            where = "against the south façade (back wall exterior)"
+    elif ctype == "end_core":
+        ay = p["D"] / 2 - p["bar_depth"] / 2 if shape == ShapeKind.t_shape else 0.0
+        pos = _slide(mbox, (base[0], ay), (-1.0, 0.0), ol)
+        where = "on the short end wall of the slab"
+    elif ctype == "split_junction" and shape == ShapeKind.h_shape:
+        pos = _slide_in(mbox, (-xb, 0.0), (1.0, 0.0), ol)
+        where = "at the left wing junction (cluster B at the right one)"
+    elif ctype == "split_junction":
+        where = "at the wing junction (cluster B at the far end)"
+    if pos is None or not ol.covers(mbox(pos)):
+        return None
+    cm = ((x0 + x1) / 2, (y0 + y1) / 2)
+    shift = (pos[0] - cm[0], pos[1] - cm[1])
+    parts = [(q.kind, q.name, affinity.translate(affinity.rotate(q.polygon, rot, origin=(0.0, 0.0)), *shift), dict(q.meta))
+             for q in main]
+    boxes = [mbox(pos)]
+    if sat:
+        sg = unary_union(_rotated(sat, rot))
+        sx0, sy0, sx1, sy1 = sg.bounds
+        sw, sd = sx1 - sx0, sy1 - sy0
+        scm = ((sx0 + sx1) / 2, (sy0 + sy1) / 2)
+        keep_out = boxes[0].buffer(max(p["passage"], 1.5))
+        spos = None
+        if ctype == "split_junction" and shape == ShapeKind.h_shape:
+            spos = _slide_in(lambda c: mbox(c, sw, sd), (xb, 0.0), (-1.0, 0.0), ol)
+        else:
+            lines = _corridors(shape, pq, base)
+            cands = [pt for ln in lines for pt in ln.coords]
+            cands += [(W / 2 - sw / 2 - 0.5, pos[1]), (-W / 2 + sw / 2 + 0.5, pos[1])]
+            cands.sort(key=lambda c: -math.dist(c, pos))
+            for c in cands:
+                if math.dist(c, pos) < 1e-6:
+                    continue
+                d = (pos[0] - c[0], pos[1] - c[1])
+                n = math.hypot(*d)
+                t = 0.0
+                while t < n - 1e-6:
+                    q = (c[0] + d[0] / n * t, c[1] + d[1] / n * t)
+                    sb = mbox(q, sw, sd)
+                    if ol.covers(sb) and not sb.intersects(keep_out):
+                        spos = q
+                        break
+                    t += 0.25
+                if spos is not None:
+                    break
+        if spos is None:
+            return None
+        sb = mbox(spos, sw, sd)
+        if not ol.covers(sb) or sb.intersects(boxes[0]):
+            return None
+        sshift = (spos[0] - scm[0], spos[1] - scm[1])
+        parts += [(q.kind, q.name, affinity.translate(affinity.rotate(q.polygon, rot, origin=(0.0, 0.0)), *sshift),
+                   dict(q.meta)) for q in sat]
+        boxes.append(sb)
+    return CorePlan(ctype, core, rot, parts, boxes, base, (mw, md), where)
+
+
+# rotations tried in order (degrees): the library frame has its lobby on the front (y = 0) and its back on +y
+MIN_FLATS_SHARE = 0.30  # a placement must leave this share of the plate as flats ...
+REL_FLATS_SHARE = 0.80  # ... and this share of the best placement's
+
+
+def _rotations(ctype: str, shape: ShapeKind) -> tuple[int, ...]:
+    if ctype == "side_core":
+        return (90, 270, 0, 180) if shape == ShapeKind.side_core else (180, 0, 90, 270)
+    if ctype == "end_core":
+        return (0, 180)
+    return (0, 90, 180, 270)
+
+
+def _alt_row(o: cores.CoreOption, placed: CorePlan | None, why: str) -> dict:
+    return {"type": o.type, "label": cores.TYPE_LABELS[o.type], "code": core_code(o.type), "score": round(o.score, 3),
+            "core_share": round(o.efficiency, 4), "core_area_m2": round(o.core.core_area, 1), "compliant": o.compliant,
+            "fits": bool(o.fits), "placed": placed is not None, "why_not": why, "reasons": list(o.reasons),
+            "n_exits": o.core.n_exits, "needs_authority_acceptance": bool(o.core.needs_authority_acceptance)}
+
+
+_PLAN_CACHE: dict[tuple, tuple] = {}
+_NOT_KEYS = frozenset({"core_w", "core_d", "core_type_used", "height_m", "core_at_base", "band_depth"})
+
+
+def plan_core(shape: ShapeKind, p: dict[str, float], height: float):
+    """(chosen CorePlan or None, alternatives rows, info dict) for a template with these parameters. Cached: a drag
+    sends many parameter sets and ``core_info`` repeats what ``build_plate`` did."""
+    key = (shape.value, round(height, 2), tuple(sorted((k, round(float(v), 3)) for k, v in p.items() if k not in _NOT_KEYS)))
+    hit = _PLAN_CACHE.get(key)
+    if hit is None:
+        outline = shapely.set_precision(_outline(shape, p).buffer(0), 0.001)
+        hit = _plan_core_uncached(shape, p, outline, height)
+        if len(_PLAN_CACHE) >= 96:
+            _PLAN_CACHE.pop(next(iter(_PLAN_CACHE)))
+        _PLAN_CACHE[key] = hit
+    return hit
+
+
+def _plan_core_uncached(shape: ShapeKind, p: dict[str, float], outline: Polygon, height: float):
+    ptype = plate_type_of(shape, p)
+    flats = max(1, int(round(p["units"])))
+    refuge = bool(int(p.get("refuge", 0)))
+    options = cores.choose_core(ptype, flats, height, outline, refuge=refuge)
+    req_code = int(round(p.get("core_type", 0)))
+    rows: list[dict] = []
+    plans: dict[str, CorePlan] = {}
+    for o in options:
+        # a core is placed with the library builder run at the plate's size (the satellite stair uses it)
+        plan = None
+        for rot in _rotations(o.type, shape):
+            plan = _place_core(o.core, o.type, shape, p, outline, rot)
+            if plan:
+                break
+        why = "" if plan else ("does not fit this template (outline too small / wrong shape for the cluster)")
+        share = None
+        if plan:
+            pq = {**p, "core_w": plan.dims[0], "core_d": plan.dims[1]}
+            core = shapely.union_all(plan.boxes).intersection(outline)
+            _pa, rest = _flat_zone(outline, core, _passage_for(shape, pq, outline, core, plan.base, plan))
+            share = rest.area / max(outline.area, 1e-6)
+            plans[o.type] = plan
+        row = _alt_row(o, plan, why)
+        row["flats_share"] = None if share is None else round(share, 3)
+        rows.append(row)
+    best = max((r["flats_share"] for r in rows if r["placed"]), default=0.0)
+    for r in rows:  # a placement that leaves the plate mostly passage is not a usable core for this template
+        if r["placed"] and (r["flats_share"] < MIN_FLATS_SHARE or r["flats_share"] < REL_FLATS_SHARE * best):
+            r["placed"] = False
+            r["why_not"] = (f"leaves only {r['flats_share']:.0%} of the plate as flats here "
+                            f"(best placement {best:.0%}): the passage round it swallows the wings")
+            plans.pop(r["type"], None)
+    usable = [r for r in rows if r["placed"] and r["compliant"]]
+    order = [r for r in usable if r["score"] > 0] or sorted(usable, key=lambda r: r["core_share"])
+    auto = order[0]["type"] if order else None
+    requested = core_name(req_code)
+    chosen = auto
+    note = ""
+    if requested:
+        if requested in plans and next(r for r in rows if r["type"] == requested)["compliant"]:
+            chosen = requested
+        else:
+            note = (f"{cores.TYPE_LABELS[requested]} cannot be placed in this {ptype} plate "
+                    f"({next(r for r in rows if r['type'] == requested)['why_not'] or 'not code compliant'}); "
+                    f"using {cores.TYPE_LABELS[auto] if auto else 'the template core'} instead")
+    for r in rows:
+        r["recommended"] = r["type"] == auto
+        r["chosen"] = r["type"] == chosen
+    info = {"plate_type": ptype, "flats_per_floor": flats, "height_m": round(height, 1), "requested": requested or "auto",
+            "auto": auto, "selected": chosen, "note": note}
+    return (plans[chosen] if chosen else None), rows, info
+
+
+def _model_kind(kind: str) -> str:
+    """CorePart.kind as the frozen data contract (models.py) allows it. The library's smoke-check lobby is a lobby;
+    shafts and refuge areas travel as 'service' until models.CorePart.kind lists them (the exact kinds are in
+    ``core_info``)."""
+    allowed = set(get_args(CorePart.model_fields["kind"].annotation))
+    if kind in allowed:
+        return kind
+    return {"smoke_lobby": "lobby", "shaft": "service", "refuge": "service"}.get(kind, "service")
+
+
+def _part_width(kind: str, meta: dict) -> float:
+    if kind == "stair":
+        return round(float(meta.get("flight_w", meta.get("width", 0.0))), 2)
+    if kind in ("lift", "fire_lift"):
+        return round(float(meta.get("clear_w", meta.get("width", 0.0))), 2)
+    return 0.0
+
+
+def _plan_core_parts(plan: CorePlan) -> list[CorePart]:
+    out = []
+    for kind, _name, poly, meta in plan.parts:
+        if poly.is_empty or poly.geom_type != "Polygon":
+            continue
+        out.append(CorePart(kind=_model_kind(kind), polygon=[(round(x, 3), round(y, 3)) for x, y in geo.ring_of(poly)],
+                            width=_part_width(kind, meta)))
+    return out
+
+
+def core_info(plate: Plate, height: float | None = None) -> dict:
+    """The core of a built plate for the UI: chosen type, the ranked alternatives with efficiency and reasons, the typed
+    parts (``stair, lift, fire_lift, lobby, smoke_lobby, shaft, refuge``) and the requirement counts."""
+    shape = ShapeKind(plate.shape)
+    if shape == ShapeKind.triangle or plate.imported_from:
+        return {"mode": "template", "selected": None, "auto": None, "requested": "auto", "alternatives": [], "parts": [],
+                "note": "the triangle plate keeps its own core (experimental)" if shape == ShapeKind.triangle
+                else "outline imported from a drawing"}
+    if "core_type_used" not in plate.params:
+        return {"mode": "template", "selected": None, "auto": None, "requested": "auto", "alternatives": [], "parts": [],
+                "note": "this plate was built before the core library: re-fit the template to choose a core"}
+    h = float(height if height is not None else plate.params.get("height_m", 24.0))
+    plan, rows, info = plan_core(shape, plate.params, h)
+    if plan is None:
+        return {"mode": "template", **info, "alternatives": rows, "parts": [],
+                "note": "no library core fits this template: the template's own core is used"}
+    req = plan.core.req
+    parts = [{"kind": k, "name": n, "area_m2": round(g.area, 2), "polygon": [(round(x, 3), round(y, 3)) for x, y in geo.ring_of(g)]}
+             for k, n, g, _m in plan.parts if g.geom_type == "Polygon" and not g.is_empty]
+    chosen = next(r for r in rows if r["chosen"])
+    reasons = list(chosen["reasons"])
+    if plan.where:
+        reasons.append(f"placed {plan.where}")
+    counts: dict[str, int] = {}
+    for q in parts:
+        counts[q["kind"]] = counts.get(q["kind"], 0) + 1
+    return {"mode": "library", **info, "label": cores.TYPE_LABELS[plan.type], "where": plan.where, "rotation_deg": plan.rot,
+            "alternatives": rows, "reasons": reasons, "parts": parts, "counts": counts,
+            "boxes": [[round(v, 2) for v in b.bounds] for b in plan.boxes],
+            "dims_m": [round(plan.dims[0], 1), round(plan.dims[1], 1)], "notes": list(plan.core.notes),
+            "requirements": {"stairs": req.n_stairs, "lifts": req.n_lifts, "fire_lifts": req.n_fire_lifts,
+                             "smoke_lobby": req.smoke_lobby, "clauses": list(req.clauses)}}
+
+
+def _passage_for(shape: ShapeKind, p: dict[str, float], outline: Polygon, core, cc, plan: CorePlan | None):
+    """Passage: a ring round the core, the template's corridors and (library cores) a link to every core box."""
+    pw = p["passage"]
+    lines = _corridors(shape, p, cc)
+    if plan is not None:
+        lines += _core_links(plan, lines, pw)
+    ring = core.buffer(pw, join_style="mitre", mitre_limit=2.0)
+    corr = [ln.buffer(pw / 2, cap_style="flat", join_style="mitre") for ln in lines]
+    passage = shapely.union_all([ring, *corr]).intersection(outline).difference(core)
+    return shapely.set_precision(passage, 0.001)
+
+
+def _flat_zone(outline: Polygon, core, passage):
+    """(passage, flat zone): flat-zone slivers too thin for a room (< 5 m) become part of the lobby (daylit common space)."""
+    rest = outline.difference(core).difference(passage)
+    thick = rest.buffer(-2.5, join_style="mitre").buffer(2.5, join_style="mitre").intersection(rest)
+    sliver = rest.difference(thick)
+    sliver = shapely.union_all([g for g in geo.polygons_of(sliver) if g.area > 1.0 and g.distance(passage) < 0.01]) \
+        if not sliver.is_empty else Polygon()
+    if not sliver.is_empty:
+        passage = shapely.set_precision(shapely.union(passage, sliver), 0.001)
+        rest = outline.difference(core).difference(passage)
+    return passage, rest
+
+
+def _core_links(plan: CorePlan, lines: list[LineString], pw: float) -> list[LineString]:
+    """Passage from every core box to the nearest template corridor when it does not touch one (a façade core slid to
+    a wall, an end core): the ring passage around the box is then connected to the corridors."""
+    out = []
+    for b in plan.boxes:
+        if lines and min(ln.distance(b) for ln in lines) <= pw / 2 + 0.01:
+            continue
+        if not lines:
+            continue
+        c = b.centroid
+        ln = min(lines, key=lambda g: g.distance(c))
+        q = ln.interpolate(ln.project(c))
+        out.append(LineString([(c.x, c.y), (q.x, q.y)]))
+    return out
+
+
 def _core_parts(core: Polygon, height: float, p: dict[str, float], flip: bool = False) -> list[CorePart]:
     """Stairs and lifts against the core's top edge, lift lobby below them. ``flip`` mirrors that top to
     bottom (a core on the base façade of a triangle: stairs and lifts against the façade, lift lobby
@@ -716,24 +1116,24 @@ def build_plate(
     outline = shapely.set_precision(outline, 0.001)
     cc = _core_center(shape, p)
     pw = p["passage"]
+    plan: CorePlan | None = None
+    p["height_m"] = round(float(height), 2)
+    p["core_type_used"] = 0.0
     if shape == ShapeKind.triangle:
         core, passage = _triangle_zones(outline, p)
     else:
-        core = box(cc[0] - p["core_w"] / 2, cc[1] - p["core_d"] / 2, cc[0] + p["core_w"] / 2, cc[1] + p["core_d"] / 2)
-        core = core.intersection(outline)
-        ring = core.buffer(pw, join_style="mitre", mitre_limit=2.0)
-        corr = [ln.buffer(pw / 2, cap_style="flat", join_style="mitre") for ln in _corridors(shape, p, cc)]
-        passage = shapely.union_all([ring, *corr]).intersection(outline).difference(core)
-        passage = shapely.set_precision(passage, 0.001)
-    rest = outline.difference(core).difference(passage)
-    # flat-zone slivers too thin for a room (< 5 m) become part of the lobby (daylit common space)
-    thick = rest.buffer(-2.5, join_style="mitre").buffer(2.5, join_style="mitre").intersection(rest)
-    sliver = rest.difference(thick)
-    sliver = shapely.union_all([g for g in geo.polygons_of(sliver) if g.area > 1.0 and g.distance(passage) < 0.01]) \
-        if not sliver.is_empty else Polygon()
-    if not sliver.is_empty:
-        passage = shapely.set_precision(shapely.union(passage, sliver), 0.001)
-        rest = outline.difference(core).difference(passage)
+        plan, _rows, _info = plan_core(shape, p, height)
+        if plan is not None:
+            # library core: the zone is the box of each cluster; the template's corridors reach it
+            p["core_type_used"] = float(core_code(plan.type))
+            p["core_w"], p["core_d"] = round(plan.dims[0], 1), round(plan.dims[1], 1)
+            cc = plan.base
+            core = shapely.union_all(plan.boxes).intersection(outline)
+        else:
+            core = box(cc[0] - p["core_w"] / 2, cc[1] - p["core_d"] / 2, cc[0] + p["core_w"] / 2, cc[1] + p["core_d"] / 2)
+            core = core.intersection(outline)
+        passage = _passage_for(shape, p, outline, core, cc, plan)
+    passage, rest = _flat_zone(outline, core, passage)
     shafts = []
     n_sh = int(p["shafts"])
     if shape == ShapeKind.triangle:
@@ -750,7 +1150,7 @@ def build_plate(
                 if sq.area > 0.5:
                     shafts.append(sq)
         # v3: chowks for flats deeper than their façade, AVS on the other party walls
-        avs, chowks = _cut_features(rest, passage, core, outline, list(shafts), p)
+        avs, chowks = _cut_features(rest, passage, core, outline, list(shafts), p) if not rest.is_empty else ([], [])
         shafts += avs
         if chowks:
             cut = shapely.union_all(chowks)
@@ -784,7 +1184,8 @@ def build_plate(
         depth=round(outline.bounds[3] - outline.bounds[1], 2),
         area=round(plate_area, 2),
         zones=zones,
-        core_parts=_core_parts(core, height, p, flip=shape == ShapeKind.triangle and bool(p.get("core_at_base"))),
+        core_parts=_plan_core_parts(plan) if plan is not None
+        else _core_parts(core, height, p, flip=shape == ShapeKind.triangle and bool(p.get("core_at_base"))),
         passage_width=pw,
         ratings=RATINGS[shape],
     )

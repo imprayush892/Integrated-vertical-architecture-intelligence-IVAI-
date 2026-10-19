@@ -2,7 +2,7 @@ import type Konva from "konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import { boundsOf, centroid, fitView, flat, fmt, roomColor, toPlan, toScreen, type Bounds, type View } from "../lib/geom";
-import type { Plan, Plate, PolyRings, Pt, Ring, Unit } from "../lib/types";
+import { CORE_ORDER, type Plan, type Plate, type PolyRings, type Pt, type Ring, type Unit } from "../lib/types";
 import { EmptyState, Icon, IconButton } from "../ui";
 
 export type CanvasMode = "shape" | "units" | "review";
@@ -104,8 +104,11 @@ function handlesFor(p: Plate): Handle[] {
   const hs: Handle[] = [
     { key: "W", label: HANDLE_LABEL.W, axis: "x", at: [W / 2, 0], apply: ([x]) => ({ W: snap(2 * Math.abs(x)) }) },
     { key: "D", label: HANDLE_LABEL.D, axis: "y", at: [0, D / 2], apply: ([, y]) => ({ D: snap(2 * Math.abs(y)) }) },
-    { key: "core", label: HANDLE_LABEL.core, axis: "xy", at: [cb.maxx, cb.maxy], apply: ([x, y]) => ({ core_w: snap(2 * Math.abs(x - cx)), core_d: snap(2 * Math.abs(y - cy)) }) },
   ];
+  // a library core is sized by the code (stairs, lifts, lobby), so only the legacy box core can be dragged
+  if (!(pr.core_type_used > 0)) {
+    hs.push({ key: "core", label: HANDLE_LABEL.core, axis: "xy", at: [cb.maxx, cb.maxy], apply: ([x, y]) => ({ core_w: snap(2 * Math.abs(x - cx)), core_d: snap(2 * Math.abs(y - cy)) }) });
+  }
   if (p.shape === "cruciform") {
     hs.push({ key: "arm_depth", label: HANDLE_LABEL.arm_depth, axis: "y", at: [W / 2, pr.arm_depth / 2], apply: ([, y]) => ({ arm_depth: snap(2 * Math.abs(y)) }) });
     hs.push({ key: "wing_width", label: HANDLE_LABEL.wing_width, axis: "x", at: [pr.wing_width / 2, D / 2], apply: ([x]) => ({ wing_width: snap(2 * Math.abs(x)) }) });
@@ -395,6 +398,7 @@ export default function PlateCanvas(props: Props) {
   const fontPx = Math.max(9, Math.min(13, view.s * 0.35));
   const wallPx = Math.max(2, Math.min(7, view.s * 0.3));
   const handles = mode === "shape" ? handlesFor(plate) : [];
+  const coreName = CORE_ORDER[Math.round(plate.params.core_type_used ?? 0) - 1] ?? null;
   const orderedUnits = useMemo(() => [...units].sort((a, b) => Number(a.id === selectedUnit) - Number(b.id === selectedUnit)), [units, selectedUnit]);
   const unitIndex = useMemo(() => new Map(units.map((u, i) => [u.id, i])), [units]);
   const showDims = !focus && hasOutline;
@@ -574,6 +578,8 @@ export default function PlateCanvas(props: Props) {
             <span key={k}><i style={{ background: zoneCss(k), boxShadow: "inset 0 0 0 1px var(--ink-3)" }} />{k}</span>
           ))}
           {mode === "shape" && <span><i style={{ background: "var(--cobalt)", borderRadius: "50%" }} />drag handle</span>}
+          {coreName && <span title="Core type in use (change it in the Core panel)"><i style={{ background: "var(--ink-3)" }} />core: {coreName.replace(/_/g, " ")}{plate.params.core_type > 0 ? "" : " (auto)"}</span>}
+          {coreName && plate.core_parts.some((c) => c.kind === "service") && <span><i style={{ background: "transparent", boxShadow: "inset 0 0 0 1px var(--ink-3)" }} />shaft / refuge (dashed)</span>}
         </div>
       )}
     </div>

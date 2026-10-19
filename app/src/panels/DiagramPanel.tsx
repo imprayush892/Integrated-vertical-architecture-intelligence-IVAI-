@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { rpc, subscribe } from "../lib/api";
 import { fmt } from "../lib/geom";
 import { useStore, waiting } from "../lib/store";
-import type { Conflict, Diagram, Plan, Ticket } from "../lib/types";
+import type { Conflict, Diagram, Plan, PlanQuality, Ticket } from "../lib/types";
 import {
   Chip, EmptyState, Icon, Led, LatchButton, Panel, Progress, ProvenanceTag, Readout, Select, Skeleton, StatusChip,
   type ReadoutTone,
@@ -23,6 +23,27 @@ const CSS = `
 .dg-precheck .led { margin-top: 5px; }
 .dg-precheck-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .dg-precheck-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; font: 700 10.5px var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+
+/* quality scorecard */
+.dg-q { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.dg-q-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dg-q-grade { font: 800 30px/1 var(--f-display); letter-spacing: -0.02em; min-width: 30px; text-align: center; color: var(--ink-1); }
+.dg-q-grade.g-A, .dg-q-grade.g-B { color: var(--pass-ink, var(--det-ink)); }
+.dg-q-grade.g-C { color: var(--warn-ink, var(--ink-1)); }
+.dg-q-grade.g-D, .dg-q-grade.g-F { color: var(--fail-ink); }
+.dg-q-subs { display: grid; grid-template-columns: auto 1fr auto; gap: 5px 8px; align-items: center; margin: 0; padding: 0; list-style: none; }
+.dg-q-subs li { display: contents; }
+.dg-q-subs .l { font: 600 10.5px var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.dg-q-subs .v { font: 700 11px var(--f-mono); color: var(--ink-1); text-align: right; min-width: 28px; }
+.dg-q-bar { height: 7px; border-radius: 4px; background: var(--led-off); overflow: hidden; box-shadow: inset 0 1px 1px rgba(0,0,0,.25); }
+.dg-q-bar > span { display: block; height: 100%; background: var(--det); }
+.dg-q-bar.low > span { background: var(--fail); }
+.dg-q-bar.mid > span { background: var(--warn, #e0a000); }
+.dg-q-issues { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.dg-q-issues li { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.4; color: var(--ink-1); overflow-wrap: anywhere; }
+.dg-q-issues .sev { flex: none; font: 700 9.5px var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; box-shadow: var(--neo-latched); color: var(--ink-2); }
+.dg-q-issues .sev.critical { color: var(--fail-ink); }
+.dg-q-issues .sev.major { color: var(--warn-ink, var(--ink-1)); }
 
 /* solver board */
 .dg-board { display: flex; flex-direction: column; gap: 12px; }
@@ -409,6 +430,7 @@ export function DiagramPanel({ diagram, onSolved }: { diagram: Diagram | null; o
             <LatchButton size="sm" variant="det" icon={<Icon name="check" size={14} />} onClick={() => setStep("review")}>Check this plan</LatchButton>
           </Panel>
         )}
+        {!running && plan && <QualityCard unitId={u.id} planKey={`${plan.carpet_area}|${plan.solve_time_s}|${plan.rooms.length}`} />}
         {!running && !last && !plan && !err && diagram && (
           <p className="dg-meta">No plan yet for {u.id}. Generate it when the pre-check looks right.</p>
         )}
@@ -418,6 +440,83 @@ export function DiagramPanel({ diagram, onSolved }: { diagram: Diagram | null; o
         )}
       </div>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------------------------------- quality scorecard
+const SUB_LABEL: Record<string, string> = {
+  circulation: "Circulation", waste: "Waste", sequence: "Sequence", furniture: "Furniture", daylight: "Daylight", doors: "Doors",
+};
+const GRADE_NOTE: Record<string, string> = { A: "Good plan", B: "Sound plan", C: "Workable, with weak spots", D: "Weak plan", F: "Needs rework" };
+
+/** Verdict of the plan critic on one solved flat. The critic takes ~0.2 s, so it runs after the plan is shown (its own
+ *  call, cached by the engine until the plan changes). `planKey` changes when the plan does. */
+export function QualityCard({ unitId, planKey, compact = false }: { unitId: string; planKey: string; compact?: boolean }) {
+  useInjectedCss("dg-styles", CSS);
+  const [q, setQ] = useState<PlanQuality | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [msg, setMsg] = useState("");
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setState("loading"); setMsg("");
+    rpc<PlanQuality>("plan_quality", { unit_id: unitId })
+      .then((r) => { if (live) { setQ(r); setState("ready"); } })
+      .catch((e) => { if (live) { setQ(null); setMsg(e instanceof Error ? e.message : String(e)); setState("error"); } });
+    return () => { live = false; };
+  }, [unitId, planKey, tick]);
+
+  if (state === "loading") return <Panel profile="well" pad="none" className="dg-q" aria-label="Plan quality" aria-busy="true"><Skeleton height={14} width="40%" /><Skeleton height={8} lines={compact ? 2 : 6} /></Panel>;
+  if (state === "error" || !q) {
+    return (
+      <Panel profile="well" pad="none" className="dg-q" aria-label="Plan quality">
+        <p className="dg-fixnote" role="alert">Could not score this plan. {msg}</p>
+        <LatchButton size="sm" onClick={() => setTick((n) => n + 1)}>Try again</LatchButton>
+      </Panel>
+    );
+  }
+  const order = Object.keys(SUB_LABEL).filter((k) => k in q.subscores);
+  const tone = q.score >= 70 ? "det" : q.score >= 55 ? "ink" : "ink";
+  return (
+    <Panel profile="well" pad="none" className="dg-q" aria-label={`Plan quality for ${q.unit_id}: ${q.score} out of 100, grade ${q.grade}`}>
+      <div className="dg-row between">
+        <b style={{ fontSize: 13, color: "var(--ink-1)" }}>Plan quality</b>
+        <ProvenanceTag by="engine" kind="derived" source="The plan critic (quality.critique): rule-based scoring of circulation, waste, room sequence, furniture, daylight and doors. Calibrated on approved Mumbai plans." compact />
+      </div>
+      <div className="dg-q-head">
+        <span className={`dg-q-grade g-${q.grade}`} aria-label={`Grade ${q.grade}`}>{q.grade}</span>
+        <Readout label="Score" value={q.score} unit="/ 100" digits={0} tone={tone} size="md" />
+        <span className="dg-fixnote" style={{ flex: 1, minWidth: 120 }}>
+          {GRADE_NOTE[q.grade]}.{q.n_critical > 0 ? ` ${q.n_critical} critical finding${q.n_critical === 1 ? "" : "s"}.` : ""}
+          {q.weakest_link ? ` Held back by ${q.weakest_link.replace(/_/g, " ")}.` : ""}
+        </span>
+      </div>
+      {!compact && (
+        <ul className="dg-q-subs" aria-label="Sub-scores">
+          {order.map((k) => {
+            const v = q.subscores[k];
+            return (
+              <li key={k}>
+                <span className="l">{SUB_LABEL[k]}</span>
+                <span className={`dg-q-bar${v < 60 ? " low" : v < 80 ? " mid" : ""}`} role="img" aria-label={`${SUB_LABEL[k]} ${Math.round(v)} of 100`}><span style={{ width: `${Math.max(2, Math.min(100, v))}%` }} /></span>
+                <span className="v">{Math.round(v)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {q.top_issues.length > 0 && (
+        <>
+          {!compact && <h4 className="dg-sec">Top issues{q.n_issues > q.top_issues.length ? ` (${q.top_issues.length} of ${q.n_issues})` : ""}</h4>}
+          <ul className="dg-q-issues" aria-label="Top issues">
+            {q.top_issues.slice(0, compact ? 2 : 5).map((i, n) => (
+              <li key={`${i.code}-${n}`}><span className={`sev ${i.severity}`}>{i.severity}</span><span>{i.message}</span></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {q.errors.length > 0 && <p className="dg-fixnote">Some checks could not run ({q.errors.length}); the score ignores them.</p>}
+    </Panel>
   );
 }
 

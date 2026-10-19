@@ -88,6 +88,14 @@ FURN_W = {"living": 150000, "master": 150000, "bedroom": 150000}
 FURN_W_OTHER = 40000
 HARD_MIN_W = {"living": 2.8}  # m net: below this the critic finds no sofa set at all
 SNAP = 1  # cells: >1 puts room edges on a SNAP grid or the flat's boundary lines (tried 3: worse on the golden set)
+# ---- generator v4 (docs/quality/generator-v4.md): an approved case (casebase.adapt) as a soft guide
+GUIDE_CENTRE_W = 12  # per cell (0.1 m) a room's centre lies away from its case room's centre, per axis
+GUIDE_SIZE_W = 3  # per cell a room's side differs from its (stretched) case room's side
+GUIDE_ORDER_W = 2500  # per pair of rooms in the opposite order to the case on one axis (left/right, front/back)
+GUIDE_FOYER_W = 40000  # a foyer below FOYER_LARGE m2 carpet when the case enters straight into the living room
+FOYER_LARGE = 110.0
+GUIDE_HINT = "full"  # "", "xy" (room corners) or "full" (corners, sides and presence) from the case
+GUIDE_KITCHEN_DINING = True  # guided solves: the kitchen door must open onto the dining room when the flat has one
 
 
 @dataclass
@@ -444,8 +452,9 @@ def room_specs(diagram: Diagram, overrides: dict[str, dict] | None = None, ug: U
 
 class _Builder:
     def __init__(self, ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], entry: str,
-                 guards: bool, alts: list[tuple[str, tuple[str, ...]]] | None = None):
+                 guards: bool, alts: list[tuple[str, tuple[str, ...]]] | None = None, guide: dict | None = None):
         self.m = cp_model.CpModel()
+        self.guide = guide
         self.ug, self.specs, self.links, self.entry = ug, specs, links, entry
         self.alts = alts or []
         self.zoned = alts is not None  # v3: the zoned brief (layout.solve_flat) even when no hub door is flexible (1BHK)
@@ -592,6 +601,8 @@ class _Builder:
                     if s.type in ("master", "bedroom") and s.id != self.entry:
                         self._clear_of_door(s.id, BED_ENTRY_CLEAR)
                 self._direction()
+        if self.guide and not self.guard_mode:
+            self._guide(self.guide)
         # objective: waste (uncovered floor, rooms above their cap) >> circulation >> target closeness
         total = W * H - sum((x1 - x0) * (y1 - y0) for x0, y0, x1, y1 in ug.blocked)
         covered = sum(v["e"] for v in self.v.values())
@@ -607,6 +618,51 @@ class _Builder:
             self._near_living()
             self._wet_pairs()
         m.minimize(sum(v["cost"] for v in self.v.values()) + UNCOVERED_W * (total - covered) + sum(self.extra_cost))
+
+    def _guide(self, g: dict) -> None:
+        """v4: keep an approved case's arrangement (casebase.adapt): soft target rectangles, soft relative order of room
+        pairs, solution hints; a compact flat whose case enters into the living room pays for a foyer."""
+        m, W, H = self.m, self.ug.Wg, self.ug.Hg
+        cw, sw, ow = g.get("centre_w", GUIDE_CENTRE_W), g.get("size_w", GUIDE_SIZE_W), g.get("order_w", GUIDE_ORDER_W)
+        for rid, (x0, y0, x1, y1) in g.get("rects", {}).items():
+            if rid not in self.v or not (cw or sw):
+                continue
+            V = self.v[rid]
+            for a, sz, lo, hi, L in (("x", "w", x0, x1, W), ("y", "h", y0, y1, H)):
+                dev = m.new_int_var(0, 4 * L, f"gc_{a}_{rid}")
+                m.add_abs_equality(dev, 2 * V[a] + V[sz] - (lo + hi))
+                dsz = m.new_int_var(0, 2 * L, f"gs_{a}_{rid}")
+                m.add_abs_equality(dsz, V[sz] - (hi - lo))
+                self.extra_cost.append((cw // 2) * dev + sw * dsz)
+            if GUIDE_HINT:  # the case layout as the search's starting point
+                xs0, ys0 = max(0, min(W, x0)), max(0, min(H, y0))
+                m.add_hint(V["x"], xs0)
+                m.add_hint(V["y"], ys0)
+                if GUIDE_HINT == "full":
+                    m.add_hint(V["w"], max(1, min(W - xs0, x1 - x0)))
+                    m.add_hint(V["h"], max(1, min(H - ys0, y1 - y0)))
+                    m.add_hint(V["p"], 1)
+        for a, b, axis in g.get("order", []):
+            if a not in self.v or b not in self.v:
+                continue
+            A, B = self.v[a], self.v[b]
+            k, sz = ("x", "w") if axis == "x" else ("y", "h")
+            viol = m.new_bool_var(f"go_{a}_{b}_{axis}")
+            m.add(2 * A[k] + A[sz] + 2 <= 2 * B[k] + B[sz]).only_enforce_if(viol.negated())
+            self.extra_cost.append(ow * viol)
+        if GUIDE_KITCHEN_DINING:
+            # owner brief: the kitchen opens onto the dining room (serving route); a guided layout that cannot do it fails
+            # and the v3 layout or another case is kept
+            for rid, lits in self.choice.items():
+                if self.v[rid]["s"].type != "kitchen" or not any(self.v[c]["s"].type == "dining" for c, _ in lits):
+                    continue
+                for c, ch in lits:
+                    if self.v[c]["s"].type != "dining":
+                        m.add(ch == 0)
+        if g.get("entry") == "living" and 0.92 * self.ug.interior.area <= FOYER_LARGE:
+            for v in self.v.values():
+                if v["s"].type == "foyer":
+                    self.extra_cost.append(GUIDE_FOYER_W * v["p"])
 
     def _wet_pairs(self) -> None:
         """v2: toilets back to back on a shared wall / shaft (soft reward per touching pair)."""
@@ -973,9 +1029,9 @@ def _params(solver: cp_model.CpSolver, time_limit: float, workers: int | None = 
 
 def solve(ug: UnitGrid, specs: list[RoomSpec], links: list[tuple[str, str]], entry: str,
           time_limit: float = TIME_CAP, explain: bool = True,
-          alts: list[tuple[str, tuple[str, ...]]] | None = None, seed: int = 7) -> SolveResult:
+          alts: list[tuple[str, tuple[str, ...]]] | None = None, seed: int = 7, guide: dict | None = None) -> SolveResult:
     t0 = time.perf_counter()
-    b = _Builder(ug, specs, links, entry, guards=False, alts=alts)
+    b = _Builder(ug, specs, links, entry, guards=False, alts=alts, guide=guide)
     solver = cp_model.CpSolver()
     _params(solver, max(0.2, time_limit - (time.perf_counter() - t0)))  # model build counts against the cap
     solver.parameters.random_seed = seed

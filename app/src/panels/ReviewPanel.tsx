@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { dxfUrl, rpc, uploadDrawing } from "../lib/api";
 import { fmt } from "../lib/geom";
 import { useStore } from "../lib/store";
-import type { CheckResult } from "../lib/types";
+import type { CheckResult, PlanQuality } from "../lib/types";
 import {
   Chip, EmptyState, Icon, Led, LatchButton, Panel, ProvenanceTag, Readout, Skeleton, StatusChip, Tabs, type TabItem,
   type ReadoutTone,
@@ -33,6 +33,16 @@ const CSS = `
 .rv-alert-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .rv-alert-title { font-weight: 700; color: var(--fail-ink); }
 .rv-alert-actions { margin-top: 8px; display: flex; gap: 8px; }
+
+/* plan quality (critic) */
+.rv-ql { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.rv-ql li { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; font-size: 12px; line-height: 1.4; color: var(--ink-1); }
+.rv-ql .id { font: 700 11.5px var(--f-mono); }
+.rv-ql .g { font: 800 14px var(--f-display); min-width: 18px; text-align: center; }
+.rv-ql .g.gA, .rv-ql .g.gB { color: var(--pass-ink, var(--det-ink)); }
+.rv-ql .g.gC { color: var(--warn-ink, var(--ink-1)); }
+.rv-ql .g.gD, .rv-ql .g.gF { color: var(--fail-ink); }
+.rv-ql .why { grid-column: 1 / -1; color: var(--ink-3); overflow-wrap: anywhere; }
 
 /* drawing report */
 .rv-dwg { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
@@ -130,6 +140,8 @@ export function ReviewPanel({ onFocus, show3d, setShow3d }: { onFocus: (r: Check
   const [err, setErr] = useState<string | null>(null);
   const [over, setOver] = useState(false);
   const file = useRef<HTMLInputElement>(null);
+  const [quality, setQuality] = useState<Record<string, PlanQuality | "error">>({});
+  const [scoring, setScoring] = useState(false);
 
   const checks = project?.checks ?? null;
   const planCount = project?.plans.length ?? 0;
@@ -204,6 +216,21 @@ export function ReviewPanel({ onFocus, show3d, setShow3d }: { onFocus: (r: Check
     { id: "all", label: `All ${all.length}` },
   ];
 
+  // The critic takes ~0.2 s a flat, so it only runs when asked, one flat at a time (the engine caches each answer).
+  const scoreFlats = async () => {
+    setScoring(true);
+    try {
+      for (const p of project?.plans ?? []) {
+        try {
+          const q = await rpc<PlanQuality>("plan_quality", { unit_id: p.unit_id });
+          setQuality((m) => ({ ...m, [p.unit_id]: q }));
+        } catch { setQuality((m) => ({ ...m, [p.unit_id]: "error" })); }
+      }
+    } finally { setScoring(false); }
+  };
+  const scored = Object.values(quality).filter((q): q is PlanQuality => q !== "error");
+  const meanScore = scored.length ? scored.reduce((a, q) => a + q.score, 0) / scored.length : null;
+
   const verdict = counts.fail > 0
     ? { led: "fail" as const, text: <><b>{counts.fail} rule{counts.fail === 1 ? "" : "s"} fail.</b> Fix them before you rely on this plan.</> }
     : counts.review > 0
@@ -222,6 +249,35 @@ export function ReviewPanel({ onFocus, show3d, setShow3d }: { onFocus: (r: Check
           <Readout label="Mix" value={mixText || null} tone="ink" className="rv-mix" />
         </div>
       </Panel>
+
+      {/* ---------------------------------------------------------------- plan quality */}
+      {planCount > 0 && (
+        <Panel profile="well" pad="md" title="Plan quality" aria-label="Plan quality of each flat"
+          actions={<ProvenanceTag by="engine" kind="derived" source="The plan critic (quality.critique): circulation, waste, sequence, furniture, daylight, doors. A design-quality score, not a statutory result." compact />}>
+          <div className="rv-row between">
+            <Readout label="Mean score" value={meanScore} unit="/ 100" digits={0} tone="det" size="sm" />
+            <LatchButton size="sm" loading={scoring} disabled={scoring || (anyBusy && !scoring)} onClick={() => void scoreFlats()}>
+              {scoring ? "Scoring…" : scored.length ? "Score again" : "Score the flats"}
+            </LatchButton>
+          </div>
+          {scored.length === 0 && !scoring && <p className="rv-meta">Scores each solved flat for how well it works as a home. About 0.2 s per flat. Open a flat in stage 7 for the full scorecard.</p>}
+          <ul className="rv-ql" aria-label="Flat scores" aria-live="polite">
+            {(project?.plans ?? []).map((p) => {
+              const q = quality[p.unit_id];
+              if (!q) return null;
+              if (q === "error") return <li key={p.unit_id}><span className="id">{p.unit_id}</span><span className="g">–</span><span>Could not be scored.</span></li>;
+              return (
+                <li key={p.unit_id}>
+                  <span className="id">{p.unit_id}</span>
+                  <span className={`g g${q.grade}`} aria-label={`Grade ${q.grade}`}>{q.grade} <span className="mono" style={{ fontWeight: 600, fontSize: 11 }}>{Math.round(q.score)}</span></span>
+                  <span>{q.top_issues[0]?.message ?? "No findings."}</span>
+                  {q.weakest_link && <span className="why">Held back by {q.weakest_link.replace(/_/g, " ")}.</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+      )}
 
       {/* ---------------------------------------------------------------- tools */}
       <div className="rv-tools">

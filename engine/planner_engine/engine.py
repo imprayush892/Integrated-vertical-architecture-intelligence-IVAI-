@@ -47,7 +47,7 @@ from .models import (
     Unit,
 )
 from .placement import drivers_note, place
-from .plate import LABELS, RATINGS, all_shapes, build_plate, fit
+from .plate import LABELS, RATINGS, all_shapes, build_plate, core_code, core_info, fit
 from .site import build_site
 from .store import ProjectStore
 from .units import facade_length, presets, programme_from_rooms, split_units
@@ -412,8 +412,23 @@ class Planner:
             out = [t if x["shape"] == "triangle" else x for x in out]
         return out
 
+    @staticmethod
+    def _plate_params(params: dict | None) -> dict[str, float]:
+        """Plate parameters from an RPC call: numbers, plus ``core_type`` as a name ('auto', 'split_junction', ...)."""
+        out: dict[str, float] = {}
+        for k, v in (params or {}).items():
+            if k == "core_type":
+                try:
+                    out[k] = float(core_code(v))
+                except ValueError as e:
+                    raise PlannerError(str(e), "bad_params") from e
+            else:
+                out[k] = float(v)
+        return out
+
     def set_plate(self, tower_id: str = "T1", shape: str | None = None, params: dict | None = None) -> dict:
-        """Build or edit a plate from template parameters (drag handles send new params here)."""
+        """Build or edit a plate from template parameters (drag handles send new params here). ``params`` may carry
+        ``core_type`` ('auto' or a library core type, see ``core_options``); the answer includes the core alternatives."""
         with self._lock:
             cur = self._plate(tower_id)
             shape_k = ShapeKind(shape) if shape else cur.shape
@@ -422,7 +437,7 @@ class Planner:
             angle = fp.angle_deg if fp else cur.angle_deg
             origin = fp.center if fp else cur.origin
             base = dict(cur.params) if shape_k == cur.shape else {}
-            base.update({k: float(v) for k, v in (params or {}).items()})
+            base.update(self._plate_params(params))
             h = self.project.site.building_height if self.project.site else 24.0
             plate = build_plate(shape_k, base, tower_id=tower_id, angle_deg=angle, origin=origin, env=env, height=h)
             idx = self.project.plates.index(cur)
@@ -430,18 +445,27 @@ class Planner:
             keep_units = shape_k == cur.shape and int(plate.params["units"]) == int(cur.params.get("units", 0))
             self._resplit(plate, keep_programmes=keep_units)
             self._save("set_plate")
-            return {"plate": plate.model_dump(mode="json"), "units": [u.model_dump(mode="json") for u in self._units(tower_id)]}
+            return {"plate": plate.model_dump(mode="json"), "core": core_info(plate),
+                    "units": [u.model_dump(mode="json") for u in self._units(tower_id)]}
 
     def preview_plate(self, tower_id: str, shape: str, params: dict) -> dict:
-        """Zones for a drag in progress (no save)."""
+        """Zones for a drag in progress (no save). The core alternatives ride along under ``core``."""
         cur = self._plate(tower_id)
         fp = self._envelope(tower_id, ShapeKind(shape))
         env = (fp.width, fp.depth) if fp else (cur.params["W"], cur.params["D"])
         base = dict(cur.params) if ShapeKind(shape) == cur.shape else {}
-        base.update({k: float(v) for k, v in params.items()})
+        base.update(self._plate_params(params))
+        h = self.project.site.building_height if self.project.site else 24.0
         plate = build_plate(shape, base, tower_id=tower_id, angle_deg=fp.angle_deg if fp else cur.angle_deg,
-                            origin=fp.center if fp else cur.origin, env=env)
-        return plate.model_dump(mode="json")
+                            origin=fp.center if fp else cur.origin, env=env, height=h)
+        return {**plate.model_dump(mode="json"), "core": core_info(plate)}
+
+    def core_options(self, tower_id: str = "T1") -> dict:
+        """The core of a plate: chosen type, the ranked alternatives (core share of the plate, flats share, reasons,
+        whether each can be placed in this template), the typed parts and the requirements. Switch with
+        ``set_plate(params={"core_type": "<type>"})``; 'auto' goes back to the best ranked."""
+        with self._lock:
+            return core_info(self._plate(tower_id))
 
     def import_plate_dxf(self, tower_id: str, path: str) -> dict:
         """Use a DXF of the core and unit footprint (layers mapped like stage 8)."""
@@ -674,6 +698,42 @@ class Planner:
             if p.unit_id == unit_id:
                 return p.model_dump(mode="json")
         raise PlannerError(f"No plan for {unit_id} yet", "not_found")
+
+    def plan_quality(self, unit_id: str) -> dict:
+        """The plan critic (quality.critique) on one solved flat: score 0-100, grade, sub-scores per category, the
+        costliest findings and the weakest link. ~0.2 s per flat, so it is its own call (not part of solving) and the
+        answer is cached until the plan changes."""
+        from . import quality
+
+        with self._lock:
+            plan = next((p for p in self.project.plans if p.unit_id == unit_id), None)
+            if plan is None:
+                raise PlannerError(f"No plan for {unit_id} yet - solve the flat first", "not_found")
+            unit = next((u for u in self.project.units if u.id == unit_id), None)
+            try:
+                plate = self._plate_of(unit_id)
+            except PlannerError:
+                plate = None
+            key = hash((plan.model_dump_json(), unit.model_dump_json() if unit else "", plate.model_dump_json() if plate else ""))
+            cache = self.__dict__.setdefault("_quality_cache", {})
+            if unit_id in cache and cache[unit_id][0] == key:
+                return cache[unit_id][1]
+            plan, unit, plate = plan.model_copy(deep=True), unit and unit.model_copy(deep=True), plate and plate.model_copy(deep=True)
+        t0 = time.perf_counter()
+        res = quality.critique(plan, unit, plate, imported=plan.status == "imported")
+        issues = [i for i in res["issues"] if i["severity"] != "info"]
+        out = {
+            "unit_id": unit_id, "score": res["score"], "grade": res["grade"], "base_score": res["base_score"],
+            "n_critical": res["n_critical"], "weakest_link": res["weakest_link"], "weakest_factor": res["weakest_factor"],
+            "subscores": res["subscores"],
+            "top_issues": [{"severity": i["severity"], "code": i.get("code"), "metric": i.get("metric"),
+                            "message": i["message"], "cost": i.get("cost", 0.0), "rooms": i.get("rooms", []), "at": i.get("at")} for i in issues[:6]],
+            "n_issues": len(issues), "stats": {k: v for k, v in res["stats"].items() if isinstance(v, (int, float))},
+            "errors": res["errors"], "elapsed_s": round(time.perf_counter() - t0, 2),
+        }
+        with self._lock:
+            cache[unit_id] = (key, out)
+        return out
 
     def apply_edit(self, unit_id: str, edit: dict, reason: str = "", by: str = "claude") -> dict:
         """T7: an edit in words, already turned into a constraint change by Claude. Engine checks, re-solves, diffs.

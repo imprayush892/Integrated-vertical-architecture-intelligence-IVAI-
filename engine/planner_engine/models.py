@@ -327,6 +327,7 @@ class Plan(Model):
     solve_time_s: float = 0.0
     objective: float | None = None
     ticket_ids: list[str] = Field(default_factory=list)
+    case_id: str | None = None  # generator v4: the approved case (casebase) whose arrangement the plan follows
 
 
 # --------------------------------------------------------------------------------------------- stage 8
