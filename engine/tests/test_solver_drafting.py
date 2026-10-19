@@ -290,3 +290,19 @@ def test_grow_to_fill_keeps_rectangles_and_contacts():
         assert x <= x0 and y <= y0 and x + w >= x0 + w0 and y + h >= y0 + h0
     covered = sum(w * h for _x, _y, w, h in out.values())
     assert covered > sum(w * h for _x, _y, w, h in rects.values())
+
+
+def test_same_flat_twice_returns_the_same_plan(footprint, monkeypatch):
+    """Same input -> same plan, across calls and sessions (persistent plan cache)."""
+    from planner_engine import layout
+
+    p = _plate(footprint)
+    u = next(u for u in split_units(p) if u.programme.bhk == 2)
+    a = solve_flat(p, u)
+    layout._CACHE.clear()
+    calls = []
+    real = layout._solve_flat
+    monkeypatch.setattr(layout, "_solve_flat", lambda *a, **k: calls.append(1) or real(*a, **k))
+    b = solve_flat(p, u)
+    assert not calls  # served from the plan cache, no new search
+    assert a.plan.model_dump() == b.plan.model_dump()

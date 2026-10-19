@@ -38,7 +38,12 @@ the logic.
 
 ## Determinism
 
-Stages 1–6 and 8 are pure functions of their inputs. The CP-SAT stage stops on time and stall limits;
+Stages 1–6 and 8 are pure functions of their inputs. Stage 7 (CP-SAT) is time-sliced and multi-threaded, so a
+fresh search can differ run to run; every solved flat is therefore stored in `~/.apartment-planner/plan_cache.sqlite`
+keyed by its inputs plus a fingerprint of the generator code and rule data (`layout.solve_flat`), so the same flat
+always comes back as the same plan, across sessions, until the generator changes. Quality measurements set
+`PLANNER_PLAN_CACHE=0` to see fresh searches. (CP-SAT's deterministic modes were measured and rejected: on these
+models they overshoot their budget and give worse plans.) The CP-SAT stage stops on time and stall limits;
 solved flats are cached by an input hash (`layout._key`) and every plan is stored in the project file,
 so the same input returns the same plan. Multi-threaded CP-SAT runs on different machines may find
 different (equally valid) layouts for a fresh input.

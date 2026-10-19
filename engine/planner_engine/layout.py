@@ -255,9 +255,86 @@ def _pick(plate: Plate, unit: Unit, overrides: dict, cands: list, furniture: boo
     return best
 
 
+# ---------------------------------------------------------------- persistent plan cache (same input -> same plan)
+# CP-SAT's parallel search is time-sliced, so two solves of the same flat can differ. The deterministic modes we
+# measured (interleaved search / deterministic time) overshoot their budget on these models and give worse plans,
+# so instead every solved flat is stored by an input hash plus a fingerprint of the generator code and data: the
+# second time a flat is asked for - in any session - it comes back identical. PLANNER_PLAN_CACHE=0 turns it off.
+_CODE_FP: str | None = None
+
+
+def _code_fingerprint() -> str:
+    global _CODE_FP
+    if _CODE_FP is None:
+        from importlib import resources
+        h = hashlib.sha256()
+        root = resources.files("planner_engine")
+        for name in ("solver.py", "layout.py", "drafting.py", "diagram.py", "casebase.py", "quality.py", "units.py"):
+            f = root.joinpath(name)
+            if f.is_file():
+                h.update(f.read_bytes())
+        for sub in ("data/programmes", "data/rules"):
+            d = root.joinpath(sub)
+            if d.is_dir():
+                for f in sorted(d.iterdir(), key=lambda x: x.name):
+                    if f.is_file():
+                        h.update(f.name.encode() + f.read_bytes())
+        _CODE_FP = h.hexdigest()[:16]
+    return _CODE_FP
+
+
+def _cache_db():
+    import os
+    import sqlite3
+    from pathlib import Path
+
+    if os.environ.get("PLANNER_PLAN_CACHE", "1") == "0":
+        return None
+    d = Path(os.environ.get("PLANNER_HOME", Path.home() / ".apartment-planner"))
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        db = sqlite3.connect(d / "plan_cache.sqlite", timeout=5)
+        db.execute("CREATE TABLE IF NOT EXISTS flats (k TEXT PRIMARY KEY, v BLOB)")
+        return db
+    except Exception:  # noqa: BLE001 - a broken cache must never stop a solve
+        return None
+
+
 def solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrides: dict | None = None,
                time_limit: float = TIME_CAP, auto_fix: bool = True, max_fix_rounds: int = 4,
                budget: float = FLAT_BUDGET) -> FlatResult:
+    """Cached front of :func:`_solve_flat`: an identical request returns the identical stored plan."""
+    import pickle
+
+    d0 = diagram if diagram is not None else (from_programme(unit, unit.programme) if unit.programme else None)
+    key = None
+    db = _cache_db() if d0 is not None else None
+    if db is not None:
+        key = hashlib.sha256(json.dumps({
+            "k": _key(plate, unit, d0, dict(overrides or {})), "fp": _code_fingerprint(), "tl": time_limit,
+            "fix": auto_fix, "rounds": max_fix_rounds, "budget": budget,
+            "prog": unit.programme.model_dump() if unit.programme else None}, sort_keys=True, default=str).encode()).hexdigest()
+        try:
+            row = db.execute("SELECT v FROM flats WHERE k = ?", (key,)).fetchone()
+            if row:
+                return pickle.loads(row[0])
+        except Exception:  # noqa: BLE001
+            pass
+    fr = _solve_flat(plate, unit, diagram, overrides, time_limit, auto_fix, max_fix_rounds, budget)
+    if db is not None and key is not None and (fr.plan is not None or fr.result.status == "infeasible"):
+        try:
+            db.execute("INSERT OR REPLACE INTO flats (k, v) VALUES (?, ?)", (key, pickle.dumps(fr)))
+            db.commit()
+        except Exception:  # noqa: BLE001
+            pass
+    if db is not None:
+        db.close()
+    return copy.deepcopy(fr)
+
+
+def _solve_flat(plate: Plate, unit: Unit, diagram: Diagram | None = None, overrides: dict | None = None,
+                time_limit: float = TIME_CAP, auto_fix: bool = True, max_fix_rounds: int = 4,
+                budget: float = FLAT_BUDGET) -> FlatResult:
     """Solve, draft and VALIDATE a flat inside ``budget`` seconds of wall time (fix ladder and validation
     retries included; ``time_limit`` caps a single CP-SAT run). A plan that fails a DCPR room check is never
     returned: the flat is re-solved with a tighter allowance / further fixes while budget remains, else it
