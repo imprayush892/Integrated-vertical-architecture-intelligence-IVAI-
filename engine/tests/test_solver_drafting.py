@@ -112,7 +112,9 @@ def test_solver_minimums_survive_drafting(footprint):
     drafting used to shave a room below the statutory width."""
     from planner_engine import layout
 
-    p = _plate(footprint, "side_core", 34.0, 24.0)
+    # generator v5: the 34 x 24 side-core slab now splits into six 2BHKs (plate.SIDE_SHALLOW_GROSS), so the 3BHKs of
+    # this test come from the 40 x 22 slab (still four 3BHKs); the test itself is unchanged
+    p = _plate(footprint, "side_core", 40.0, 22.0)
     stairs = [(c.polygon, c.width) for c in p.core_parts if c.kind == "stair"]
     units = [u for u in split_units(p) if u.programme and u.programme.bhk == 3][:2]
     assert units
@@ -296,6 +298,7 @@ def test_same_flat_twice_returns_the_same_plan(footprint, monkeypatch):
     """Same input -> same plan, across calls and sessions (persistent plan cache)."""
     from planner_engine import layout
 
+    monkeypatch.setenv("PLANNER_PLAN_CACHE", "1")
     p = _plate(footprint)
     u = next(u for u in split_units(p) if u.programme.bhk == 2)
     a = solve_flat(p, u)
@@ -306,3 +309,110 @@ def test_same_flat_twice_returns_the_same_plan(footprint, monkeypatch):
     b = solve_flat(p, u)
     assert not calls  # served from the plan cache, no new search
     assert a.plan.model_dump() == b.plan.model_dump()
+
+
+# ---------------------------------------------------------------------------------------------- generator v5
+
+def test_v5_door_swings_unclash():
+    """v5 drafting: two leaves sweeping the same floor are resolved by turning a hinge or the opening side (the entry door
+    always opens into the flat)."""
+    from shapely.geometry import box
+
+    from planner_engine.drafting import _swing, unclash_doors
+    from planner_engine.models import Opening
+
+    polys = {"F": box(0, 0, 2, 2), "L": box(2, 0, 6, 4)}
+    types = {"F": "foyer", "L": "living"}
+    de = Opening(id="D-entry", kind="entry", a=(1.8, 0), b=(0.8, 0), width=1.0, rooms=["F"], hinge=(1.8, 0), swing_into="F")
+    d1 = Opening(id="D1", kind="door", a=(2, 0.1), b=(2, 1.0), width=0.9, rooms=["F", "L"], hinge=(2, 0.1), swing_into="F")
+
+    def overlap(ds):
+        g = [_swing(o, polys, tuple(o.hinge) == tuple(o.b), o.swing_into) for o in ds]
+        return g[0].intersection(g[1]).area
+
+    assert overlap([de, d1]) > 0.3
+    out = unclash_doors([de, d1], polys, types)
+    assert overlap(out) < 0.05
+    assert out[0].swing_into == "F"
+
+
+def test_v5_brief_store_fills_a_dark_pocket():
+    """v5 drafting: a store of the brief that the search left out is cut from an uncovered pocket next to the hub, at most
+    its waste cap (1.3 x target + 0.5), under its brief id."""
+    from shapely.geometry import box
+
+    from planner_engine.drafting import fill_pockets
+    from planner_engine.solver import RoomSpec, UnitGrid
+
+    ug = UnitGrid(unit_id="U", ox=0.0, oy=0.0, Wg=80, Hg=60, interior=box(0, 0, 8, 6), blocked=[], edges=[], door=None,
+                  unit_poly=box(0, 0, 8, 6), bands=box(0, 0, 8, 6))
+
+    def sp(i, t, a):
+        return RoomSpec(id=i, type=t, name=i, tgt=int(a * 100), amin=0, wmin=8, aspect=30, window_run=0, vent_run=0,
+                        optional=t == "store", target_area=a)
+
+    specs = [sp("living", "living", 30), sp("dining", "dining", 12), sp("store", "store", 3.0)]
+    rects = {"living": (0, 0, 50, 60), "dining": (50, 0, 30, 35)}  # pocket: x 50-80, y 35-60 (7.5 m2) off the dining
+    out, new, links = fill_pockets(ug, specs, rects, [])
+    assert "store" in out and ("dining", "store") in links
+    x, y, w, h = out["store"]
+    assert w * h <= 100 * (1.3 * 3.0 + 0.5) and y >= 35
+    assert next(s for s in new if s.id == "store").target_area == 3.0
+
+
+def test_v5_front_door_never_into_dining(footprint):
+    """v5: the front door opens into the living room or a foyer, never the dining room."""
+    p = _plate(footprint, "t_shape")
+    u = next(u for u in split_units(p) if u.programme.bhk == 2)
+    fr = solve_flat(p, u)
+    assert fr.plan is not None
+    entry = next(d for d in fr.plan.doors if d.kind == "entry")
+    types = {r.id: r.type for r in fr.plan.rooms}
+    assert types[entry.rooms[0]] in ("living", "foyer")
+
+
+def test_v5_oversized_dining_gives_a_bay_to_the_servant_room():
+    """v5 drafting: a dining room far above its waste cap gives a full-width bay at one end to the brief's servant room;
+    both stay rectangles and the dining keeps its door wall to the living room and at least its target."""
+    from shapely.geometry import box
+
+    from planner_engine.drafting import split_bloated
+    from planner_engine.solver import RoomSpec, UnitGrid
+
+    ug = UnitGrid(unit_id="U", ox=0.0, oy=0.0, Wg=100, Hg=40, interior=box(0, 0, 10, 4), blocked=[], edges=[], door=None,
+                  unit_poly=box(0, 0, 10, 4), bands=box(0, 0, 10, 4))
+    dining = RoomSpec(id="dining", type="dining", name="Dining", tgt=1100, amin=6, wmin=28, aspect=32, window_run=0,
+                      vent_run=0, optional=False, target_area=11.0, cap=1200, wfurn=28)
+    living = RoomSpec(id="living", type="living", name="Living", tgt=1600, amin=12, wmin=33, aspect=32, window_run=0,
+                      vent_run=0, optional=False, target_area=16.0, cap=2000)
+    servant = RoomSpec(id="servant", type="store", name="Servant room", tgt=600, amin=0, wmin=8, aspect=30, window_run=0,
+                       vent_run=0, optional=True, target_area=6.0)
+    rects = {"living": (0, 0, 40, 40), "dining": (40, 0, 60, 40)}  # dining 6 x 4 m = 24 m2, cap 12
+    out, new, links = split_bloated(ug, [living, dining, servant], rects, [("living", "dining")])
+    assert "servant" in out and ("dining", "servant") in links
+    x, y, w, h = out["dining"]
+    assert w * h >= dining.tgt and (x, w) == (40, w) and h == 40  # the bay is cut at the far end, full width
+    sx, sy, sw, sh = out["servant"]
+    assert sw * sh <= 100 * (1.3 * 6.0 + 0.5) and sx == x + w
+    assert new[0].target_area == 6.0
+
+
+def test_v5_dark_pocket_keeps_brief_stores_in_the_search(footprint):
+    """v5: a side-core flat's band along the lobby lies beyond a daylit room's depth from the façade (layout.dark_area);
+    there the search itself places the brief's servant room / store, elsewhere drafting cuts them from pockets."""
+    from planner_engine.layout import POCKET_DARK_M2, dark_area
+
+    side = _plate(footprint, "side_core", 40.0, 22.0)
+    assert all(dark_area(unit_grid(side, u)) >= POCKET_DARK_M2 for u in split_units(side))
+    cross = _plate(footprint, "cruciform", 40.0, 22.0)
+    assert all(dark_area(unit_grid(cross, u)) < POCKET_DARK_M2 for u in split_units(cross))
+
+
+def test_v5_cap_tier_spreads_excess_floor():
+    """v5: floor above a room's waste cap costs more past CAP_TIER cells, but never more than leaving it uncovered for a
+    living / dining / bedroom (so excess is spread over several rooms rather than dumped into one)."""
+    from planner_engine import solver
+
+    assert solver.CAP_TIER > 0 and solver.CAP_TIER_W > 0
+    for t in ("living", "dining", "master", "bedroom"):
+        assert solver.CAP_W + solver.CAP_TIER_W + solver.OVER_W[t] < solver.UNCOVERED_W

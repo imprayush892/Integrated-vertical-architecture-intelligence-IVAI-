@@ -440,6 +440,11 @@ def flex_links(d: Diagram) -> tuple[list[tuple[str, str]], list[tuple[str, tuple
             x, owner = (a, b) if ta == "dress" else (b, a)
             beds = [k for k, v in types.items() if v in ("master", "bedroom") and k != owner]
             alts[x] = (owner, *beds)  # a walk-in wardrobe off its own bedroom, or off another one
+        elif "store" in (ta, tb) and ta != tb:
+            # v5: a store / servant room of the brief opens off the room it is linked to or any hub space (a dark pocket by
+            # the lobby is where it belongs)
+            x, owner = (a, b) if ta == "store" else (b, a)
+            alts[x] = (owner, *(h for h in hubs if h != owner))
         elif "balcony" in (ta, tb) and {ta, tb} & {"dining", "living"}:
             k = a if ta == "balcony" else b
             alts[k] = tuple(h for h in (first["living"], first["dining"]) if h)

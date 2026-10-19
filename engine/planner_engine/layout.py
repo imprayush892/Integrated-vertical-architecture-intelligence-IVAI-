@@ -19,10 +19,10 @@ from typing import Any
 from . import casebase
 from .checks import FloorContext, run_checks
 from .diagram import flex_links, from_programme, precheck, zone_programme
-from .drafting import draft
+from .drafting import POCKET_TYPES, draft
 from .models import Conflict, Diagram, Plan, Plate, Unit
 from .solver import TIME_CAP, SolveResult, room_specs, solve, unit_grid
-from .units import facade_length, presets
+from .units import CARPET_RATIO, dark_area, facade_length, presets, size_programme
 
 FIX_ORDER = ["drop_room", "duct", "duct_all", "shrink", "smaller_programme", "remove_link", "no_window"]
 _CACHE: dict[str, tuple[SolveResult, dict]] = {}
@@ -156,7 +156,8 @@ def apply_fix(fix: dict, diagram: Diagram, overrides: dict, unit: Unit) -> tuple
         d.links = [l for l in d.links if set(l) != {fix["a"], fix["b"]}]
     elif a == "smaller_programme":
         u = unit.model_copy(deep=True)
-        u.programme = presets()[fix["programme"]]
+        # v5: the smaller BHK is sized to the flat like the original brief (units.size_programme)
+        u.programme = size_programme(unit.area * CARPET_RATIO, bhk=presets()[fix["programme"]].bhk)
         d = from_programme(u, u.programme)
         ov = {}
     elif a == "no_window":
@@ -204,7 +205,14 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
     guide = None
     if case is not None:  # v4: the approved case's arrangement as soft targets (casebase.adapt)
         guide = casebase.adapt(case["case"], ug, specs, [tuple(l) for l in diagram.links], case["mirror"])
-    res = solve(ug, specs, fixed, diagram.entry, time_limit=time_limit, explain=explain, alts=alts, seed=seed, guide=guide)
+    # v5: the brief's optional stores / servant room are not searched for: drafting cuts them from the dark pockets the
+    # layout leaves (drafting.fill_pockets), so the search keeps its size
+    # ... unless the flat has a dark pocket (floor far from any façade or shaft, e.g. a side-core flat's band along the
+    # lobby): nothing with a window can use it, so the search itself must put the servant room / store there
+    pocket = POCKET_STORES and dark_area(ug) < POCKET_DARK_M2
+    solve_specs = [s for s in specs if not (pocket and s.type in POCKET_TYPES and s.optional)]
+    res = solve(ug, solve_specs, fixed, diagram.entry, time_limit=time_limit, explain=explain, alts=alts, seed=seed,
+                guide=guide)
     if res.door_along is not None and ug.door is not None:  # v3: draft the front door where the solver put it
         ug = dataclasses.replace(ug, door=(ug.door[0], res.door_along))
     out = (res, {"ug": ug, "specs": specs, "diagram": diagram, "case_id": guide["case_id"] if guide else None})
@@ -213,6 +221,8 @@ def _solve(plate: Plate, unit: Unit, diagram: Diagram, overrides: dict, time_lim
     return out
 
 
+POCKET_STORES = True  # v5: brief stores are placed by drafting in the pockets, not by the search
+POCKET_DARK_M2 = 8.0  # v5: ... except in a flat with at least this much floor beyond units.DARK_DEPTH of the façade
 CANDIDATES = 2  # v2: layouts solved per flat (different seeds), the critic picks one
 PICK_RESERVE = 1.0  # s kept for drafting and critiquing the candidates
 CASE_K = 3  # v4: approved cases tried per flat (casebase.retrieve), next to the v3 layout

@@ -84,3 +84,16 @@ def test_entrance_frame_puts_the_door_on_the_front_side(flat):
     cases = casebase.load()
     near_front = sum(1 for c in cases if c["door"][1] <= 0.35)
     assert near_front / len(cases) >= 0.9
+
+
+def test_v5_wet_stack_prefers_cases_whose_toilets_land_on_the_flats_vents(flat):
+    """v5: a case whose toilets, stretched onto the flat, lie on the flat's façade / shaft edges ranks closer than the
+    same case with its toilets moved to the middle of the flat."""
+    plate, unit = flat
+    uf = casebase.unit_frame(unit_grid(plate, unit))
+    assert uf["vents"]
+    u0, v0, u1, v1, _k = uf["vents"][0]
+    on = {"rooms": [{"t": "toilet", "r": [max(0.0, u0 - 0.05), max(0.0, v0 - 0.05), min(1.0, u1 + 0.05), min(1.0, v1 + 0.05)]}]}
+    off = {"rooms": [{"t": "toilet", "r": [0.45, 0.45, 0.55, 0.55]}]}
+    assert casebase.wet_misfit(on, uf, False) == 0.0
+    assert casebase.wet_misfit(off, uf, False) > 1.0

@@ -1,10 +1,10 @@
 {
   "id": "2bhk",
-  "name": "2 BHK (60-79 m²)",
+  "name": "2 BHK (55-80 m²)",
   "bhk": 2,
   "area_range": [
-    60,
-    79
+    55,
+    80
   ],
   "entry": "foyer",
   "rooms": [

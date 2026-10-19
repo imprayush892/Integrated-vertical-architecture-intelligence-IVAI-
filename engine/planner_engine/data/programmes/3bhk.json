@@ -1,9 +1,9 @@
 {
  "id": "3bhk",
- "name": "3 BHK (90-120 m\u00b2)",
+ "name": "3 BHK (85-120 m\u00b2)",
  "bhk": 3,
  "area_range": [
-  90,
+  85,
   120
  ],
  "entry": "foyer",

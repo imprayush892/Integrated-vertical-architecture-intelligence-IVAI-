@@ -69,18 +69,195 @@ def statutory_minimums() -> dict[str, tuple[float, float]]:
 
 
 FRONTAGE_PER_BHK = {1: 7.5, 2: 10.5, 3: 14.0, 4: 17.5}  # façade a flat needs for its window rooms
+# v5: the side a window room needs along its façade (furniture minimum + a wall), m; a room's window wall lies on ONE
+# straight façade run, so the runs are packed room by room instead of summing the façade
+WINDOW_SIDE = {"living": 3.3, "master": 3.1, "bedroom": 2.9, "kitchen": 2.3}
+RUN_INSET = 0.35  # m a façade run loses to the walls at its ends
+# v5: 130-140 m2 carpet is where the 3BHK and 4BHK market bands meet; there the brief stays a premium 3BHK (servant room,
+# study, dress rooms): the measured 4BHK layouts of those flats were far worse and some found no layout in 30 s
+BHK_MIN_CARPET = {4: 140.0}
+BAND_MARGIN = 1.05  # the carpet is an estimate (gross x 0.8): step up a BHK only 5 % clear of the band's floor
 
 
-def pick_preset(carpet_estimate: float, facade: float | None = None, shaft: bool = False) -> Programme:
-    """Largest preset whose area range and façade need both fit the flat."""
+def window_rooms_fit(runs: list[float], bhk: int) -> bool:
+    """True when the window rooms of a ``bhk`` flat (living, kitchen, master, bhk - 1 bedrooms) can each take a stretch of
+    one of the straight façade ``runs`` (first-fit decreasing)."""
+    need = [WINDOW_SIDE["living"], WINDOW_SIDE["kitchen"], WINDOW_SIDE["master"]] + [WINDOW_SIDE["bedroom"]] * max(0, bhk - 1)
+    free = sorted((max(0.0, r - RUN_INSET) for r in runs), reverse=True)
+    for w in sorted(need, reverse=True):
+        for i, f in enumerate(free):
+            if f + 1e-6 >= w:
+                free[i] = f - w
+                break
+        else:
+            return False
+    return True
+
+
+def pick_preset(carpet_estimate: float, facade: float | None = None, shaft: bool = False,
+                runs: list[float] | None = None) -> Programme:
+    """Largest preset whose area range and façade need both fit the flat (v5: with ``runs``, the straight façade runs,
+    every window room must find its own stretch of one run)."""
     ps = sorted(presets().values(), key=lambda p: p.bhk)
     best = ps[0]
     for p in ps:
         lo, _hi = p.area_range
         need = FRONTAGE_PER_BHK.get(p.bhk, 7.5 + 3.5 * (p.bhk - 1)) - (1.5 if shaft else 0.0)
-        if carpet_estimate >= lo and (facade is None or facade >= need):
+        lo = max(lo * BAND_MARGIN, BHK_MIN_CARPET.get(p.bhk, 0.0)) if p.bhk > 1 else lo
+        if carpet_estimate >= lo and (facade is None or facade >= need) and (runs is None or window_rooms_fit(runs, p.bhk)):
             best = p
     return best
+
+
+def facade_runs(plate: Plate, unit: Unit) -> list[float]:
+    """v5: lengths of the unit's straight runs of outer façade (collinear touching edges merged; air shafts excluded)."""
+    edges = _facade_edges(plate, unit, shafts=False)
+    runs: list[list] = []
+    for L, ang, a, b in edges:
+        if runs:
+            L0, ang0, a0, b0 = runs[-1]
+            if abs(((ang - ang0 + 180) % 360) - 180) < 1.0 and math.dist(b0, a) < 0.02:
+                runs[-1] = [L0 + L, ang0, a0, b]
+                continue
+        runs.append([L, ang, a, b])
+    if len(runs) > 1:  # the ring may start mid-run
+        L0, ang0, a0, b0 = runs[0]
+        L1, ang1, a1, b1 = runs[-1]
+        if abs(((ang0 - ang1 + 180) % 360) - 180) < 1.0 and math.dist(b1, a0) < 0.02:
+            runs[0] = [L0 + L1, ang0, a1, b0]
+            runs.pop()
+    return [round(r[0], 2) for r in runs]
+
+
+# ------------------------------------------------------------------------------------------ v5 programme sizing
+# Generator v5 (docs/quality/generator-v5.md): the brief is sized to the flat's carpet. The BHK follows the Mumbai market
+# bands (carpet m2) and the façade; the floor the base preset leaves over goes into the rooms an architect adds (attached
+# toilets, a dress room, a servant room with WC by the kitchen, a study, a pooja room, a store), not into bloated rooms.
+MARKET_BANDS = {1: (35.0, 50.0), 2: (55.0, 80.0), 3: (85.0, 120.0), 4: (130.0, 180.0)}
+BAND_STORES = 2  # v5: at most this many extra stores in a flat's dark band ...
+BAND_STORE_EVERY = 6.0  # ... one per this many m2 of dark floor the brief's stores leave
+BAND_STORE_M2 = 4.0
+ALL_ATTACHED_2BHK = 70.0  # m2 carpet: above this every bedroom of a 2BHK has its own toilet (3BHK+: always)
+SERVANT_CARPET = 110.0  # m2 carpet: a servant room with its WC by the kitchen (3BHK+)
+INTERIOR_SHARE = 0.92  # interior (inside the outer / party walls) / flat gross
+FILL_SHARE = 0.94 / 1.08  # brief total / interior: rooms may grow ~8 % past target before the solver's fill
+# base rooms grow towards the approved plans' p75 when the extras are all in and floor is still left
+GROW_TO = {"living": 24.0, "dining": 11.0, "master": 15.0, "bedroom": 12.5, "kitchen": 9.5}
+
+
+def _room(rid: str, rtype: str, name: str, area: float, optional: bool = True, window: bool = False) -> ProgrammeRoom:
+    wet = rtype in ("toilet", "bath", "wc", "utility")
+    return ProgrammeRoom(id=rid, type=rtype, name=name, target_area=area, min_area=0.0, needs_window=window, wet=wet,
+                         optional=optional)
+
+
+DARK_DEPTH = 8.0  # m: a daylit room's depth from its window wall (v5)
+
+
+def dark_area(ug) -> float:
+    """v5: m2 of a flat's floor (``solver.UnitGrid``) farther than DARK_DEPTH from every façade edge: where no window
+    room can reach (a side-core flat's band along the lobby), so only service rooms - or leftover floor - go there."""
+    lines = [LineString([(e.a, e.pos), (e.b, e.pos)] if e.horizontal else [(e.pos, e.a), (e.pos, e.b)])
+             for e in ug.edges if e.kind == "facade"]
+    if not lines:
+        return 0.0
+    free = box(0, 0, ug.Wg, ug.Hg).difference(shapely.union_all([box(x0, y0, x1, y1) for x0, y0, x1, y1 in ug.blocked]))
+    return free.difference(shapely.union_all(lines).buffer(DARK_DEPTH * 10)).area / 100.0
+
+
+def _interior(plate: Plate, unit: Unit) -> tuple[float | None, float]:
+    """Net interior of a flat (inside its outer / party walls) as the room solver sees it, and its dark area."""
+    try:
+        from .solver import unit_grid
+
+        ug = unit_grid(plate, unit)
+        a = ug.interior.area
+        return (a if a > 1.0 else None), dark_area(ug)
+    except Exception:  # noqa: BLE001 - a flat the grid cannot read is sized from its gross area
+        return None, 0.0
+
+
+def size_programme(carpet: float, facade: float | None = None, shaft: bool = False,
+                   interior: float | None = None, runs: list[float] | None = None, bhk: int | None = None,
+                   dark: float = 0.0) -> Programme:
+    """v5 brief for a flat of ``carpet`` m2 (RERA estimate) with ``facade`` m of window wall: the market-band preset
+    (``pick_preset``), every bedroom with its own toilet in a 3BHK+ (2BHK above 70 m2) and the common toilet as a powder
+    room off the living, then - while the floor allows - dress, servant room + WC (3BHK+ above 110 m2), study, pooja,
+    store and a second dress room; what is still left grows the main rooms towards their p75 sizes."""
+    base = pick_preset(carpet, facade, shaft, runs)
+    if bhk is not None:  # a forced BHK (the fix ladder's smaller programme)
+        base = next((q for q in presets().values() if q.bhk == bhk), base)
+    p = base.model_copy(deep=True)
+    rooms = {r.id: r for r in p.rooms}
+    links = [tuple(l) for l in p.links]
+    usable = (interior if interior else carpet / CARPET_RATIO * INTERIOR_SHARE) * FILL_SHARE
+
+    def total() -> float:
+        return sum(r.target_area for r in rooms.values())
+
+    def add(room: ProgrammeRoom, link: tuple[str, str] | None, force: bool = False) -> bool:
+        if room.id in rooms or (not force and total() + room.target_area > usable):
+            return False
+        rooms[room.id] = room
+        if link:
+            links.append(link)
+        return True
+
+    beds = [r for r in p.rooms if r.type in ("master", "bedroom")]
+    attached = {a if rooms[b].type in ("toilet", "bath") else b for a, b in links
+                if {rooms[a].type, rooms[b].type} & {"toilet", "bath"} and {rooms[a].type, rooms[b].type} & {"master", "bedroom"}}
+    all_att = p.bhk >= 3 or (p.bhk == 2 and carpet > ALL_ATTACHED_2BHK)
+    if all_att:
+        for b in beds:
+            if b.id not in attached:
+                add(_room(f"toilet_{b.id}", "toilet", f"Toilet ({b.name.lower()})", 3.3, optional=False), (b.id, f"toilet_{b.id}"),
+                    force=True)
+        # the common toilet becomes a powder room by the living room (guests never walk into the private zone)
+        tc = rooms.get("toilet_c")
+        if tc is not None:
+            rooms["toilet_c"] = _room("toilet_c", "wc", "Powder", 2.0, optional=False)
+            links = [l for l in links if "toilet_c" not in l] + [("living", "toilet_c")]
+    hub = "passage" if "passage" in rooms else "living"
+    win_need = sum(max(2.6, 1.8 if r.type == "kitchen" else 2.4) for r in rooms.values() if r.needs_window)
+    master = next((b for b in beds if b.type == "master"), beds[0] if beds else None)
+    extras: list[tuple[ProgrammeRoom, tuple[str, str] | None]] = []
+    if master is not None:
+        extras.append((_room(f"dress_{master.id}", "dress", "Dress", 4.0), (master.id, f"dress_{master.id}")))
+    if p.bhk >= 3 and carpet > SERVANT_CARPET and "kitchen" in rooms:
+        add(_room("servant", "store", "Servant room", 6.0), ("kitchen", "servant"), force=True)  # drawn in a pocket too
+    if p.bhk >= 2 and (facade is None or facade - win_need >= 2.8):
+        extras.append((_room("study", "study", "Study", 8.0, window=True), (hub, "study")))
+    extras.append((_room("pooja", "pooja", "Pooja", 2.0), (hub, "pooja")))
+    if p.bhk >= 2:  # a store of the brief: drafting only draws it where the layout leaves a dark pocket (POCKET_STORES)
+        add(_room("store", "store", "Store", 3.5), ("kitchen" if "utility" not in rooms else "utility", "store"), force=True)
+    # v5: a dark band along the lobby (``dark`` m2 beyond DARK_DEPTH of the façade) is the flat's service band: past what
+    # the servant room and store take, it holds more store rooms with a door (linen, luggage), not leftover floor
+    band = dark - sum(r.target_area for r in rooms.values() if r.type == "store")
+    for k in range(min(BAND_STORES, int(band // BAND_STORE_EVERY))):
+        add(_room(f"store_b{k + 1}", "store", "Store", BAND_STORE_M2), (hub, f"store_b{k + 1}"), force=True)
+    for b in beds:
+        if master is not None and b.id != master.id and p.bhk >= 3:
+            extras.append((_room(f"dress_{b.id}", "dress", "Dress", 3.5), (b.id, f"dress_{b.id}")))
+    def grow(limit: dict[str, float]) -> None:
+        for _ in range(3):
+            left = usable - total()
+            grow = [r for r in rooms.values() if r.type in limit and r.target_area < limit[r.type]]
+            if left < 1.0 or not grow:
+                break
+            room_sum = sum(r.target_area for r in grow)
+            for r in grow:
+                r.target_area = round(min(limit[r.type], r.target_area * (1 + left / room_sum)), 1)
+
+    if extras and extras[0][0].type == "dress":
+        add(*extras.pop(0))
+    grow(GROW_TO)  # the main rooms first grow to the usual (p75) sizes
+    for room, link in extras:
+        add(room, link)
+    order = [r.id for r in p.rooms if r.id in rooms] + [rid for rid in rooms if rid not in {r.id for r in p.rooms}]
+    p.rooms = [rooms[rid] for rid in order]
+    p.links = [tuple(l) for l in links if l[0] in rooms and l[1] in rooms]
+    p.name = f"{p.bhk} BHK (brief for {carpet:.0f} m² carpet)"
+    return p
 
 
 def _cut_equal(geom, k: int, axis: str = "x", contact: tuple[float, float] | None = None,
@@ -496,11 +673,13 @@ def _finish_units(plate: Plate, raw: list, fragments: list, flats, access, keep_
         if uid in old and old[uid].programme:
             u.programme = old[uid].programme
         elif plate.shape.value == "triangle":
-            u.programme = pick_preset(poly.area * CARPET_RATIO, tri_frontage(plate, u))
+            u.programme = size_programme(poly.area * CARPET_RATIO, tri_frontage(plate, u))
         else:
             fac = facade_length(plate, u)
             has_shaft = not zones_geom(plate, "shaft").is_empty and poly.distance(zones_geom(plate, "shaft")) < 0.05
-            u.programme = pick_preset(poly.area * CARPET_RATIO, fac, has_shaft)
+            interior, dark = _interior(plate, u)
+            u.programme = size_programme(poly.area * CARPET_RATIO, fac, has_shaft, interior=interior,
+                                         runs=facade_runs(plate, u), dark=dark)
         units.append(u)
     return units
 

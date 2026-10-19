@@ -140,6 +140,13 @@ def default_params(shape: ShapeKind, env_w: float, env_d: float, height: float =
     p["core_d"] = max(4.0, round(p["core_d"], 1))
     flats_guess = W * D * (0.75 if shape != ShapeKind.triangle else 0.33)
     n = max(2, int(round(flats_guess / 150.0)))
+    if shape == ShapeKind.side_core and SIDE_SHALLOW_DEPTH[0] < D / 2 - p["passage"] / 2 <= SIDE_SHALLOW_DEPTH[1]:
+        # generator v5: a shallow side-core slab (flats at most ~11.5 m deep: 7.5-8 m of daylit rooms plus one 3-4 m
+        # service band against the lobby) at ~150 m2 a flat gave 135-140 m2-carpet 3BHKs whose spare floor became
+        # bloated rooms and dark leftover pockets along the lobby; ~120 m2 a flat gives the market's 85-120 m2 carpet.
+        # Not below 10.5 m: there 120 m2 flats are only ~11 m wide between the end flats, too narrow to light a 2BHK
+        # (units.window_rooms_fit), so the slab keeps its larger flats
+        n = max(2, int(round(flats_guess / SIDE_SHALLOW_GROSS)))
     p["units"] = float(n + (n % 2 if shape in (ShapeKind.central_core, ShapeKind.side_core) else 0))
     if shape == ShapeKind.triangle:
         # flats along every façade with ~11-12 m of frontage each (a 2BHK's window rooms)
@@ -160,6 +167,10 @@ def clamp_params(shape: ShapeKind, params: dict[str, float], env_w: float, env_d
             v = min(max(float(out[k]), l.lo), l.hi)
             out[k] = round(round(v / l.step) * l.step, 3)
     return out
+
+
+SIDE_SHALLOW_DEPTH = (10.5, 11.5)  # m: flat depth (façade to lobby) of a side-core slab sized at SIDE_SHALLOW_GROSS
+SIDE_SHALLOW_GROSS = 120.0  # m2 gross a flat of such a slab (v5)
 
 
 def _core_center(shape: ShapeKind, p: dict[str, float]) -> tuple[float, float]:

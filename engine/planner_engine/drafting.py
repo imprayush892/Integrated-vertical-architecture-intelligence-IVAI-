@@ -165,6 +165,7 @@ SLIVER = 0.6
 DOOR_PREF = {"passage": 4, "foyer": 4, "dining": 4, "living": 3, "kitchen": 3, "utility": 3, "master": 2, "bedroom": 2,
              "pooja": 0, "dress": 0}  # v3: which neighbour a doorless room opens onto, best first
 DUCT_MAX = 2.0  # m2: v3, a doorless pocket up to this size beside a toilet is drawn as a plumbing duct
+SEAL_TOILET_MAX = 8.0  # m2: a sealed store never turns a toilet into a 20 m2 bathroom
 MERGE_SLIVERS = False  # v2: pockets under SLIVER m2 stay solid (duct) instead of notching a room
 
 
@@ -221,7 +222,8 @@ def _seal_pockets(cells: dict[str, Polygon], types: dict[str, str]) -> dict[str,
         wet = sorted((t for t in nb if types.get(t[0]) in WET_ROOMS), key=lambda t: -t[1])
         for o, _L in wet:
             u = shapely.union(cells[o], c).buffer(0)
-            if u.geom_type == "Polygon" and u.area / max(u.minimum_rotated_rectangle.area, 1e-6) >= 0.75:
+            if (u.geom_type == "Polygon" and u.area <= SEAL_TOILET_MAX
+                    and u.area / max(u.minimum_rotated_rectangle.area, 1e-6) >= 0.75):
                 cells[o] = u
                 del cells[rid]
                 break
@@ -252,7 +254,7 @@ def grow_to_fill(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int
     uncovered is handed to ``_merge_leftover``."""
     import numpy as np
 
-    from .solver import CAP_W, UNCOVERED_W, UNDER_W
+    from .solver import CAP_TIER, CAP_TIER_W, CAP_W, UNCOVERED_W, UNDER_W
 
     W, H = ug.Wg, ug.Hg
     occ = np.zeros((max(W, 1), max(H, 1)), dtype=np.int16)
@@ -270,7 +272,7 @@ def grow_to_fill(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int
         net = a - 1.15 * (w + h)
         c = UNDER_W * max(0, s.tgt - a) + s.over_w * max(0, a - s.tgt)
         if s.cap:
-            c += CAP_W * max(0.0, net - s.cap)
+            c += CAP_W * max(0.0, net - s.cap) + CAP_TIER_W * max(0.0, net - s.cap - CAP_TIER)
         return c
 
     for _ in range(max_steps):
@@ -347,11 +349,180 @@ def _largest_rect(free) -> tuple[int, int, int, int, int]:
     return best
 
 
+POCKET_TYPES = ("store",)  # v5: optional rooms of these types are drawn by drafting in the layout's pockets
+
+
+def _brief_store_dims(sp: RoomSpec) -> tuple[float, float, int]:
+    """(m2 min, m2 max, min side in cells) of a brief store / servant room cut from a pocket: at most the critic's waste cap
+    (1.3 x target + 0.5); a servant room keeps a bed's width."""
+    cap = 1.3 * sp.target_area + 0.5
+    if sp.type == "pooja":
+        return 1.4, min(cap, 3.0), 12
+    if "servant" in sp.id:
+        return max(4.5, 0.75 * sp.target_area), cap, 19
+    return max(1.5, 0.5 * sp.target_area), cap, 10
+
+
+SPLIT_BLOATED = True  # v5: an oversized room gives an end bay to the brief's store / servant room (or a wardrobe)
+
+
+def _shared_cells(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> int:
+    """Length (cells) of wall two grid rectangles share."""
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    if ax + aw == bx or bx + bw == ax:
+        return max(0, min(ay + ah, by + bh) - max(ay, by))
+    if ay + ah == by or by + bh == ay:
+        return max(0, min(ax + aw, bx + bw) - max(ax, bx))
+    return 0
+
+
+def split_bloated(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, int, int]],
+                  links: list[tuple[str, str]], entry: str | None = None):
+    """v5: a living / dining room far above its waste cap gives a bay at one short end to an unplaced store or servant room of
+    the brief (a bedroom: to a walk-in wardrobe), as an architect partitions an oversized room. The bay spans the room's
+    full width (both stay rectangles); the room keeps its façade side, every door wall it is linked by, the front door,
+    at least its target size. Returns (rects, new specs, new links)."""
+    if not SPLIT_BLOATED:
+        return rects, [], []
+    out = dict(rects)
+    spec = {s.id: s for s in specs}
+    types = {s.id: s.type for s in specs}
+    brief = sorted((s for s in specs if s.type in POCKET_TYPES and s.optional and s.id not in out),
+                   key=lambda q: -q.target_area)
+    has_dress = {a if types.get(b) == "dress" else b for a, b in links if "dress" in (types.get(a), types.get(b))}
+    new_specs: list[RoomSpec] = []
+    new_links: list[tuple[str, str]] = []
+    door_edge = ug.door[0] if ug.door is not None else None
+    for rid in sorted(out, key=lambda r: -(out[r][2] * out[r][3])):
+        s = spec.get(rid)
+        if s is None or s.type not in ("living", "dining", "master", "bedroom") or not s.cap:
+            continue
+        x, y, w, h = out[rid]
+        net = w * h - 1.15 * (w + h)
+        excess = net - s.cap
+        if excess < 150:
+            continue
+        if s.type in ("living", "dining"):
+            cands = [(q, *_brief_store_dims(q)) for q in brief]
+        elif rid not in has_dress:
+            cands = [(None, *POCKET_KINDS["dress"])]
+        else:
+            continue
+        mine = [(o, L) for o, r in out.items() if o != rid and (L := _shared_cells(out[rid], r)) > 0]
+        linked = {b if a == rid else a for a, b in links if rid in (a, b)}
+        done = False
+        for q, amin, amax, side in cands:
+            for sd in ("l", "r", "b", "t"):
+                length = h if sd in ("l", "r") else w
+                depth_room = w if sd in ("l", "r") else h
+                d = max(side, int(math.ceil(min(amax * 100, max(amin * 100, excess)) / max(length, 1))))
+                if d * length > amax * 100:
+                    d = int(amax * 100) // max(length, 1)
+                if d < side:
+                    continue
+                if d * length > amax * 100 or d * length < amin * 100 or max(d, length) > 3 * min(d, length):
+                    continue
+                if depth_room - d < max(s.wmin, s.wfurn):
+                    continue
+                if sd == "l":
+                    bay, rest = (x, y, d, h), (x + d, y, w - d, h)
+                elif sd == "r":
+                    bay, rest = (x + w - d, y, d, h), (x, y, w - d, h)
+                elif sd == "b":
+                    bay, rest = (x, y, w, d), (x, y + d, w, h - d)
+                else:
+                    bay, rest = (x, y + h - d, w, d), (x, y, w, h - d)
+                rw, rh = rest[2], rest[3]
+                if rw * rh < s.tgt or 10 * max(rw, rh) > s.aspect * min(rw, rh):
+                    continue
+                if s.window_run and 90 * _facade_side(ug, *rest) < rw * rh + 360:
+                    continue  # the room keeps its window wall
+                if any(o in linked and _shared_cells(rest, out[o]) < 10 for o, _L in mine):
+                    continue  # every door wall stays
+                if rid == entry and door_edge is not None:
+                    e = door_edge
+                    on = (e.horizontal and (rest[1] == e.pos or rest[1] + rest[3] == e.pos)) or \
+                         (not e.horizontal and (rest[0] == e.pos or rest[0] + rest[2] == e.pos))
+                    if not on:
+                        continue
+                out[rid] = rest
+                if q is not None:
+                    nid = q.id
+                    brief = [z for z in brief if z.id != nid]
+                    new_specs.append(RoomSpec(id=nid, type=q.type, name=q.name, tgt=d * length, amin=0, wmin=0, aspect=30,
+                                              window_run=0, vent_run=0, optional=True, target_area=q.target_area,
+                                              cap=int(100 * amax), over_w=10, hard=int(100 * amax / 1.2)))
+                else:
+                    nid = f"dress_{rid}" if f"dress_{rid}" not in out else f"dress{len(out) + 1}"
+                    a_m2 = d * length / 100
+                    new_specs.append(RoomSpec(id=nid, type="dress", name="Dress", tgt=d * length, amin=0, wmin=0, aspect=30,
+                                              window_run=0, vent_run=0, optional=True, target_area=round(a_m2, 2),
+                                              cap=int(100 * min(amax + 0.5, 1.3 * a_m2 + 0.5)), over_w=10,
+                                              hard=int(100 * (amax + 0.5) / 1.2)))
+                    has_dress.add(rid)
+                out[nid] = bay
+                new_links.append((rid, nid))
+                types[nid] = new_specs[-1].type
+                done = True
+                break
+            if done:
+                break
+    return out, new_specs, new_links
+
+
+POCKET_SQUARE = True  # v5: a pocket longer than its room needs is cut near-square at the owner's door wall
+
+
+def _trim_pocket(r: tuple[int, int, int, int], o: tuple[int, int, int, int], cap: int, side: int,
+                 square: bool = True) -> tuple[int, int, int, int]:
+    """Cut a room of at most ``cap`` cells from pocket ``r`` (x, y, w, h) against its owner ``o``: v2 kept the pocket's
+    full length along the owner's wall (a long pocket became a thin strip, then too thin to use); v5 cuts a near-square
+    piece where the owner's wall runs, leaving the rest of the pocket for the next room."""
+    x, y, w, h = r
+    ox, oy, ow, oh = o
+    beside = ox + ow == x or ox == x + w
+    if not square:
+        if beside:
+            nw = max(side, min(w, cap // max(h, 1)))
+            x = x if ox + ow == x else x + w - nw
+            w = nw
+            if w * h > cap:
+                nh = max(side, cap // w)
+                y = max(y, min(oy, y + h - nh)) if oy + oh >= y + nh else y
+                h = nh
+        else:
+            nh = max(side, min(h, cap // max(w, 1)))
+            y = y if oy + oh == y else y + h - nh
+            h = nh
+            if w * h > cap:
+                nw = max(side, cap // h)
+                x = max(x, min(ox, x + w - nw)) if ox + ow >= x + nw else x
+                w = nw
+        return x, y, w, h
+    # depth (away from the owner) and length (along the owner's wall) of a near-square piece
+    along_lo, along_hi, along0, along_len, depth_len = (oy, oy + oh, y, h, w) if beside else (ox, ox + ow, x, w, h)
+    sq = int(math.sqrt(cap))
+    d = min(depth_len, max(side, sq))
+    ln = min(along_len, max(side, cap // max(d, 1)))
+    if d * ln > cap:
+        d = max(side, min(d, cap // max(ln, 1)))
+    # slide the piece along the wall so it overlaps the owner's wall as much as it can
+    lo = max(along0, min(along_lo, along0 + along_len - ln))
+    if lo + ln > along0 + along_len:
+        lo = along0 + along_len - ln
+    if beside:
+        nx = x if ox + ow == x else x + w - d
+        return nx, lo, d, ln
+    ny = y if oy + oh == y else y + h - d
+    return lo, ny, ln, d
+
+
 POCKET_KINDS = {"toilet": (3.0, 5.0, 15), "dress": (1.8, 5.5, 12), "pooja": (1.4, 2.8, 12), "utility": (1.5, 4.5, 10)}  # m2 min, m2 max, min side
 
 
 def fill_pockets(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, int, int]],
-                 links: list[tuple[str, str]], max_rooms: int = 4):
+                 links: list[tuple[str, str]], max_rooms: int = 6):
     """v2: floor the solver could not cover becomes the rooms an architect would put there instead of a sealed
     store: an attached toilet for a bedroom that has none, a walk-in wardrobe off a bedroom, a pooja room off the
     living/dining/hub. Each is cut as a rectangle from the largest free pocket, sized within the critic's waste caps;
@@ -374,6 +545,8 @@ def fill_pockets(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int
     has_pooja = any(t == "pooja" for t in types.values())
     # the programme's optional utility the solver left out may take a pocket beside the kitchen
     utility = next((s.id for s in specs if s.type == "utility" and s.id not in rects), None)
+    # v5: the brief's stores / servant room (left to drafting, layout._solve) take the dark pockets off the hub or kitchen
+    brief_stores = [s for s in specs if s.type in POCKET_TYPES and s.optional and s.id not in rects]
     new_specs: list[RoomSpec] = []
     new_links: list[tuple[str, str]] = []
     for _ in range(max_rooms):
@@ -394,8 +567,25 @@ def fill_pockets(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int
         hubs = [r for r, L in contact.items() if types.get(r) in ("dining", "living", "passage", "foyer") and L >= 10]
         kitchens = [r for r, L in contact.items() if types.get(r) == "kitchen" and L >= 10]
         kind = owner = None
+        store_spec = None
+        serve = kitchens + hubs
         if utility and kitchens:
             kind, owner = "utility", kitchens[0]
+        elif brief_stores and serve and not (beds and any(b not in has_toilet or b not in has_dress for b in beds)):
+            # the larger brief room first (servant room before a store, a store before a pooja room) when the pocket can
+            # hold its minimum; a pooja room only off a hub, never off the kitchen
+            for sp in sorted(brief_stores, key=lambda q: -q.target_area):
+                if sp.type == "pooja" and not hubs:
+                    continue
+                amin_b, _amax_b, side_b = _brief_store_dims(sp)
+                if area >= amin_b * 100 and min(w, h) >= side_b:
+                    store_spec = sp
+                    break
+            if store_spec is not None:
+                own = [r for r in serve if types.get(r) == "kitchen"] if "servant" in store_spec.id else []
+                if store_spec.type == "pooja":
+                    own = sorted(hubs, key=lambda r: -contact[r])
+                kind, owner = store_spec.type, (own or sorted(serve, key=lambda r: -contact[r]))[0]
         for b in ([] if kind else beds):
             if b not in has_toilet and area >= 300 and min(w, h) >= 15:
                 kind, owner = "toilet", b
@@ -408,27 +598,12 @@ def fill_pockets(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int
         if kind is None:
             occ[x:x + w, y:y + h] = -2  # nobody can use it: leave it to the leftover merge
             continue
-        amin, amax, side = POCKET_KINDS[kind]
+        amin, amax, side = _brief_store_dims(store_spec) if store_spec is not None else POCKET_KINDS[kind]
         # trim to the size cap, keeping the side against the owner
         ox, oy, ow, oh = out[owner]
         cap = int(amax * 100)
         if w * h > cap:
-            if ox + ow == x or ox == x + w:  # owner beside the pocket: keep the full height, cut the depth
-                nw = max(side, min(w, cap // max(h, 1)))
-                x = x if ox + ow == x else x + w - nw
-                w = nw
-                if w * h > cap:
-                    nh = max(side, cap // w)
-                    y = max(y, min(oy, y + h - nh)) if oy + oh >= y + nh else y
-                    h = nh
-            else:  # owner above/below
-                nh = max(side, min(h, cap // max(w, 1)))
-                y = y if oy + oh == y else y + h - nh
-                h = nh
-                if w * h > cap:
-                    nw = max(side, cap // h)
-                    x = max(x, min(ox, x + w - nw)) if ox + ow >= x + nw else x
-                    w = nw
+            x, y, w, h = _trim_pocket((x, y, w, h), (ox, oy, ow, oh), cap, side, POCKET_SQUARE)
         if w * h < amin * 100 or min(w, h) < side or max(w, h) > (2 if kind == "pooja" else 3) * min(w, h):
             occ[x:x + w, y:y + h] = -2
             continue
@@ -436,10 +611,22 @@ def fill_pockets(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int
         nid = f"{kind}_{owner}" if f"{kind}_{owner}" not in out else f"{kind}{k}"
         if kind == "utility":
             nid, utility = utility, None
+        if store_spec is not None:
+            nid = store_spec.id
+            brief_stores = [q for q in brief_stores if q.id != nid]
         ids.append(nid)
         occ[x:x + w, y:y + h] = len(ids)
         out[nid] = (x, y, w, h)
         a_m2 = w * h / 100
+        if store_spec is not None:  # the brief's own room keeps its brief name and target (the critic's waste cap)
+            new_specs.append(RoomSpec(id=nid, type=store_spec.type, name=store_spec.name, tgt=w * h, amin=0, wmin=0,
+                                      aspect=30, window_run=0, vent_run=0, optional=True,
+                                      target_area=store_spec.target_area, cap=int(100 * amax), over_w=10,
+                                      hard=int(100 * amax / 1.2)))
+            new_links.append((owner, nid))
+            types[nid] = store_spec.type
+            has_pooja = has_pooja or store_spec.type == "pooja"
+            continue
         name = {"toilet": "Toilet", "dress": "Dress", "pooja": "Pooja", "utility": "Utility"}[kind]
         new_specs.append(RoomSpec(id=nid, type=kind, name=name, tgt=w * h, amin=0, wmin=0, aspect=30, window_run=0,
                                   vent_run=0, optional=True, target_area=round(a_m2, 2),
@@ -504,6 +691,107 @@ def _cut(a, b, depth: float, both: bool = True) -> Polygon:
     return LineString([a, b]).buffer(depth, cap_style="flat") if both else LineString([a, b]).buffer(depth)
 
 
+SWING_FLIP = True  # v5: flip door hinges / swing sides so swings neither clash nor run out of their room
+SWING_ROOM_FLIP = {"toilet", "bath", "wc", "store", "dress", "pooja", "utility"}  # small rooms off a bedroom
+
+
+def _swing(o: Opening, polys: dict[str, Polygon], hinge_b: bool, into: str):
+    """The quarter circle a door leaf sweeps (as the critic draws it): hinge at ``a`` (or ``b``), opening into ``into``."""
+    import numpy as np
+    from shapely.geometry import Point
+    from shapely.ops import nearest_points
+
+    a, b = np.array(o.a, float), np.array(o.b, float)
+    w = float(np.hypot(*(b - a)))
+    poly = polys.get(into)
+    if w < 0.2 or poly is None or poly.is_empty:
+        return None
+    t = (b - a) / w
+    n = np.array([-t[1], t[0]])
+    mid = (a + b) / 2
+    near = nearest_points(poly.exterior, Point(*mid))[0]
+    off = np.array([near.x, near.y]) - mid
+    if float(np.hypot(*off)) < 0.45:
+        a, b, mid = a + off, b + off, mid + off
+    if not poly.buffer(0.02).contains(Point(*(mid + n * 0.35))):
+        n = -n
+    hinge = a
+    if hinge_b:
+        hinge, t = b, -t
+    pts = [tuple(hinge)] + [tuple(hinge + w * (math.cos(math.radians(15 * k)) * t + math.sin(math.radians(15 * k)) * n))
+                            for k in range(7)]
+    return Polygon(pts)
+
+
+def unclash_doors(doors: list[Opening], polys: dict[str, Polygon], types: dict[str, str]) -> list[Opening]:
+    """v5: choose each door's hinge end (and, for a small room, which side it opens to) so that no two swings overlap and
+    every leaf opens fully inside its room - the critic's swing_clash / swing_free. Greedy, two passes, keeps the
+    drafted choice on a tie; the entry door always opens into the flat."""
+    if not SWING_FLIP or len(doors) < 1:
+        return doors
+    opts: list[list[tuple[bool, str]]] = []
+    for o in doors:
+        cur = o.swing_into or (o.rooms[0] if o.rooms else None)
+        rooms = [r for r in o.rooms if r in polys]
+        alt = [(False, cur), (True, cur)]
+        if o.kind == "door":
+            for r in rooms:
+                # a leaf may open into the other room, never into a passage / foyer too narrow to take it (critic
+                # narrow_passage_door) and never out of a bedroom / study into its toilet or wardrobe
+                if r == cur or (types.get(r) in ("passage", "foyer") and clear_width(polys[r]) < 1.2):
+                    continue
+                if types.get(cur) in ("master", "bedroom", "study") and types.get(r) in SWING_ROOM_FLIP:
+                    continue
+                alt += [(False, r), (True, r)]
+        opts.append(alt)
+    geo_c: dict[tuple[int, int], Polygon | None] = {}
+
+    def sw(i: int, k: int):
+        if (i, k) not in geo_c:
+            hb, into = opts[i][k]
+            geo_c[(i, k)] = _swing(doors[i], polys, hb, into)
+        return geo_c[(i, k)]
+
+    def own(i: int, k: int) -> float:
+        g = sw(i, k)
+        if g is None:
+            return 0.0
+        hb, into = opts[i][k]
+        bad = 1.0 if g.difference(polys[into].buffer(0.05)).area > 0.1 else 0.0
+        return bad + (0.01 * k)  # prefer the drafted choice
+
+    choice = [0] * len(doors)
+    for _ in range(2):
+        changed = False
+        for i in range(len(doors)):
+            def cost(k: int, i: int = i) -> float:
+                g = sw(i, k)
+                c = own(i, k)
+                if g is None:
+                    return c
+                for j in range(len(doors)):
+                    if j == i:
+                        continue
+                    h = sw(j, choice[j])
+                    if h is not None and g.intersects(h) and g.intersection(h).area > 0.05:
+                        c += 1.0
+                return c
+            best = min(range(len(opts[i])), key=cost)
+            if best != choice[i] and cost(best) < cost(choice[i]):
+                choice[i] = best
+                changed = True
+        if not changed:
+            break
+    out = []
+    for o, k, alt in zip(doors, choice, opts, strict=True):
+        hb, into = alt[k]
+        if k == 0:
+            out.append(o)
+            continue
+        out.append(o.model_copy(update={"hinge": o.b if hb else o.a, "swing_into": into}))
+    return out
+
+
 def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, int, int]],
           links: list[tuple[str, str]], entry: str, overrides: dict[str, dict] | None = None,
           hub_point: tuple[int, int] | None = None) -> Plan:
@@ -518,6 +806,13 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
         types.update({s.id: s.type for s in more})
         links = [*links, *more_links]
         rects = grow_to_fill(ug, specs, rects)
+    rects, more, more_links = split_bloated(ug, specs, rects, list(links), entry)
+    if more:
+        have = {s.id for s in more}
+        specs = [s for s in specs if s.id not in have] + more
+        spec.update({s.id: s for s in more})
+        types.update({s.id: s.type for s in more})
+        links = [*links, *more_links]
     cells = {rid: rect_to_poly(ug, r) for rid, r in rects.items()}
     base = dict(cells)  # the solver's rectangles: openings are placed on these (they are on the façade by construction)
     if entry not in cells:
@@ -702,6 +997,7 @@ def draft(ug: UnitGrid, specs: list[RoomSpec], rects: dict[str, tuple[int, int, 
                                  rooms=[other, rid], hinge=placed[0], swing_into=rid))
             cut_geoms.append(_cut(placed[0], placed[1], INT_WALL))
             linked.add(rid)
+    doors = unclash_doors(doors, {rid: nets[rid] for rid in ids if rid not in ducts}, types)
     # windows and ventilators
     plan_rooms: list[PlanRoom] = []
     ids = [rid for rid in ids if rid not in ducts]

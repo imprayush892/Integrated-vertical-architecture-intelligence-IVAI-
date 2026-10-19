@@ -199,8 +199,42 @@ def unit_frame(ug) -> dict[str, Any] | None:
             continue
         s = side_of((0, ed.outward) if ed.horizontal else (ed.outward, 0), d_in)
         fac[s] += (ed.b - ed.a) / max(fr.W if s in ("front", "back") else fr.D, 1e-9)
+    # v5: where a wet room can breathe - the façade and air-shaft edges, as segments in the (u, v) frame
+    vents = []
+    for ed in ug.edges:
+        if ed.kind not in ("facade", "shaft"):
+            continue
+        pa, pb = ((ed.a, ed.pos), (ed.b, ed.pos)) if ed.horizontal else ((ed.pos, ed.a), (ed.pos, ed.b))
+        (ua, va), (ub, vb) = fr.uv(*pa), fr.uv(*pb)
+        vents.append((min(ua, ub), min(va, vb), max(ua, ub), max(va, vb), ed.kind))
     return {"frame": fr, "W": fr.W * 0.1, "D": fr.D * 0.1, "door": (du, dv),
-            "facade": [round(min(1.0, fac[s]), 2) for s in SIDES], "carpet": ug.interior.area * NET_SHARE}
+            "facade": [round(min(1.0, fac[s]), 2) for s in SIDES], "carpet": ug.interior.area * NET_SHARE, "vents": vents}
+
+
+WET_STACK_W = 2.0  # v5: weight of the case's toilets lying away from the flat's façade / shafts (metres -> /5 m)
+
+
+def wet_misfit(case: dict[str, Any], uf: dict[str, Any], mirror: bool) -> float:
+    """v5: mean distance (m, capped at 5) from each of the case's toilets, stretched onto the flat, to the nearest façade
+    or air-shaft edge of the flat: 0 when the case's wet stack lands on the flat's own vents."""
+    vents = uf.get("vents") or []
+    if not vents:
+        return 0.0
+    W, D = uf["W"], uf["D"]
+    ds = []
+    for r in case["rooms"]:
+        if r["t"] not in WET:
+            continue
+        u0, v0, u1, v1 = r["r"]
+        if mirror:
+            u0, u1 = 1.0 - u1, 1.0 - u0
+        best = 5.0
+        for a0, b0, a1, b1, _k in vents:
+            du = max(0.0, a0 - u1, u0 - a1) * W
+            dv = max(0.0, b0 - v1, v0 - b1) * D
+            best = min(best, math.hypot(du, dv))
+        ds.append(best)
+    return sum(ds) / len(ds) if ds else 0.0
 
 
 def _facade_m(fac: list[float], mirror: bool) -> list[float]:
@@ -217,7 +251,8 @@ def case_distance(case: dict[str, Any], uf: dict[str, Any], mirror: bool) -> flo
     fac = sum(abs(a - b) for a, b in zip(cf, ff, strict=True))
     nside = abs(sum(1 for a in cf if a >= 0.25) - sum(1 for b in ff if b >= 0.25))
     area = abs(math.log(case["carpet"] / max(uf["carpet"], 1.0)))
-    return 2.0 * asp + 1.5 * door + 1.0 * fac + 0.5 * nside + 2.0 * area - 0.01 * (case["score"] - 75.0)
+    wet = WET_STACK_W * wet_misfit(case, uf, mirror) / 5.0 if WET_STACK_W else 0.0
+    return 2.0 * asp + 1.5 * door + 1.0 * fac + 0.5 * nside + 2.0 * area - 0.01 * (case["score"] - 75.0) + wet
 
 
 def retrieve(unit, programme=None, k: int = 3, *, plate=None, ug=None, bhk: int | None = None) -> list[dict[str, Any]]:

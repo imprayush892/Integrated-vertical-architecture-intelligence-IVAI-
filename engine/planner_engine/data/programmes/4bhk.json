@@ -1,9 +1,9 @@
 {
  "id": "4bhk",
- "name": "4 BHK (140-180 m\u00b2)",
+ "name": "4 BHK (130-180 m\u00b2)",
  "bhk": 4,
  "area_range": [
-  140,
+  130,
   180
  ],
  "entry": "foyer",

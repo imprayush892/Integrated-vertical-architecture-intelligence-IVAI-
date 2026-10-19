@@ -61,6 +61,10 @@ OVER_W = {"living": 2, "dining": 3, "master": 3, "bedroom": 3, "study": 4, "kitc
           "toilet": 10, "bath": 10, "wc": 15, "utility": 10, "store": 10, "pooja": 10, "foyer": 30, "passage": 30}
 UNDER_W = 15  # a room below its target
 CAP_W = 100  # a room above its waste cap
+# v5: floor above a room's cap beyond CAP_TIER cells (net) costs CAP_TIER_W more per cell, so the floor a too-large flat
+# leaves over is spread over several rooms a little past their caps instead of bloating one (a 26 m2 dining room)
+CAP_TIER = 180
+CAP_TIER_W = 15
 UNCOVERED_W = 120  # floor no room covers (becomes a leftover pocket)
 PASSAGE_FIXED = 400  # having a passage / foyer at all (on top of OVER_W per cell)
 CIRC_FREE = 0.05  # share of the floor passage + foyer may take at the light rate (approved plans p90 = 4.7 %)
@@ -77,6 +81,7 @@ BED_ENTRY_W = 30000  # v3: critic entry_privacy (gate 0.40): a bedroom against t
 PASSAGE_MIN_DOORS = 2  # v3: a passage serves at least this many private doors (else it is an orphan pocket)
 FOYER_COMPACT_W = 50000  # v3: a foyer in a flat below 3BHK / 110 m2 (premium flats only, owner brief)
 ENTRY_DINING_PEN = 100000  # front door into the dining room (only when the flat's depth leaves no other way)
+ENTRY_NO_DINING = True  # v5: the front door never opens into the dining room when a living room or foyer can take it
 POWDER_ABSENT = 80000  # a flat without a guest toilet loses ~15 critic points (common_toilet gate)
 NEAR_LIVING = 30  # cells: guest toilet within 3 m of the living room
 NEAR_LIVING_W = 8000
@@ -95,6 +100,7 @@ GUIDE_ORDER_W = 2500  # per pair of rooms in the opposite order to the case on o
 GUIDE_FOYER_W = 40000  # a foyer below FOYER_LARGE m2 carpet when the case enters straight into the living room
 FOYER_LARGE = 110.0
 GUIDE_HINT = "full"  # "", "xy" (room corners) or "full" (corners, sides and presence) from the case
+GUIDE_VENT = True  # v5: guided solves keep every wet room on the façade or a shaft (no duct; the v3 layout may still duct)
 GUIDE_KITCHEN_DINING = True  # guided solves: the kitchen door must open onto the dining room when the flat has one
 
 
@@ -554,6 +560,10 @@ class _Builder:
                 # net area (gross less half the internal walls) above the waste cap
                 m.add(100 * oc >= 100 * a - 115 * w - 115 * h - 100 * s.cap).only_enforce_if(pres)
                 cost = cost + CAP_W * oc
+                if CAP_TIER_W:
+                    oc2 = m.new_int_var(0, wmax * hmax, f"oc2_{s.id}")
+                    m.add(oc2 >= oc - CAP_TIER)
+                    cost = cost + CAP_TIER_W * oc2
             if s.type in ("passage", "foyer"):
                 cost = cost + PASSAGE_FIXED * pres
             if s.type == "foyer" and self.zoned and not wants_foyer(self.bhk, 0.92 * ug.interior.area):
@@ -842,6 +852,9 @@ class _Builder:
         types = {s.id: s.type for s in self.specs}
         order = [self.entry] + [rid for t in ("foyer", "living", "dining") for rid, ty in types.items()
                                 if ty == t and rid != self.entry]
+        if ENTRY_NO_DINING and any(types[r] in ("foyer", "living") for r in order):
+            # v5 owner brief: never enter through the dining room - the living room or a foyer takes the door
+            order = [r for r in order if types[r] != "dining"]
         lits = []
         for rid in order:
             ch = self.m.new_bool_var(f"door_{rid}")
@@ -927,7 +940,7 @@ class _Builder:
                 m.add(R["h"] >= run).only_enforce_if(c)
             lits.append(c)
         enf = [R["p"], *self.guard(label)]
-        if label.startswith("vent:") and not self.guard_mode:
+        if label.startswith("vent:") and not self.guard_mode and not (self.guide and GUIDE_VENT and lits):
             # v2: a toilet the façade/shaft cannot reach is ventilated by a mechanical duct (DCPR "review"), at a
             # price worth ~2.5 m2 of wasted floor, instead of failing the flat into the fix ladder
             duct = m.new_bool_var(f"duct_{rid}")

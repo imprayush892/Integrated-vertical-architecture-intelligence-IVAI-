@@ -87,3 +87,50 @@ def test_presets_and_custom_programme():
     assert prog.entry == "foyer"
     with pytest.raises(ValueError):
         programme_from_rooms("bad", [{"id": "x", "type": "garage", "name": "X", "target_area": 3}], [])
+
+
+# ---------------------------------------------------------------------------------------------- generator v5 briefs
+
+def test_v5_brief_follows_market_bands_and_facade():
+    """v5: the BHK follows the carpet bands (2BHK 55-80, 3BHK 85-120, 4BHK 130-180, stepped up 5 % clear of the floor,
+    4BHK from 140) and only when every window room finds its own stretch of a straight façade run."""
+    from planner_engine.units import size_programme, window_rooms_fit
+
+    assert size_programme(45, runs=[12.0]).bhk == 1
+    assert size_programme(70, runs=[14.0]).bhk == 2
+    assert size_programme(100, runs=[18.0]).bhk == 3
+    assert size_programme(100, runs=[12.5]).bhk == 2  # one 12.5 m run cannot light five rooms
+    assert size_programme(135, runs=[20.0, 6.5]).bhk == 3  # 130-140 m2: a premium 3BHK
+    assert size_programme(150, runs=[21.0, 9.0]).bhk == 4
+    assert window_rooms_fit([12.0], 2) and not window_rooms_fit([11.0], 2)
+    assert window_rooms_fit([6.5, 6.5, 6.5], 3)  # rooms spread over three runs
+
+
+def test_v5_every_bedroom_attached_and_powder_by_living():
+    from planner_engine.units import size_programme
+
+    for carpet, runs in ((100, [18.0]), (125, [18.0, 8.0]), (75, [14.0])):
+        p = size_programme(carpet, runs=runs)
+        types = {r.id: r.type for r in p.rooms}
+        beds = [r for r, t in types.items() if t in ("master", "bedroom")]
+        for b in beds:
+            assert any(b in l and types[l[0] if l[1] == b else l[1]] == "toilet" for l in p.links), (carpet, b)
+        powder = [r for r in p.rooms if r.type == "wc"]
+        assert powder and ("living", powder[0].id) in [tuple(l) for l in p.links]
+    small = size_programme(62, runs=[14.0])  # a 2BHK up to 70 m2 keeps one common toilet
+    assert small.bhk == 2 and sum(1 for r in small.rooms if r.type == "toilet") == 2
+
+
+def test_v5_spare_floor_goes_into_rooms_not_bloat():
+    """A large 3BHK brief adds a dress room, a servant room by the kitchen, a store... and its rooms stay within the
+    approved p75 sizes; the brief's total tracks the carpet."""
+    from planner_engine.units import GROW_TO, size_programme
+
+    p = size_programme(128, runs=[17.0, 12.0])
+    ids = {r.id for r in p.rooms}
+    assert {"dress_master", "servant", "store"} <= ids
+    assert all(r.target_area <= GROW_TO[r.type] + 1e-6 for r in p.rooms if r.type in GROW_TO)
+    total = sum(r.target_area for r in p.rooms)
+    assert 0.85 * 128 <= total <= 1.05 * 128
+    lean = size_programme(92, runs=[18.0])
+    assert "servant" not in {r.id for r in lean.rooms}
